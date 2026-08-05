@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "Kairos",
+    "slug": "kairos-expo",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "kairos",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "studio.zojer.kairos"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#1F1C19",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "studio.zojer.kairos"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#1A1714",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ],
+      "./plugins/with-signing"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2af9a81a-252b-4331-8950-fc4bc0864709"
+      }
+    },
+    "owner": "studiozojer"
+  }
+}
