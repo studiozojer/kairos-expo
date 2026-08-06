@@ -8,7 +8,9 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ before 
 
 ## daoUI is the source of truth — generated files are never edited by hand
 
-`src/theme/tokens.gen.ts`, `src/theme/fonts.gen.ts`, and `assets/fonts/` are GENERATED from `../daoUI` by `npm run sync-tokens` / `npm run sync-fonts` and committed with a provenance stamp. daoUI is in progress; this repo tracks it by **re-syncing**, never by hand-editing generated files. (zhouyi's hand-extracted `colors.gen.ts` is the documented anti-pattern.) If `../daoUI` is absent, set `DAOUI_PATH`. Each gen file's header names the daoUI commit it came from — re-run the script and diff to answer "has this drifted?"
+`src/theme/tokens.gen.ts`, `src/theme/type.gen.ts`, `src/theme/fonts.gen.ts`, and `assets/fonts/` are GENERATED from `../daoUI` by `npm run sync-tokens` / `npm run sync-type` / `npm run sync-fonts` and committed with a provenance stamp. daoUI is in progress; this repo tracks it by **re-syncing**, never by hand-editing generated files. (zhouyi's hand-extracted `colors.gen.ts` is the documented anti-pattern.) If `../daoUI` is absent, set `DAOUI_PATH`. Each gen file's header names the daoUI commit it came from — re-run the script and diff to answer "has this drifted?"
+
+Type is a scale ramp, not a semantic table (daoUI type canon, 2026-08-05): `theme.type.whyteSm`, `theme.type.fraktionXxs` — the family carries the voice, the step carries the size. The semantic names (`display`/`title`/`heading`/`body`…) are dead upstream and a test here keeps them dead.
 
 ## CNG — the native folders are build artifacts
 

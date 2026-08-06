@@ -8,6 +8,6 @@ Design seed, decisions, and the staged build walk: `zojercommons/projects/kairos
 
 ```bash
 npm install
-npm run sync-tokens && npm run sync-fonts   # needs ../daoUI (or DAOUI_PATH)
+npm run sync-tokens && npm run sync-type && npm run sync-fonts   # needs ../daoUI (or DAOUI_PATH)
 npm start
 ```

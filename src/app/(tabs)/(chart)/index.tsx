@@ -24,10 +24,10 @@ export default function ChartHome() {
         padding: theme.space.xl,
         gap: theme.space.sm,
       }}>
-      <Text style={{ ...theme.type.title, color: theme.color.txPrimary, textAlign: 'center' }}>
+      <Text style={{ ...theme.type.whyteLg, color: theme.color.txPrimary, textAlign: 'center' }}>
         The wheel is proven before it is ported.
       </Text>
-      <Text style={{ ...theme.type.body, color: theme.color.txSecondary, textAlign: 'center' }}>
+      <Text style={{ ...theme.type.whyteSm, color: theme.color.txSecondary, textAlign: 'center' }}>
         Stage 1 — the premise slice.{'\n'}Skia, real ephemeris, a scrubbed hour.
       </Text>
     </View>

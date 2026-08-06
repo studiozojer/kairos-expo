@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Kairos",
+    "name": "Kairōs",
     "slug": "kairos-expo",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -13,7 +13,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#1F1C19",
+        "backgroundColor": "#2c2720",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
@@ -27,10 +27,12 @@
         {
           "backgroundColor": "#1A1714",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 192
         }
       ],
-      "./plugins/with-signing"
+      "./plugins/with-signing",
+      "expo-web-browser",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

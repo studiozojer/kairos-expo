@@ -5,7 +5,8 @@ import {
   resolveScheme,
 } from '@/theme/theme-mode';
 import { splashReady } from '@/theme/splash';
-import { DAOUI_SOURCE_COMMIT, ROLE_COUNT, themeFor } from '@/theme';
+import { DAOUI_SOURCE_COMMIT, ROLE_COUNT, TYPE_SOURCE_COMMIT, themeFor } from '@/theme';
+import { TYPE_STEP_COUNT, typeRamp } from '@/theme/type.gen';
 
 describe('themeFor', () => {
   it.each(['light', 'dark'] as const)('resolves every role in %s mode', (scheme) => {
@@ -30,7 +31,39 @@ describe('themeFor', () => {
     expect(theme.space.md).toBe(12);
     expect(theme.radius.md).toBe(8);
     expect(theme.border.hairline).toBe(0.5);
-    expect(theme.type.body.fontSize).toBe(16);
+  });
+});
+
+describe('the type ramp (daoUI type canon, 2026-08-05)', () => {
+  it('is the generated scale, not a semantic table', () => {
+    const theme = themeFor('light');
+    // theme.type IS the generated ramp — no hand-declared semantic variants.
+    expect(theme.type).toBe(typeRamp);
+    expect(Object.keys(theme.type)).toHaveLength(TYPE_STEP_COUNT);
+  });
+
+  it('carries the canon values', () => {
+    // whyte/sm is the reading register; the face switch to Inktrap at md is
+    // inside the step, not the caller.
+    expect(typeRamp.whyteSm).toEqual({ fontSize: 16, lineHeight: 24, fontFamily: 'ABCWhyteEdu-Book' });
+    expect(typeRamp.whyteMd.fontFamily).toBe('ABCWhyteInktrap-Regular');
+    // fraktion tracking: +2% of size, in points.
+    expect(typeRamp.fraktionXxs.letterSpacing).toBe(0.18);
+    expect(typeRamp.fraktionXs.letterSpacing).toBe(0.26);
+    expect('letterSpacing' in typeRamp.whyteSm).toBe(false);
+  });
+
+  it('keeps the semantic names dead', () => {
+    // The upstream law test deletes the semantic ramp in daoUI; this is the
+    // consumer-side mirror, so a hand re-introduction fails loudly here too.
+    const keys = Object.keys(typeRamp);
+    for (const dead of ['display', 'title', 'heading', 'body', 'label', 'caption', 'mono', 'monoLabel']) {
+      expect(keys).not.toContain(dead);
+    }
+  });
+
+  it('stamps the type provenance', () => {
+    expect(TYPE_SOURCE_COMMIT.length).toBeGreaterThan(0);
   });
 });
 

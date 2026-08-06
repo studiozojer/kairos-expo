@@ -4,6 +4,7 @@ import { Stack } from 'expo-router/stack';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, type ReactNode } from 'react';
 
+import { AuthProvider } from '@/auth/auth-context';
 import { navThemeFor, useTheme } from '@/theme';
 import { fontMap } from '@/theme/fonts.gen';
 import { splashReady } from '@/theme/splash';
@@ -60,9 +61,14 @@ export default function RootLayout() {
   return (
     <ThemeModeProvider>
       <NavigationChrome>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        </Stack>
+        <AuthProvider>
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            {/* Account is a modal on the ROOT stack: an occasional act that
+                leaves the tabs behind, reachable from the journal home. */}
+            <Stack.Screen name="account" options={{ title: 'Account', presentation: 'modal' }} />
+          </Stack>
+        </AuthProvider>
       </NavigationChrome>
     </ThemeModeProvider>
   );

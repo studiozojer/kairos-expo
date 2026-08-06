@@ -1,10 +1,10 @@
 import { useColorScheme } from 'react-native';
 
-import { families } from './fonts.gen';
 import { useThemeMode } from './theme-context';
 import { DAOUI_SOURCE_COMMIT, ROLE_COUNT, darkColors, lightColors, type ColorRole } from './tokens.gen';
+import { TYPE_SOURCE_COMMIT, typeRamp, type TypeStep } from './type.gen';
 
-export { DAOUI_SOURCE_COMMIT, ROLE_COUNT, type ColorRole };
+export { DAOUI_SOURCE_COMMIT, ROLE_COUNT, TYPE_SOURCE_COMMIT, type ColorRole, type TypeStep };
 
 // Re-exported so `@/theme` stays the single styling entry point. The import
 // back into this module from `nav-theme` is type-only, so there is no runtime
@@ -53,31 +53,15 @@ export const border = {
 } as const;
 
 /**
- * The type ramp.
- *
- * daoUI's Font+Kairos.swift publishes three families across an xs-xl ramp
- * (12/16/20/24/32). The variants below bind a size to a family, so the two
- * registers are carried by the variant rather than chosen at each call site:
- * reading surfaces lead with Whyte, instrument surfaces with Fraktion.
- *
- * `whyteXs` is the subheader register (Figma `whyte/xs`: Whyte Edu Book 13/16).
- * Declared to keep this ramp identical to the other apps' copies — the copies
- * are the problem, and an unrendered variant is invisible drift bait.
+ * The type ramp IS daoUI's type canon — generated from `type.json` by
+ * `npm run sync-type`, never declared here. Scale names (`whyte/lg`,
+ * `fraktion/xs`) mirror the Figma styles flat; the semantic ramp
+ * (`display`/`title`/`heading`…) was deleted upstream on 2026-08-05 and a law
+ * test keeps it dead. The family carries the voice and the step carries the
+ * size: the whyte face switch (Inktrap for display registers, Edu Book for
+ * reading registers) lives inside the step, not at the call site.
  */
-export const type = {
-  display: { fontSize: 32, lineHeight: 38, fontFamily: families.whyteInk.display },
-  title: { fontSize: 24, lineHeight: 30, fontFamily: families.whyte.display },
-  heading: { fontSize: 20, lineHeight: 26, fontFamily: families.whyte.book },
-  body: { fontSize: 16, lineHeight: 24, fontFamily: families.whyte.book },
-  label: { fontSize: 14, lineHeight: 20, fontFamily: families.whyte.book },
-  caption: { fontSize: 12, lineHeight: 16, fontFamily: families.whyte.book },
-  whyteXs: { fontSize: 13, lineHeight: 16, fontFamily: families.whyte.book },
-  mono: { fontSize: 13, lineHeight: 20, fontFamily: families.fraktion.book },
-  // Section headers in the instrument register: NEW ENTRY, MOMENTS.
-  monoLabel: { fontSize: 12, lineHeight: 16, fontFamily: families.fraktion.book, letterSpacing: 1.2 },
-} as const;
-
-export type TextVariant = keyof typeof type;
+export const type = typeRamp;
 
 export type Space = keyof typeof space;
 export type Radius = keyof typeof radius;
@@ -89,7 +73,7 @@ export type Theme = {
   space: typeof space;
   radius: typeof radius;
   border: typeof border;
-  type: typeof type;
+  type: typeof typeRamp;
 };
 
 export function themeFor(scheme: 'light' | 'dark'): Theme {

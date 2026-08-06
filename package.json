@@ -7,10 +7,13 @@
     "expo": "~57.0.8",
     "expo-font": "~57.0.1",
     "expo-router": "~57.0.8",
+    "expo-secure-store": "~57.0.1",
     "expo-splash-screen": "~57.0.5",
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.1",
+    "expo-web-browser": "~57.0.2",
     "react": "19.2.3",
+    "react-dom": "19.2.3",
     "react-native": "0.86.2",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-reanimated": "4.5.0",
@@ -34,7 +37,8 @@
     "test": "jest",
     "typecheck": "tsc --noEmit",
     "sync-tokens": "node scripts/sync-tokens.mjs",
-    "sync-fonts": "node scripts/sync-fonts.mjs"
+    "sync-fonts": "node scripts/sync-fonts.mjs",
+    "sync-type": "node scripts/sync-type.mjs"
   },
   "private": true
 }
