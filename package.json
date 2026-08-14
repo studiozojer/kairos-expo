@@ -38,7 +38,8 @@
     "typecheck": "tsc --noEmit",
     "sync-tokens": "node scripts/sync-tokens.mjs",
     "sync-fonts": "node scripts/sync-fonts.mjs",
-    "sync-type": "node scripts/sync-type.mjs"
+    "sync-type": "node scripts/sync-type.mjs",
+    "sync-engine-enums": "node scripts/sync-engine-enums.mjs"
   },
   "private": true
 }
