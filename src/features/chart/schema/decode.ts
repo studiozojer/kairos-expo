@@ -32,6 +32,26 @@ export function strArr(v: unknown, d: string[]): string[] {
   return [...d];
 }
 
+/**
+ * `v` (copied) if it is an array of only finite numbers, else a copy of `d`.
+ * All-or-default: one non-number element makes the whole value malformed.
+ */
+export function numArr(v: unknown, d: number[]): number[] {
+  if (Array.isArray(v) && v.every((x) => typeof x === "number" && Number.isFinite(x))) {
+    return [...v];
+  }
+  return [...d];
+}
+
+/**
+ * `v` if it is one of `allowed`, else `d`. The tolerant enum decode: where
+ * Swift throws on an unknown raw value, this mirror falls back to the default
+ * (the convention documented at the top of core-types.ts).
+ */
+export function oneOf<T extends string>(v: unknown, allowed: readonly T[], d: T): T {
+  return typeof v === "string" && (allowed as readonly string[]).includes(v) ? (v as T) : d;
+}
+
 /** `v` if it is a plain object, else `{}` (null and arrays count as non-objects). */
 export function obj(v: unknown): Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v)

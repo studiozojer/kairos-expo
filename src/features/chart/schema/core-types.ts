@@ -382,12 +382,17 @@ export const GLOBAL_CHART_VARIABLES_DEFAULT: GlobalChartVariables = {
   overlapPrevention: OVERLAP_PREVENTION_DEFAULT,
 };
 
-function parseOverlapPrevention(v: unknown): OverlapPreventionConfig {
+/** Exported for `PlanetsRingStyle.overlapPrevention` (ring-styles.ts) — one ruling, two call sites. */
+export function parseOverlapPrevention(v: unknown): OverlapPreventionConfig {
   const o = obj(v);
   return {
     enabled: bool(o.enabled, OVERLAP_PREVENTION_DEFAULT.enabled),
     nudgeDistance: num(o.nudgeDistance, OVERLAP_PREVENTION_DEFAULT.nudgeDistance),
   };
+}
+
+export function serializeOverlapPrevention(c: OverlapPreventionConfig): unknown {
+  return { enabled: c.enabled, nudgeDistance: c.nudgeDistance };
 }
 
 /** Unknown keys pass through; non-finite-number values drop out. */
@@ -424,10 +429,7 @@ export function serializeGlobalChartVariables(g: GlobalChartVariables): unknown 
     defaultHitRadius: g.defaultHitRadius,
     moduleHitRadiusOverrides: { ...g.moduleHitRadiusOverrides },
     staticOrientationDegree: g.staticOrientationDegree,
-    overlapPrevention: {
-      enabled: g.overlapPrevention.enabled,
-      nudgeDistance: g.overlapPrevention.nudgeDistance,
-    },
+    overlapPrevention: serializeOverlapPrevention(g.overlapPrevention),
   };
 }
 
