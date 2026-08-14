@@ -25,3 +25,14 @@ jest.mock('expo-secure-store', () => {
     __store: store,
   };
 });
+
+// Skia: the package ships its own jest setup — install it verbatim rather
+// than hand-mocking. Docs (see jest.config.js for the URL) prescribe
+// `setupFilesAfterEnv: ["@shopify/react-native-skia/jestSetup.js"]`; this
+// repo's convention is ONE setup file (this one, in `setupFiles`), and
+// `jest.mock` is available in both phases — jest-expo's own preset setup.js
+// (also `setupFiles`) calls it. Their jestSetup.js mocks
+// @shopify/react-native-skia with a CanvasKit-backed implementation: `Skia`
+// is real (path math works in tests), `Canvas` becomes a plain RN View, and
+// the asset hooks (useSVG/useImage/useData) return null.
+require('@shopify/react-native-skia/jestSetup.js');

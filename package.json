@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@shopify/react-native-skia": "2.6.2",
     "expo": "~57.0.8",
     "expo-font": "~57.0.1",
     "expo-router": "~57.0.8",
@@ -39,7 +40,8 @@
     "sync-tokens": "node scripts/sync-tokens.mjs",
     "sync-fonts": "node scripts/sync-fonts.mjs",
     "sync-type": "node scripts/sync-type.mjs",
-    "sync-engine-enums": "node scripts/sync-engine-enums.mjs"
+    "sync-engine-enums": "node scripts/sync-engine-enums.mjs",
+    "sync-glyphs": "node scripts/sync-chart-glyphs.mjs"
   },
   "private": true
 }
