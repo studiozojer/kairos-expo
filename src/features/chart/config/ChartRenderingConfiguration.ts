@@ -1,0 +1,75 @@
+/**
+ * ChartRenderingConfiguration — the render-ready configuration consumed by the
+ * chart wheel renderer (Task 8+). Everything pre-filtered, pre-resolved, pure
+ * data. Mirrors kairos-ios `Features/ChartWheel/Viewing/Configuration/
+ * ChartRenderingConfiguration.swift` (solo-chart subset; multi-wheel and the
+ * overlay wrapper land with the renderer tasks).
+ *
+ * Ring order: OUTERMOST FIRST — iOS `RingGeometry` assigns index 0 the outer
+ * radius (ChartGeometry.swift: "Outermost (index 0)"), and the builders append
+ * in preset slot order, so the preset's `soloChart.rings` array is already
+ * outermost→innermost (classic: zodiac → planets → houses). This module
+ * preserves that order untouched. (Two stale comments claim otherwise —
+ * KairosCore `RingModuleEntity.swift`/`ChartConfigEntity.swift` say "innermost
+ * = 0", and EXPO's schema/{preset,ring-module}.ts repeated them; the renderer
+ * + both builders + the fixtures all say outermost-first.)
+ */
+
+import type { RingThickness } from "../schema/core-types";
+import type { ChartColors, GlobalChartVariables } from "../schema/core-types";
+import type { AspectConfiguration } from "../schema/preset";
+import type { RingStyle } from "../schema/ring-styles";
+import type { AspectEdgeDTO, Placement } from "./engine-types";
+
+/** The type of content in a ring (mirrors iOS `RingContentType`, solo subset). */
+export type RingContentType =
+  | { kind: "zodiacSigns" }
+  | {
+      kind: "planets";
+      /** Pre-filtered by preset visibility (+ per-ring showFrameDerivedPoints). */
+      placements: Placement[];
+      /** Which chart (1..maxRingNumber) — always 1 for a solo wheel. */
+      ringNumber: number;
+      maxRingNumber: number;
+      drawInnerBoundary: boolean;
+    }
+  | { kind: "houseNumbers" }
+  | { kind: "cuspAnnotations" }
+  | { kind: "empty" };
+
+/** One ring with pre-filtered content and pre-resolved style. */
+export interface RingConfiguration {
+  type: RingContentType;
+  /**
+   * The ring's style. Mirrors iOS `RingStyleVariant` resolution per kind:
+   * zodiacSigns → ZodiacRingStyle, planets → PlanetsRingStyle,
+   * cuspAnnotations → CuspAnnotationsStyle. houseNumbers: iOS carries a
+   * ZODIAC style here (`RingStyleVariant.houseNumbers(style.modules.zodiacRing)`)
+   * but the render path never reads it — `HouseNumbersRing` reads
+   * `style.modules.houses` (rotateNumbers, numberFontSize) instead. This port
+   * carries the ring's own parsed HousesRingStyle so those fields actually
+   * reach the renderer (see buildConfiguration.ts).
+   */
+  style: RingStyle;
+  thickness: RingThickness;
+}
+
+export interface ChartRenderingConfiguration {
+  /** Outermost → innermost (see module header). */
+  rings: RingConfiguration[];
+  /** 12 cusp longitudes, house 1 first (sorted by house_number). */
+  houseCusps: number[];
+  /** House-1 cusp longitude (the ascendant), degrees. */
+  orientation: number;
+  /** The preset's aspect config — applied at RENDER time by the overlay. */
+  aspects: AspectConfiguration;
+  /**
+   * The engine's aspect edges, passed through RAW. iOS applies
+   * AspectConfiguration enabled/type/orb filtering at render time
+   * (AspectOverlay.swift → AspectFilterResult.evaluate), not in the builder —
+   * and the builder stays free of it here too.
+   */
+  aspectEdges: AspectEdgeDTO[];
+  colors: ChartColors;
+  globalSettings: GlobalChartVariables;
+}

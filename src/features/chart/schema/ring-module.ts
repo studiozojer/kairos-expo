@@ -15,8 +15,10 @@
  * Note the asymmetry: the TS property is `type` (Swift `RingModule.type`),
  * the wire key is `ringType` (Rust `ring_type` → camelCase; the Swift
  * wire-format struct renames to match Rust). Order within `ChartConfig.rings`
- * determines visual position (innermost-first); there is no `sortOrder` on
- * the wire — it is assigned from array index on ingestion.
+ * determines visual position (OUTERMOST-first — see the ChartConfigSlot note
+ * in preset.ts; the KairosCore entity comments saying "innermost = 0" are
+ * mislabeled); there is no `sortOrder` on the wire — it is assigned from
+ * array index on ingestion.
  *
  * Tolerance contract: same as core-types.ts (never throws, defaults on the
  * malformed). An unknown `ringType` degrades to `"zodiac"` — mirroring the

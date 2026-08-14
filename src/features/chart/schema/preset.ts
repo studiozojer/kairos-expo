@@ -391,8 +391,14 @@ export function serializeSelectionStyleOverride(s: SelectionStyleOverride): unkn
 /**
  * One chart-count slot (solo/dual/triple): the rings for that variant plus
  * the shared canvas layout variables. Mirrors Rust `ChartConfig` / Swift
- * `ChartConfigWireFormat`. `rings` order is visual order, innermost-first
- * (there is no sortOrder on the wire; index is position).
+ * `ChartConfigWireFormat`. `rings` order is visual order, OUTERMOST-first
+ * (there is no sortOrder on the wire; index is position). Verified
+ * 2026-08-14 (Task 7): iOS `RingGeometry` renders index 0 at the outer
+ * radius, both configuration builders append in slot order, and the bundled
+ * templates lead with the zodiac band (classic solo: zodiac → planets →
+ * houses). The KairosCore entity comments ("innermost = 0 → outermost" on
+ * `RingModuleEntity.sortOrder` / `ChartConfigEntity.sortedRings`) are
+ * mislabeled — sortOrder is assigned from the wire index, which is outermost.
  *
  * Wire: `{ "globalSettings": {...}, "rings": [...] }` (camelCase).
  */
