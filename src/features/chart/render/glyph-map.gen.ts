@@ -7,7 +7,10 @@
 // answer "has this drifted?" (the daoUI tokens.gen.ts header argues the case).
 //
 // Keys mirror the iOS asset names minus the "glyphs/" prefix:
-// "signs/aries", "celestials/north node" (spaces preserved), "rx".
+// "signs/aries", "celestials/north node" (spaces preserved in the KEY), "rx".
+// The require() paths point at slugified filenames on disk (spaces → dashes,
+// e.g. "north-node.svg") — a bare space in a Metro asset path reaches the
+// native image loader mangled and crashes; only the key keeps the iOS name.
 // Values are Metro asset modules (jest's assetFileTransformer stubs them).
 // The SVGs use only Skia-supported features (plain paths/strokes/fills —
 // verified against the SVG-support list at
@@ -33,19 +36,19 @@ export const GLYPH_ASSETS = {
   "celestials/eros-asteroid": require("../../../../assets/chart-glyphs/celestials/eros-asteroid.svg"),
   "celestials/fomalhaut": require("../../../../assets/chart-glyphs/celestials/fomalhaut.svg"),
   "celestials/fortune": require("../../../../assets/chart-glyphs/celestials/fortune.svg"),
-  "celestials/imum coeli": require("../../../../assets/chart-glyphs/celestials/imum coeli.svg"),
+  "celestials/imum coeli": require("../../../../assets/chart-glyphs/celestials/imum-coeli.svg"),
   "celestials/juno": require("../../../../assets/chart-glyphs/celestials/juno.svg"),
   "celestials/jupiter": require("../../../../assets/chart-glyphs/celestials/jupiter.svg"),
   "celestials/lilith": require("../../../../assets/chart-glyphs/celestials/lilith.svg"),
-  "celestials/lot of soul": require("../../../../assets/chart-glyphs/celestials/lot of soul.svg"),
+  "celestials/lot of soul": require("../../../../assets/chart-glyphs/celestials/lot-of-soul.svg"),
   "celestials/mars": require("../../../../assets/chart-glyphs/celestials/mars.svg"),
   "celestials/mercury": require("../../../../assets/chart-glyphs/celestials/mercury.svg"),
   "celestials/midheaven": require("../../../../assets/chart-glyphs/celestials/midheaven.svg"),
   "celestials/moon": require("../../../../assets/chart-glyphs/celestials/moon.svg"),
   "celestials/neptune": require("../../../../assets/chart-glyphs/celestials/neptune.svg"),
-  "celestials/north node": require("../../../../assets/chart-glyphs/celestials/north node.svg"),
+  "celestials/north node": require("../../../../assets/chart-glyphs/celestials/north-node.svg"),
   "celestials/pallas": require("../../../../assets/chart-glyphs/celestials/pallas.svg"),
-  "celestials/part of fortune": require("../../../../assets/chart-glyphs/celestials/part of fortune.svg"),
+  "celestials/part of fortune": require("../../../../assets/chart-glyphs/celestials/part-of-fortune.svg"),
   "celestials/pholus": require("../../../../assets/chart-glyphs/celestials/pholus.svg"),
   "celestials/pluto": require("../../../../assets/chart-glyphs/celestials/pluto.svg"),
   "celestials/procyon": require("../../../../assets/chart-glyphs/celestials/procyon.svg"),
@@ -53,7 +56,7 @@ export const GLYPH_ASSETS = {
   "celestials/rigel": require("../../../../assets/chart-glyphs/celestials/rigel.svg"),
   "celestials/saturn": require("../../../../assets/chart-glyphs/celestials/saturn.svg"),
   "celestials/sirius": require("../../../../assets/chart-glyphs/celestials/sirius.svg"),
-  "celestials/south node": require("../../../../assets/chart-glyphs/celestials/south node.svg"),
+  "celestials/south node": require("../../../../assets/chart-glyphs/celestials/south-node.svg"),
   "celestials/spica": require("../../../../assets/chart-glyphs/celestials/spica.svg"),
   "celestials/spirit": require("../../../../assets/chart-glyphs/celestials/spirit.svg"),
   "celestials/star": require("../../../../assets/chart-glyphs/celestials/star.svg"),

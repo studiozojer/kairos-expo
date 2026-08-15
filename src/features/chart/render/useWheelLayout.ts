@@ -15,6 +15,8 @@
  *   6. (Task 9) per-ring planet layout — every ring of kind "planets" runs
  *      through `PlanetRingLayoutCoordinator` (Task 6) against the SCALED
  *      style + geometry, keyed by ring index.
+ *   7. (Task 9 fix round 1) `houseCusps` passed through from `config`
+ *      verbatim — the planets ring's cusp lines need it.
  *
  * The canvas is exactly `size`×`size` and the wheel renders centered in it
  * (iOS renders at canvas center and repositions with a transform — here the
@@ -84,6 +86,15 @@ export interface WheelLayout {
   coordinates: ChartCoordinateSystem;
   /** Planet layout, keyed by ring index — populated only for rings whose kind is "planets" (Task 9). */
   planetLayouts: ReadonlyMap<number, PlanetRingLayout>;
+  /**
+   * 12 house-cusp longitudes, house 1 first — passed through from
+   * `config.houseCusps` verbatim (degrees, so display-scale invariant; no
+   * scaling applies). Fix round 1: the planets ring's cusp lines
+   * (`PlanetsRing.swift:41-74`) need this and `RingRendererProps` doesn't
+   * otherwise carry it — threaded here per "all layout data lives in the
+   * hook, the component only draws."
+   */
+  houseCusps: number[];
 }
 
 export function useWheelLayout(config: ChartRenderingConfiguration, size: number): WheelLayout {
@@ -141,6 +152,7 @@ export function useWheelLayout(config: ChartRenderingConfiguration, size: number
       geometry,
       coordinates,
       planetLayouts,
+      houseCusps: config.houseCusps,
     };
   }, [config, size]);
 }

@@ -94,3 +94,13 @@ test("the Venus/Jupiter conjunction cluster gets PAV-nudged off true longitude",
     p.adjustedPosition.x !== p.originalPosition.x || p.adjustedPosition.y !== p.originalPosition.y;
   expect(moved(venus!) || moved(jupiter!)).toBe(true);
 });
+
+// Fix round 1, finding 3 — `houseCusps` threaded through `useWheelLayout` so
+// PlanetsRing's cusp lines have something to draw (see useWheelLayout.ts's
+// module header, step 7).
+test("useWheelLayout passes house cusps through from the config verbatim", () => {
+  const cfg = buildConfiguration(chart as ChartCalculationResponse, parsePreset(classic));
+  const layout = layoutFor();
+  expect(layout.houseCusps).toHaveLength(12);
+  expect(layout.houseCusps).toEqual(cfg.houseCusps);
+});

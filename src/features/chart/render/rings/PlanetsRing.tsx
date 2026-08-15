@@ -8,15 +8,13 @@
  * `.../Rendering/DegreeMarkRenderer.swift` (ticks, Task 6 ported the geometry
  * half as `DegreeMarkGeometry`).
  *
- * SCOPE (per the Task 9 plan's stated interface — verified against
- * `kairos/specs/2026-08-12-chart-wheel-foundation-plan.md`): anchor ticks,
- * glyph + degree stack, connection lines. Swift's `PlanetsRing.render` ALSO
- * draws a ring background fill, cusp lines (reading a `houseCusps` prop this
- * shell's `RingRendererProps` doesn't carry), and inner/outer boundary
- * strokes — none of those are named in Task 9's "Produces" list, and no
- * later task in the plan claims them for the planets ring either. Left
- * undrawn, matching the shell's established precedent (ZodiacSignsRing
- * likewise deliberately drops selection machinery it isn't asked to port).
+ * SCOPE: originally read narrowly against the Task 9 plan's stated
+ * interface (anchor ticks, glyph + degree stack, connection lines only).
+ * Fix round 1 (controller ruling) widened this: the ring's own chrome — a
+ * background fill, cusp lines, and inner/outer boundary strokes — is drawn
+ * too, matching `PlanetsRing.swift`'s full render order. `classic.json` sets
+ * `showCuspLines: true` + `innerBoundaryLineWidth: 0.5`; `modern.json` sets a
+ * `backgroundColor` — none of this was dormant.
  *
  * ALL POSITION MATH lives in `useWheelLayout` (`PlanetRingLayoutCoordinator`,
  * Task 6) — this component only reads `layout.planetLayouts` and draws.
@@ -73,6 +71,45 @@ function linePath(from: Point, to: Point): SkPath {
 }
 
 /**
+ * Annulus (outer circle minus inner circle) fill path — Swift
+ * `PlanetsRing.drawRingBackground` (:274-304) builds this via two opposite-
+ * winding `addArc` calls; two `addCircle`s + an even-odd fill rule (rendered
+ * with `fillType="evenOdd"`) is the equivalent hole-punch, independent of
+ * winding direction.
+ */
+function ringBackgroundPath(cx: number, cy: number, outerR: number, innerR: number): SkPath {
+  const builder = Skia.PathBuilder.Make();
+  builder.addCircle(cx, cy, outerR);
+  builder.addCircle(cx, cy, innerR);
+  return builder.build();
+}
+
+/** Full-circle boundary stroke path — Swift `drawCircleBoundary` (:253-272). */
+function circlePath(cx: number, cy: number, r: number): SkPath {
+  const builder = Skia.PathBuilder.Make();
+  builder.addCircle(cx, cy, r);
+  return builder.build();
+}
+
+/**
+ * Cusp-line color: angular cusps (houses 1/4/7/10) prefer
+ * `angularCuspLineColor`, falling back to `cuspLineColor`, falling back to
+ * `bd/primary`; non-angular cusps skip straight to `cuspLineColor` ??
+ * `bd/primary`. (Swift `drawCuspLineWithAppearance`, PlanetsRing.swift:456-464.)
+ */
+export function cuspLineColor(isAngular: boolean, style: PlanetsRingStyle, theme: Theme): string {
+  if (isAngular && style.angularCuspLineColor) return resolveColorValue(style.angularCuspLineColor, theme);
+  if (style.cuspLineColor) return resolveColorValue(style.cuspLineColor, theme);
+  return theme.color.bdPrimary;
+}
+
+/** Boundary-stroke color: `style.boundaryLineColor ?? bd/primary`. (Swift `drawCircleBoundary`.) */
+export function boundaryLineColor(style: PlanetsRingStyle, theme: Theme): string {
+  if (style.boundaryLineColor) return resolveColorValue(style.boundaryLineColor, theme);
+  return theme.color.bdPrimary;
+}
+
+/**
  * Direction unit vector the degree-text stack walks, away from the planet
  * center. (Swift `DegreeTextRenderer.drawDegreeMinuteText`'s XOR, :142-157.)
  * Returns null when the planet sits exactly at the chart center (Swift's
@@ -96,6 +133,26 @@ function degreeTextColor(placement: PlanetRenderPlacement, style: PlanetsRingSty
   if (placement.isRetrograde) return theme.color.txError;
   if (style.degreeTextColor) return resolveColorValue(style.degreeTextColor, theme);
   return theme.color.icPrimary;
+}
+
+/**
+ * The glyph/circle/connection-line color for a placement — Swift's
+ * `defaultGlyphColor = ringStyle.glyphColor?.color ?? celestialBodyColor(for:
+ * placement, chartColors: style.colors)` (PlanetsRing.swift:134), reused for
+ * BOTH the glyph fill and the connection line's color (:139, :146, :153,
+ * :167). Distinct from degree-mark tick color, which Swift's
+ * `DegreeMarkRenderer` computes straight from `celestialBodyColor` with NO
+ * `glyphColor` override (PlanetsRing.swift's `degreeMarkData` map) — ticks
+ * keep calling `celestialBodyColor` directly, not this helper.
+ */
+export function defaultGlyphColor(
+  placement: PlanetRenderPlacement,
+  style: PlanetsRingStyle,
+  colors: ChartColors,
+  theme: Theme,
+): string {
+  if (style.glyphColor) return resolveColorValue(style.glyphColor, theme);
+  return celestialBodyColor(placement.body, colors, theme);
 }
 
 /** Centered text origin via font metrics — Skia `Text`'s x/y is the
@@ -230,9 +287,47 @@ export function PlanetsRing({ ring, ringIndex, layout, colors }: RingRendererPro
 
   return (
     <Group>
+      {/* Ring background fill (Swift PlanetsRing.swift:28-39, :274-304) — only
+          when a custom color is set. */}
+      {style.backgroundColor && (
+        <Path
+          path={ringBackgroundPath(center.x, center.y, outerR, innerR)}
+          style="fill"
+          fillType="evenOdd"
+          color={resolveColorValue(style.backgroundColor, theme)}
+        />
+      )}
+
+      {/* Cusp lines (Swift :41-74, :426-475). Selection isn't ported in this
+          shell (ZodiacSignsRing precedent) — every cusp draws at full
+          opacity, equivalent to Swift's un-highlighted/no-selection case. */}
+      {style.showCuspLines &&
+        layout.houseCusps.map((cuspDegree, index) => {
+          const isAngular = [1, 4, 7, 10].includes(index + 1);
+          const angle = coordinates.zodiacToCanvasAngle(cuspDegree);
+          const rad = (angle * Math.PI) / 180;
+          const outerPoint: Point = {
+            x: center.x + outerR * Math.cos(rad),
+            y: center.y + outerR * Math.sin(rad),
+          };
+          const innerPoint: Point = {
+            x: center.x + innerR * Math.cos(rad),
+            y: center.y + innerR * Math.sin(rad),
+          };
+          return (
+            <Path
+              key={`cusp-${index}`}
+              path={linePath(outerPoint, innerPoint)}
+              style="stroke"
+              strokeWidth={isAngular ? style.angularCuspLineWidth : style.cuspLineWidth}
+              color={cuspLineColor(isAngular, style, theme)}
+            />
+          );
+        })}
+
       {positions.map((pos) => {
         const placement = pos.placement;
-        const color = celestialBodyColor(placement.body, colors, theme);
+        const color = defaultGlyphColor(placement, style, colors, theme);
         const dir = stackDirection(pos.adjustedPosition, center, style);
         const elements = DegreeTextStack.stackElements(style, placement.isRetrograde);
 
@@ -325,6 +420,25 @@ export function PlanetsRing({ ring, ringIndex, layout, colors }: RingRendererPro
             );
           });
         })}
+
+      {/* Boundary strokes (Swift :222-246, :253-272) — outer then inner,
+          each gated on its own width > 0. */}
+      {style.outerBoundaryLineWidth > 0 && (
+        <Path
+          path={circlePath(center.x, center.y, outerR)}
+          style="stroke"
+          strokeWidth={style.outerBoundaryLineWidth}
+          color={boundaryLineColor(style, theme)}
+        />
+      )}
+      {style.innerBoundaryLineWidth > 0 && (
+        <Path
+          path={circlePath(center.x, center.y, innerR)}
+          style="stroke"
+          strokeWidth={style.innerBoundaryLineWidth}
+          color={boundaryLineColor(style, theme)}
+        />
+      )}
     </Group>
   );
 }
