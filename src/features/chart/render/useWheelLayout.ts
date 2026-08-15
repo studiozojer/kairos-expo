@@ -34,6 +34,7 @@ import type { ChartRenderingConfiguration } from "../config/ChartRenderingConfig
 import type { RingConfiguration } from "../config/ChartRenderingConfiguration";
 import type { Placement } from "../config/engine-types";
 import {
+  scaleAspectOverlayStyle,
   scaleGlobalChartVariables,
   scaleRingStyle,
   scaleRingThickness,
@@ -45,7 +46,7 @@ import { PlanetRingLayoutCoordinator } from "../geometry/PlanetRingLayoutCoordin
 import { RingGeometry } from "../geometry/RingGeometry";
 import { RingGeometryBuilder } from "../geometry/RingGeometryBuilder";
 import type { GlobalChartVariables } from "../schema/core-types";
-import { PLANETS_RING_STYLE_DEFAULT, PLANETS_STYLE_TYPE } from "../schema/ring-styles";
+import { PLANETS_RING_STYLE_DEFAULT, PLANETS_STYLE_TYPE, type AspectOverlayStyle } from "../schema/ring-styles";
 
 /**
  * A placement carrying both the render-side engine fields (glyph asset,
@@ -95,6 +96,12 @@ export interface WheelLayout {
    * hook, the component only draws."
    */
   houseCusps: number[];
+  /**
+   * Scaled `config.aspectOverlayStyle` (Task 10) — the `AspectOverlay` reads
+   * this instead of `config.aspectOverlayStyle` directly, same "scaling lives
+   * in the hook" rule every ring style follows.
+   */
+  aspectOverlayStyle: AspectOverlayStyle;
 }
 
 export function useWheelLayout(config: ChartRenderingConfiguration, size: number): WheelLayout {
@@ -107,6 +114,7 @@ export function useWheelLayout(config: ChartRenderingConfiguration, size: number
       thickness: scaleRingThickness(ring.thickness, displayScale),
     }));
     const global = scaleGlobalChartVariables(config.globalSettings, displayScale);
+    const aspectOverlayStyle = scaleAspectOverlayStyle(config.aspectOverlayStyle, displayScale);
 
     // The Swift signature's legacy ringModules param is unused by the math
     // (RingGeometryBuilder.swift) — pass [].
@@ -153,6 +161,7 @@ export function useWheelLayout(config: ChartRenderingConfiguration, size: number
       coordinates,
       planetLayouts,
       houseCusps: config.houseCusps,
+      aspectOverlayStyle,
     };
   }, [config, size]);
 }

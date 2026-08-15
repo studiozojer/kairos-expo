@@ -38,6 +38,9 @@
  *    iOS's builder does an endpoint-visibility pre-filter for its overlay
  *    payload; the overlay re-derives the same set from the pre-filtered
  *    placements it receives, so nothing is lost by deferring it to render.
+ *    `aspectOverlayStyle` (Task 10) carries `preset.aspectOverlay` straight
+ *    through for the same reason — its line width/color mode/hues/cap are
+ *    render-time concerns, not builder concerns.
  */
 
 import { CELESTIAL_BODIES, type CelestialBodyId } from "../schema/enums.gen";
@@ -180,6 +183,10 @@ export function buildConfiguration(
     orientation,
     aspects: preset.aspects,
     aspectEdges: chart.celestial.edges,
+    // Task 10: threaded through so the render-layer overlay has its style
+    // (Task 7 carried aspects/aspectEdges but dropped this — see the field's
+    // doc comment on ChartRenderingConfiguration).
+    aspectOverlayStyle: preset.aspectOverlay,
     colors: preset.colors,
     globalSettings: preset.soloChart.globalSettings,
   };

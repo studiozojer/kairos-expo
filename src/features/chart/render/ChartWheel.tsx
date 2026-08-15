@@ -28,7 +28,10 @@ import type {
   RingContentType,
 } from "../config/ChartRenderingConfiguration";
 import type { ChartColors } from "../schema/core-types";
+import { AspectOverlay } from "./AspectOverlay";
 import { ChartPaintProvider } from "./colors";
+import { CuspAnnotationRing } from "./rings/CuspAnnotationRing";
+import { HouseNumbersRing } from "./rings/HouseNumbersRing";
 import { PlanetsRing } from "./rings/PlanetsRing";
 import { ZodiacSignsRing } from "./rings/ZodiacSignsRing";
 import { useWheelLayout, type WheelLayout } from "./useWheelLayout";
@@ -51,15 +54,15 @@ function UnrenderedRing(_props: RingRendererProps) {
 }
 
 /**
- * Ring kind → component. The Record is total over the KNOWN union (Task 9
- * replaces the placeholders); ChartWheel still guards the lookup so a
- * config carrying a future kind skips rather than crashes.
+ * Ring kind → component. The Record is total over the KNOWN union (Task 10
+ * fills in the last two placeholders); ChartWheel still guards the lookup
+ * so a config carrying a future kind skips rather than crashes.
  */
 export const RING_RENDERERS: Record<RingContentType["kind"], RingRendererComponent> = {
   zodiacSigns: ZodiacSignsRing,
   planets: PlanetsRing,
-  houseNumbers: UnrenderedRing, // Task 10
-  cuspAnnotations: UnrenderedRing, // Task 10
+  houseNumbers: HouseNumbersRing,
+  cuspAnnotations: CuspAnnotationRing,
   empty: UnrenderedRing,
 };
 
@@ -114,6 +117,9 @@ export function ChartWheel({ config, size, transform = IDENTITY_TRANSFORM }: Cha
               />
             );
           })}
+          {/* Overlays draw last, on top of every ring (Swift
+              ChartWheelRenderer.swift: rings, then overlays). */}
+          <AspectOverlay config={config} layout={layout} />
         </Group>
       </ChartPaintProvider>
     </Canvas>

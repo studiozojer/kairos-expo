@@ -18,7 +18,7 @@
 import type { RingThickness } from "../schema/core-types";
 import type { ChartColors, GlobalChartVariables } from "../schema/core-types";
 import type { AspectConfiguration } from "../schema/preset";
-import type { RingStyle } from "../schema/ring-styles";
+import type { AspectOverlayStyle, RingStyle } from "../schema/ring-styles";
 import type { AspectEdgeDTO, Placement } from "./engine-types";
 
 /** The type of content in a ring (mirrors iOS `RingContentType`, solo subset). */
@@ -70,6 +70,17 @@ export interface ChartRenderingConfiguration {
    * and the builder stays free of it here too.
    */
   aspectEdges: AspectEdgeDTO[];
+  /**
+   * The preset's `aspectOverlay` field (Task 10) — line width, color mode,
+   * bezier curve strength, per-type hues, `maximumAspectCount`, etc. Applied
+   * at render time by `AspectOverlay.tsx`, same deferral as `aspects` above.
+   * Not threaded through as a ring: Swift's `AspectOverlay` is a
+   * `ChartOverlay`, not a `SelectionAwareChartRing` — this mirrors that by
+   * keeping it a top-level config field rather than a `RingConfiguration`
+   * (buildConfiguration.ts's `case "aspects"` deliberately drops that ring's
+   * own style, matching Swift's `continue`).
+   */
+  aspectOverlayStyle: AspectOverlayStyle;
   colors: ChartColors;
   globalSettings: GlobalChartVariables;
 }

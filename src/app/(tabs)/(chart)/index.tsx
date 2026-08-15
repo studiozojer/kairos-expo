@@ -15,6 +15,12 @@ import { parsePreset } from '@/features/chart/schema/preset';
  * Stage 1 premise slice: the Skia wheel shell (Task 8) over the canned
  * sibly-1776 engine response + the classic preset. Chart data plumbing
  * (live engine, time scrubbing) is deliberately not here yet.
+ *
+ * Task 10 note: classic.json enables both a houses ring and the aspect
+ * overlay (`aspects.enabled: true`), so both now render here without any
+ * route change — a preset picker was judged not "nearly free" (no picker UI
+ * pattern exists yet in this codebase; adding one is real UI machinery, not
+ * a config swap) and is out of this task's scope. Hardcoded classic stands.
  */
 export default function ChartHome() {
   const theme = useTheme();
