@@ -29,6 +29,7 @@ import type {
 } from "../config/ChartRenderingConfiguration";
 import type { ChartColors } from "../schema/core-types";
 import { ChartPaintProvider } from "./colors";
+import { PlanetsRing } from "./rings/PlanetsRing";
 import { ZodiacSignsRing } from "./rings/ZodiacSignsRing";
 import { useWheelLayout, type WheelLayout } from "./useWheelLayout";
 
@@ -56,9 +57,9 @@ function UnrenderedRing(_props: RingRendererProps) {
  */
 export const RING_RENDERERS: Record<RingContentType["kind"], RingRendererComponent> = {
   zodiacSigns: ZodiacSignsRing,
-  planets: UnrenderedRing, // Task 9
-  houseNumbers: UnrenderedRing, // Task 9
-  cuspAnnotations: UnrenderedRing, // Task 9+
+  planets: PlanetsRing,
+  houseNumbers: UnrenderedRing, // Task 10
+  cuspAnnotations: UnrenderedRing, // Task 10
   empty: UnrenderedRing,
 };
 

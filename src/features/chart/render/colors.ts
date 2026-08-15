@@ -219,6 +219,78 @@ export function signColorValues(colors: ChartColors, signIndex: number): SignCol
 }
 
 // ---------------------------------------------------------------------------
+// Celestial body colors — port of `CelestialBodyColorSet.color(for:)` /
+// `PlanetHues.color(for:)` / `HueToken.primitive()`
+// (Core/Models/ChartStyle/ColorTypes.swift:190-215,
+// Core/Models/HueToken+Colors.swift:53-61).
+//
+// TASK 9 NOTE (see the module header): this path deliberately does NOT
+// route through `resolveColorValue`. `HueToken.primitive()` special-cases
+// greyscale to the theme-adaptive `ic/primary` role; `resolveHue`'s
+// primitive-layer branch would instead return the raw, non-adaptive
+// greyscale RGB. Celestial body (planet/angle/other) colors follow the
+// PlanetHues path — this section — never `resolveColorValue` directly.
+// ---------------------------------------------------------------------------
+
+const PLANET_HUE_KEYS = new Set([
+  "sun",
+  "moon",
+  "mercury",
+  "venus",
+  "mars",
+  "jupiter",
+  "saturn",
+  "uranus",
+  "neptune",
+  "pluto",
+]);
+
+/** The four chart angles (`CelestialBody.isAngle`) — NOT the wider frame-derived-point set. */
+const ANGLE_BODY_IDS = new Set(["ascendant", "midheaven", "descendant", "imumCoeli"]);
+
+/** `HueToken.primitive()` (HueToken+Colors.swift:53-61): greyscale → theme ic/primary. */
+function huePrimitiveColor(hue: string, theme: Theme): string {
+  if (hue === "greyscale") return theme.color.icPrimary;
+  const primitive = HUE_PRIMITIVES[hue] ?? HUE_PRIMITIVES.red; // iOS `?? .red`
+  return `${primitive[theme.scheme]}${LAYER_ALPHA.primitive}`;
+}
+
+/**
+ * Resolve a celestial body's color: planet hues first (primitive layer via
+ * `huePrimitiveColor`), then the four angles' color, then the other-bodies
+ * fallback. `bodyId` is the enums.gen id ("sun", "ascendant", "rahu", …).
+ */
+export function celestialBodyColor(bodyId: string, colors: ChartColors, theme: Theme): string {
+  if (PLANET_HUE_KEYS.has(bodyId)) {
+    const hue = (colors.celestialBodyColors.planetHues as unknown as Record<string, string>)[
+      bodyId
+    ];
+    return huePrimitiveColor(hue, theme);
+  }
+  if (ANGLE_BODY_IDS.has(bodyId)) {
+    return resolveColorValue(colors.celestialBodyColors.angles.defaultColor, theme);
+  }
+  return resolveColorValue(colors.celestialBodyColors.otherBodies.defaultColor, theme);
+}
+
+/**
+ * Scale a resolved `#RRGGBBAA` (or alpha-less `#RRGGBB`, alpha assumed
+ * opaque) color's alpha channel by `factor`. Mirrors SwiftUI's
+ * `Color.opacity(_:)` applied on top of an already-resolved color
+ * (`PlanetGlyphRenderer.drawConnectionLine`'s `color.opacity(0.5)`).
+ */
+export function withAlphaFactor(hexColor: string, factor: number): string {
+  const hex = hexColor.replace("#", "");
+  const rgb = hex.slice(0, 6);
+  const alpha = hex.length >= 8 ? parseInt(hex.slice(6, 8), 16) / 255 : 1;
+  const scaled = Math.max(0, Math.min(1, alpha * factor));
+  const alphaHex = Math.round(scaled * 255)
+    .toString(16)
+    .padStart(2, "0");
+  return `#${rgb}${alphaHex}`;
+}
+
+// ---------------------------------------------------------------------------
 // ChartPaintContext — the theme, re-provided INSIDE Skia's Canvas subtree
 // (Skia's reconciler root does not inherit the app's React context; see the
 // module header). ChartWheel provides it; ring components consume it.

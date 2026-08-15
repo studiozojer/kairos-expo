@@ -313,6 +313,25 @@ export function placementFromNode(node: CelestialNodeDTO): Placement {
 }
 
 // =============================================================================
+// Sign-relative degrees/minutes (Swift `Placement.degrees`/`.minutes`,
+// KairosCore ChartModel/Placement.swift:76-84 — `adjustedLongitude` there is
+// just `longitude` verbatim, "already in the correct zodiac system", so no
+// tropical/sidereal adjustment happens here either)
+// =============================================================================
+
+/** Whole degrees within the placement's sign (0-29). */
+export function degreesInSign(longitude: number): number {
+  return Math.trunc(longitude % 30);
+}
+
+/** Minutes within the placement's current degree (0-59). */
+export function minutesInSign(longitude: number): number {
+  const remainder = longitude % 30;
+  const fractional = remainder - Math.trunc(remainder);
+  return Math.trunc(fractional * 60);
+}
+
+// =============================================================================
 // Frame-derived points (mirror of kairos-ios CelestialBody.isFrameDerivedPoint)
 // =============================================================================
 

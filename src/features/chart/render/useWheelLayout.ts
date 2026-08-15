@@ -12,6 +12,9 @@
  *   4. RingGeometry(outerRadius = size/2 − scaled margin, thicknesses,
  *      SCALED ringGap)   — Swift: availableRadius + scaledStyle.global.ringGap
  *   5. ChartCoordinateSystem(center = canvas center, config.orientation)
+ *   6. (Task 9) per-ring planet layout — every ring of kind "planets" runs
+ *      through `PlanetRingLayoutCoordinator` (Task 6) against the SCALED
+ *      style + geometry, keyed by ring index.
  *
  * The canvas is exactly `size`×`size` and the wheel renders centered in it
  * (iOS renders at canvas center and repositions with a transform — here the
@@ -27,6 +30,7 @@ import { useMemo } from "react";
 
 import type { ChartRenderingConfiguration } from "../config/ChartRenderingConfiguration";
 import type { RingConfiguration } from "../config/ChartRenderingConfiguration";
+import type { Placement } from "../config/engine-types";
 import {
   scaleGlobalChartVariables,
   scaleRingStyle,
@@ -34,9 +38,34 @@ import {
 } from "../geometry/ChartConfigurationScaler";
 import { ChartCoordinateSystem } from "../geometry/ChartCoordinateSystem";
 import { DisplayScaleProvider } from "../geometry/DisplayScaleProvider";
+import type { PlanetLayoutPosition } from "../geometry/PlanetLayoutEngine";
+import { PlanetRingLayoutCoordinator } from "../geometry/PlanetRingLayoutCoordinator";
 import { RingGeometry } from "../geometry/RingGeometry";
 import { RingGeometryBuilder } from "../geometry/RingGeometryBuilder";
 import type { GlobalChartVariables } from "../schema/core-types";
+import { PLANETS_RING_STYLE_DEFAULT, PLANETS_STYLE_TYPE } from "../schema/ring-styles";
+
+/**
+ * A placement carrying both the render-side engine fields (glyph asset,
+ * sign, house, …) AND the field Task 6's `PlanetLayoutEngine.ChartPlacement`
+ * contract reads for visibility (`body`). Same body id, two property names —
+ * Task 6's classes were written against the minimal structural
+ * `ChartPlacement`; PlanetsRing (Task 9) needs the richer `Placement` back on
+ * the other side, so this hook constructs objects satisfying BOTH shapes at
+ * once rather than losing fields at the Task 6 boundary.
+ */
+export interface PlanetRenderPlacement extends Placement {
+  body: string;
+}
+
+function toPlanetRenderPlacement(p: Placement): PlanetRenderPlacement {
+  return { ...p, body: p.bodyId };
+}
+
+/** One ring's planet layout, in placement order — `.placement` is always a
+ *  `PlanetRenderPlacement` at runtime (constructed above); typed narrowly so
+ *  ring renderers don't need to cast. */
+export type PlanetRingLayout = (PlanetLayoutPosition & { placement: PlanetRenderPlacement })[];
 
 export interface WheelLayout {
   /** Canvas size in points (the canvas is square: size × size). */
@@ -53,6 +82,8 @@ export interface WheelLayout {
   geometry: RingGeometry;
   /** Zodiac-degree → canvas-point transform (orientation applied). */
   coordinates: ChartCoordinateSystem;
+  /** Planet layout, keyed by ring index — populated only for rings whose kind is "planets" (Task 9). */
+  planetLayouts: ReadonlyMap<number, PlanetRingLayout>;
 }
 
 export function useWheelLayout(config: ChartRenderingConfiguration, size: number): WheelLayout {
@@ -77,6 +108,39 @@ export function useWheelLayout(config: ChartRenderingConfiguration, size: number
       config.orientation,
     );
 
-    return { size, displayScale, rings, global, ringThicknesses, geometry, coordinates };
+    const planetLayouts = new Map<number, PlanetRingLayout>();
+    rings.forEach((ring, ringIndex) => {
+      if (ring.type.kind !== "planets") return;
+      const style =
+        ring.style.$type === PLANETS_STYLE_TYPE ? ring.style : PLANETS_RING_STYLE_DEFAULT;
+      const placements = ring.type.placements.map(toPlanetRenderPlacement);
+      // Swift: `Set(placements.compactMap { $0.celestialBody })` — derived
+      // from the SAME (already preset-filtered) placement list passed in.
+      const visibleBodies = new Set(placements.map((p) => p.body));
+      const coordinator = new PlanetRingLayoutCoordinator(
+        placements,
+        ringIndex,
+        ring.type.ringNumber,
+        ring.type.maxRingNumber,
+        geometry,
+        coordinates,
+        style,
+        global.overlapPrevention,
+        visibleBodies,
+        [],
+      );
+      planetLayouts.set(ringIndex, coordinator.calculateLayout() as PlanetRingLayout);
+    });
+
+    return {
+      size,
+      displayScale,
+      rings,
+      global,
+      ringThicknesses,
+      geometry,
+      coordinates,
+      planetLayouts,
+    };
   }, [config, size]);
 }
