@@ -11,6 +11,10 @@
  * Section 2 — a render-level mount, same style as PlanetsRing.render.test.tsx:
  * classic + sibly draws some aspect paths, and `aspects.enabled: false`
  * draws nothing.
+ *
+ * Section 3 — `SYSTEM_RED` (final-review fix wave, finding 2): the
+ * conjunction marker must use SwiftUI's adaptive system red
+ * (UIColor.systemRed: #FF3B30 light / #FF453A dark), not a pure `#ff0000`.
  */
 
 import React from "react";
@@ -24,7 +28,7 @@ import chart from "../../fixtures/engine/sibly-1776.json";
 import classic from "../../fixtures/presets/classic.json";
 import { parsePreset } from "../../schema/preset";
 import { ChartWheel } from "../ChartWheel";
-import { selectAspectsToRender, type ValidAspect } from "../AspectOverlay";
+import { selectAspectsToRender, SYSTEM_RED, type ValidAspect } from "../AspectOverlay";
 
 // ---------------------------------------------------------------------------
 // Section 1 — selectAspectsToRender
@@ -95,6 +99,17 @@ test("classic + sibly draws aspect lines/markers", () => {
     (node) => node.type === Path && node.props?.style === "stroke",
   );
   expect(circles.length + strokedPaths.length).toBeGreaterThan(0);
+});
+
+// ---------------------------------------------------------------------------
+// Section 3 — SYSTEM_RED
+// ---------------------------------------------------------------------------
+
+test("SYSTEM_RED: adaptive system red, not pure #ff0000, for either scheme", () => {
+  expect(SYSTEM_RED.light.toLowerCase()).toBe("#ff3b30ff");
+  expect(SYSTEM_RED.dark.toLowerCase()).toBe("#ff453aff");
+  expect(SYSTEM_RED.light.toLowerCase()).not.toBe("#ff0000ff");
+  expect(SYSTEM_RED.dark.toLowerCase()).not.toBe("#ff0000ff");
 });
 
 test("aspects.enabled: false draws nothing extra from the overlay", () => {

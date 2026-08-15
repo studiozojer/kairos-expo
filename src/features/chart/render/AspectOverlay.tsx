@@ -39,7 +39,14 @@ import type { AspectHues, AspectOverlayStyle } from "../schema/ring-styles";
 import { celestialBodyColor, resolveColorValue, useChartPaintTheme, withAlphaFactor } from "./colors";
 import type { WheelLayout } from "./useWheelLayout";
 
-const RED_OPAQUE = "#ff0000ff";
+// SwiftUI's `.red` (used by iOS's `drawConjunctionMarker`) is the adaptive
+// system red, not a pure primary — UIColor.systemRed: #FF3B30 light,
+// #FF453A dark. `theme.scheme` is already resolved (see this file's colors.ts
+// import), so pick the matching constant rather than a scheme-invariant hex.
+export const SYSTEM_RED: Record<Theme["scheme"], string> = {
+  light: "#FF3B30ff",
+  dark: "#FF453Aff",
+};
 const EMPTY_SELECTION: ReadonlySet<string> = new Set();
 
 /** One aspect that passed every `AspectFilterResult.evaluate` filter, with
@@ -198,7 +205,7 @@ export function AspectOverlay({ config, layout }: AspectOverlayProps) {
               cx={(fromPoint.x + toPoint.x) / 2}
               cy={(fromPoint.y + toPoint.y) / 2}
               r={dotRadius}
-              color={withAlphaFactor(RED_OPAQUE, style.opacity)}
+              color={withAlphaFactor(SYSTEM_RED[theme.scheme], style.opacity)}
             />
           );
         }

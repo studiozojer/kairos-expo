@@ -60,7 +60,7 @@ function polar(cx: number, cy: number, canvasAngleDeg: number, radius: number) {
  * methods (moveTo/addArc/…) are deprecated since Skia 2.x's PathBuilder
  * migration (they still work but warn).
  */
-function segmentPath(
+export function segmentPath(
   cx: number,
   cy: number,
   outerR: number,
@@ -72,9 +72,24 @@ function segmentPath(
   const outerStart = polar(cx, cy, a0, outerR);
   const innerEnd = polar(cx, cy, a1, innerR);
   builder.moveTo(outerStart.x, outerStart.y);
-  builder.addArc(Skia.XYWHRect(cx - outerR, cy - outerR, 2 * outerR, 2 * outerR), a0, a1 - a0);
+  // arcToOval(..., forceMoveTo: false) continues the CURRENT contour — unlike
+  // addArc, which always opens a new one (SkPathBuilder::arcTo(oval, start,
+  // sweep, forceMoveTo: TRUE)). Both arcs must extend this same subpath so
+  // the fill is one continuous contour (outer arc -> line to inner -> inner
+  // arc reversed -> close), matching Swift's `Path.addArc` behavior.
+  builder.arcToOval(
+    Skia.XYWHRect(cx - outerR, cy - outerR, 2 * outerR, 2 * outerR),
+    a0,
+    a1 - a0,
+    false,
+  );
   builder.lineTo(innerEnd.x, innerEnd.y);
-  builder.addArc(Skia.XYWHRect(cx - innerR, cy - innerR, 2 * innerR, 2 * innerR), a1, a0 - a1);
+  builder.arcToOval(
+    Skia.XYWHRect(cx - innerR, cy - innerR, 2 * innerR, 2 * innerR),
+    a1,
+    a0 - a1,
+    false,
+  );
   builder.close();
   return builder.build();
 }
