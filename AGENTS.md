@@ -10,6 +10,8 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ before 
 
 `src/theme/tokens.gen.ts`, `src/theme/type.gen.ts`, `src/theme/fonts.gen.ts`, and `assets/fonts/` are GENERATED from `../daoUI` by `npm run sync-tokens` / `npm run sync-type` / `npm run sync-fonts` and committed with a provenance stamp. daoUI is in progress; this repo tracks it by **re-syncing**, never by hand-editing generated files. (zhouyi's hand-extracted `colors.gen.ts` is the documented anti-pattern.) If `../daoUI` is absent, set `DAOUI_PATH`. Each gen file's header names the daoUI commit it came from — re-run the script and diff to answer "has this drifted?"
 
+Same rule for chart glyphs: `assets/chart-glyphs/**` and `src/features/chart/render/glyph-map.gen.ts` are GENERATED from kairos-ios's asset catalog by `npm run sync-glyphs` (`KAIROS_IOS_PATH` overrides the default `../kairos-ios`, which does not resolve from inside a worktree). The gen file's header names the kairos-ios commit.
+
 Type is a scale ramp, not a semantic table (daoUI type canon, 2026-08-05): `theme.type.whyteSm`, `theme.type.fraktionXxs` — the family carries the voice, the step carries the size. The semantic names (`display`/`title`/`heading`/`body`…) are dead upstream and a test here keeps them dead.
 
 ## CNG — the native folders are build artifacts
@@ -19,6 +21,8 @@ Type is a scale ramp, not a semantic table (daoUI type canon, 2026-08-05): `them
 ## jest
 
 `jest.config.js` EXTENDS jest-expo's `transformIgnorePatterns`, never replaces it wholesale (replacing silently drops the preset's own entries). Add packages that need transforming to `extraTransformedPackages` in `jest.config.js`.
+
+Skia testing follows the package's own jest recipe, composed onto jest-expo: `testEnvironment` is `jest.skia-env.js` (Skia's CanvasKit-preload env, but extending the RN preset env — using `@shopify/react-native-skia/jestEnv.js` verbatim would drop RN's `customExportConditions`), and `jest.setup.js` requires the package's shipped `jestSetup.js`. Under the mock: `Skia` is the real CanvasKit-backed API (path math runs in tests), `Canvas` is a plain RN View, and the asset hooks (`useSVG`/`useImage`/`useData`) return null.
 
 ## Verify before committing
 

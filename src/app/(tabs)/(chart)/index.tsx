@@ -1,18 +1,38 @@
-import { Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { View, useWindowDimensions } from 'react-native';
 
 import { useTheme } from '@/theme';
+import { buildConfiguration } from '@/features/chart/config/buildConfiguration';
+import type { ChartCalculationResponse } from '@/features/chart/config/engine-types';
+import chart from '@/features/chart/fixtures/engine/sibly-1776.json';
+import classic from '@/features/chart/fixtures/presets/classic.json';
+import { ChartWheel } from '@/features/chart/render/ChartWheel';
+import { parsePreset } from '@/features/chart/schema/preset';
 
 /**
  * The chart tab — the interactive experience users know, ported deliberately.
  *
- * Nothing is drawn here yet on purpose. Stage 1 is the premise slice: a Skia
- * wheel on real engine data, time scrubbed by gesture, built to be thrown
- * away. It proves the sentence the whole repo rests on — RN can deliver the
- * chart feel — before any foundation accumulates beneath it. The port then
- * walks, Stages 2+; it is never one-shotted.
+ * Stage 1 premise slice: the Skia wheel shell (Task 8) over the canned
+ * sibly-1776 engine response + the classic preset. Chart data plumbing
+ * (live engine, time scrubbing) is deliberately not here yet.
+ *
+ * Task 10 note: classic.json enables both a houses ring and the aspect
+ * overlay (`aspects.enabled: true`), so both now render here without any
+ * route change — a preset picker was judged not "nearly free" (no picker UI
+ * pattern exists yet in this codebase; adding one is real UI machinery, not
+ * a config swap) and is out of this task's scope. Hardcoded classic stands.
  */
 export default function ChartHome() {
   const theme = useTheme();
+  const { width } = useWindowDimensions();
+
+  // PINNED (do not inline): buildConfiguration returns a fresh object per
+  // call, and ChartWheel's layout memo keys on config identity — an unpinned
+  // config re-lays-out every render. Memoize on the fixture+preset inputs.
+  const config = useMemo(
+    () => buildConfiguration(chart as ChartCalculationResponse, parsePreset(classic)),
+    [],
+  );
 
   return (
     <View
@@ -21,15 +41,8 @@ export default function ChartHome() {
         backgroundColor: theme.color.bgSolidBase,
         alignItems: 'center',
         justifyContent: 'center',
-        padding: theme.space.xl,
-        gap: theme.space.sm,
       }}>
-      <Text style={{ ...theme.type.whyteLg, color: theme.color.txPrimary, textAlign: 'center' }}>
-        The wheel is proven before it is ported.
-      </Text>
-      <Text style={{ ...theme.type.whyteSm, color: theme.color.txSecondary, textAlign: 'center' }}>
-        Stage 1 — the premise slice.{'\n'}Skia, real ephemeris, a scrubbed hour.
-      </Text>
+      <ChartWheel config={config} size={width} />
     </View>
   );
 }

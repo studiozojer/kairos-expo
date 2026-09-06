@@ -1,0 +1,840 @@
+{
+  "aspectOverlay": {
+    "aspectHues": {
+      "Biquintile": "sky",
+      "Conjunction": "red",
+      "MinorAspect": "greyscale",
+      "Opposition": "red",
+      "Quincunx": "purple",
+      "Quintile": "aqua",
+      "Semisextile": "yellow",
+      "Semisquare": "magenta",
+      "Sesquisquare": "indigo",
+      "Sextile": "green",
+      "Square": "orange",
+      "Trine": "blue"
+    },
+    "bezierCurveStrength": 0.3,
+    "colorMode": "byType",
+    "dashPattern": [
+      4,
+      4
+    ],
+    "lineWidth": 0.5,
+    "maximumAspectCount": 0,
+    "minimumStrength": 0,
+    "monochromeColor": {
+      "layer": "primitive",
+      "source": "semantic",
+      "value": "tertiary"
+    },
+    "opacity": 0.4,
+    "renderMode": "straight",
+    "showMajorAspectsOnly": false,
+    "useDashedForSeparating": false
+  },
+  "aspects": {
+    "enabled": true,
+    "enabledTypes": [
+      "Trine",
+      "Opposition",
+      "Square",
+      "Conjunction",
+      "Quincunx",
+      "Semisextile",
+      "Sextile"
+    ],
+    "filterBySelection": true,
+    "interAspectsOnly": true,
+    "mutualAspectsOnly": true,
+    "orbs": {
+      "orbs": {
+        "Biquintile": 2,
+        "Conjunction": 8,
+        "Opposition": 8,
+        "Quincunx": 3,
+        "Quintile": 2,
+        "Semisextile": 2,
+        "Semisquare": 2,
+        "Sesquisquare": 2,
+        "Sextile": 6,
+        "Square": 8,
+        "Trine": 8
+      }
+    },
+    "showFalseAspects": false,
+    "showGrid": true,
+    "showSeparatingAspects": true
+  },
+  "colors": {
+    "celestialBodyColors": {
+      "angles": {
+        "defaultColor": {
+          "layer": "ic",
+          "source": "semantic",
+          "value": "primary"
+        }
+      },
+      "otherBodies": {
+        "defaultColor": {
+          "layer": "ic",
+          "source": "semantic",
+          "value": "primary"
+        }
+      },
+      "planetHues": {
+        "jupiter": "green",
+        "mars": "red",
+        "mercury": "blue",
+        "moon": "gold",
+        "neptune": "indigo",
+        "pluto": "magenta",
+        "saturn": "orange",
+        "sun": "gold",
+        "uranus": "sky",
+        "venus": "byzantium"
+      }
+    },
+    "zodiacColors": {
+      "zodiacHues": {
+        "signs": [
+          "red",
+          "orange",
+          "yellow",
+          "lime",
+          "green",
+          "aqua",
+          "sky",
+          "blue",
+          "indigo",
+          "purple",
+          "byzantium",
+          "magenta"
+        ],
+        "variant": "coloredBackground"
+      }
+    }
+  },
+  "createdAt": "2026-06-27T01:57:25Z",
+  "description": "",
+  "dualChart": {
+    "globalSettings": {
+      "defaultHitRadius": 20,
+      "margin": 8,
+      "minimumInnerRadius": 45,
+      "moduleHitRadiusOverrides": {},
+      "overlapPrevention": {
+        "enabled": true,
+        "nudgeDistance": 0
+      },
+      "ringGap": 0,
+      "staticOrientationDegree": 0,
+      "variableRingSizing": "equalDistribution"
+    },
+    "rings": [
+      {
+        "content": {
+          "$type": "solar.kairos.preset.ring.content.zodiac",
+          "showBoundaries": true,
+          "showDegrees": true,
+          "showSymbols": true
+        },
+        "enabled": true,
+        "id": "zodiac",
+        "ringType": "zodiac",
+        "style": {
+          "$type": "solar.kairos.preset.ring.style.zodiac",
+          "glyphSize": 15,
+          "majorMarkInterval": 10,
+          "majorMarkLength": 8,
+          "majorMarkWidth": 0.5,
+          "minorMarkInterval": 1,
+          "minorMarkLength": 2,
+          "minorMarkWidth": 0.5,
+          "radialLineWidth": 0.5,
+          "rotateGlyphs": true,
+          "segmentBorderWidth": 1,
+          "showDegreeMarkers": false
+        },
+        "thickness": {
+          "kind": "fixed",
+          "value": 20
+        }
+      },
+      {
+        "content": {
+          "$type": "solar.kairos.preset.ring.content.planets",
+          "showRetrograde": true,
+          "showSpeeds": false
+        },
+        "enabled": true,
+        "id": "planets1",
+        "ringType": "planets",
+        "style": {
+          "$type": "solar.kairos.preset.ring.style.planets",
+          "anchorFromInnerEdge": true,
+          "angularCuspLineWidth": 1,
+          "circleRadius": 8,
+          "connectionLineWidth": 0.5,
+          "cuspLineWidth": 0.5,
+          "degreeMarkLength": 4,
+          "degreeMarkWidth": 1,
+          "degreeTextFontSize": 8,
+          "degreeTextLineSpacing": 3,
+          "degreeTextOffset": 1,
+          "glyphInsetFromAnchor": 14,
+          "glyphSize": 16,
+          "innerBoundaryLineWidth": 0.5,
+          "invertGlyphOrder": true,
+          "outerBoundaryLineWidth": 0,
+          "overlapPrevention": {
+            "enabled": true,
+            "nudgeDistance": 8
+          },
+          "showConnectionOnBothEdges": false,
+          "showCuspLines": true,
+          "showDegreeMarks": false,
+          "showDegreeText": true,
+          "showFrameDerivedPoints": false,
+          "showMinuteText": false,
+          "showRetrogradeGlyph": false,
+          "showSignGlyph": false,
+          "showTicksOnBothEdges": false,
+          "thickAngularLines": false,
+          "useGlyphs": true
+        },
+        "thickness": {
+          "kind": "auto"
+        }
+      },
+      {
+        "content": {
+          "$type": "solar.kairos.preset.ring.content.planets",
+          "showRetrograde": true,
+          "showSpeeds": false
+        },
+        "enabled": true,
+        "id": "planets2",
+        "ringType": "planets",
+        "style": {
+          "$type": "solar.kairos.preset.ring.style.planets",
+          "anchorFromInnerEdge": false,
+          "angularCuspLineWidth": 1,
+          "circleRadius": 8,
+          "connectionLineWidth": 0.5,
+          "cuspLineWidth": 0.5,
+          "degreeMarkLength": 4,
+          "degreeMarkWidth": 1,
+          "degreeTextFontSize": 8,
+          "degreeTextLineSpacing": 3,
+          "degreeTextOffset": 2,
+          "glyphInsetFromAnchor": 13,
+          "glyphSize": 16,
+          "innerBoundaryLineWidth": 0,
+          "invertGlyphOrder": true,
+          "outerBoundaryLineWidth": 0,
+          "overlapPrevention": {
+            "enabled": true,
+            "nudgeDistance": 8
+          },
+          "showConnectionOnBothEdges": false,
+          "showCuspLines": true,
+          "showDegreeMarks": false,
+          "showDegreeText": true,
+          "showFrameDerivedPoints": true,
+          "showMinuteText": false,
+          "showRetrogradeGlyph": false,
+          "showSignGlyph": false,
+          "showTicksOnBothEdges": false,
+          "thickAngularLines": false,
+          "useGlyphs": true
+        },
+        "thickness": {
+          "kind": "auto"
+        }
+      },
+      {
+        "content": {
+          "$type": "solar.kairos.preset.ring.content.houses",
+          "showCusps": true,
+          "showNumbers": true,
+          "system": "Placidus"
+        },
+        "enabled": true,
+        "id": "houses",
+        "ringType": "houses",
+        "style": {
+          "$type": "solar.kairos.preset.ring.style.houses",
+          "angularCuspLineWidth": 1,
+          "cuspLineWidth": 0.5,
+          "innerBoundaryLineWidth": 0.5,
+          "numberFontSize": 9,
+          "numberFontWeight": "regular",
+          "outerBoundaryLineWidth": 0.5,
+          "rotateNumbers": true,
+          "thickAngularLines": false
+        },
+        "thickness": {
+          "kind": "fixed",
+          "value": 15
+        }
+      }
+    ]
+  },
+  "fixedStars": {
+    "selectedStars": [
+      {
+        "constellation": "Leo",
+        "degrees": 29,
+        "displayDesignation": "α Leo",
+        "magnitude": 1.4,
+        "minutes": 49,
+        "name": "Regulus",
+        "sign": "Leo"
+      },
+      {
+        "constellation": "Taurus",
+        "degrees": 9,
+        "displayDesignation": "α Tau",
+        "magnitude": 0.86,
+        "minutes": 47,
+        "name": "Aldebaran",
+        "sign": "Gemini"
+      },
+      {
+        "constellation": "Scorpius",
+        "degrees": 9,
+        "displayDesignation": "α Sco",
+        "magnitude": 0.91,
+        "minutes": 45,
+        "name": "Antares",
+        "sign": "Sagittarius"
+      },
+      {
+        "constellation": "Piscis Austrinus",
+        "degrees": 3,
+        "displayDesignation": "α PsA",
+        "magnitude": 1.16,
+        "minutes": 51,
+        "name": "Fomalhaut",
+        "sign": "Pisces"
+      },
+      {
+        "constellation": "Perseus",
+        "degrees": 26,
+        "displayDesignation": "β Per",
+        "magnitude": 2.12,
+        "minutes": 10,
+        "name": "Algol",
+        "sign": "Taurus"
+      },
+      {
+        "constellation": "Aquila",
+        "degrees": 1,
+        "displayDesignation": "α Aql",
+        "magnitude": 0.76,
+        "minutes": 45,
+        "name": "Altair",
+        "sign": "Aquarius"
+      },
+      {
+        "constellation": "Boötes",
+        "degrees": 24,
+        "displayDesignation": "α Boo",
+        "magnitude": -0.05,
+        "minutes": 13,
+        "name": "Arcturus",
+        "sign": "Libra"
+      },
+      {
+        "constellation": "Auriga",
+        "degrees": 21,
+        "displayDesignation": "α Aur",
+        "magnitude": 0.08,
+        "minutes": 51,
+        "name": "Capella",
+        "sign": "Gemini"
+      },
+      {
+        "constellation": "Gemini",
+        "degrees": 20,
+        "displayDesignation": "α Gem",
+        "magnitude": 1.58,
+        "minutes": 14,
+        "name": "Castor",
+        "sign": "Cancer"
+      },
+      {
+        "constellation": "Cygnus",
+        "degrees": 5,
+        "displayDesignation": "α Cyg",
+        "magnitude": 1.25,
+        "minutes": 19,
+        "name": "Deneb",
+        "sign": "Pisces"
+      },
+      {
+        "constellation": "Capricornus",
+        "degrees": 23,
+        "displayDesignation": "δ Cap",
+        "magnitude": 2.83,
+        "minutes": 32,
+        "name": "Deneb Algedi",
+        "sign": "Aquarius"
+      },
+      {
+        "constellation": "Taurus",
+        "degrees": 22,
+        "displayDesignation": "β Tau",
+        "magnitude": 1.65,
+        "minutes": 34,
+        "name": "Elnath",
+        "sign": "Gemini"
+      },
+      {
+        "constellation": "Gemini",
+        "degrees": 23,
+        "displayDesignation": "β Gem",
+        "magnitude": 1.14,
+        "minutes": 13,
+        "name": "Pollux",
+        "sign": "Cancer"
+      },
+      {
+        "constellation": "Orion",
+        "degrees": 16,
+        "displayDesignation": "β Ori",
+        "magnitude": 0.13,
+        "minutes": 49,
+        "name": "Rigel",
+        "sign": "Gemini"
+      },
+      {
+        "constellation": "Canis Major",
+        "degrees": 14,
+        "displayDesignation": "α CMa",
+        "magnitude": -1.46,
+        "minutes": 5,
+        "name": "Sirius",
+        "sign": "Cancer"
+      },
+      {
+        "constellation": "Lyra",
+        "degrees": 15,
+        "displayDesignation": "α Lyr",
+        "magnitude": 0.03,
+        "minutes": 18,
+        "name": "Vega",
+        "sign": "Capricorn"
+      },
+      {
+        "constellation": "Ursa Minor",
+        "degrees": 28,
+        "displayDesignation": "α UMi",
+        "magnitude": 2.02,
+        "minutes": 34,
+        "name": "Polaris",
+        "sign": "Gemini"
+      },
+      {
+        "constellation": "Orion",
+        "degrees": 20,
+        "displayDesignation": "γ Ori",
+        "magnitude": 1.64,
+        "minutes": 56,
+        "name": "Bellatrix",
+        "sign": "Gemini"
+      }
+    ],
+    "showDegrees": false,
+    "showMinutes": false,
+    "showSign": false
+  },
+  "id": "93AD3E1C-DB2F-4499-94AD-91F26896FAB5",
+  "modifiedAt": "2026-06-27T01:58:38Z",
+  "name": "Classic",
+  "selection": {
+    "affectsCuspLines": true,
+    "affectsDegreeMarks": true,
+    "affectsDegreeText": true,
+    "affectsGlyphs": true,
+    "affectsHouseNumbers": true,
+    "conjunctFixedStarsOrb": 5,
+    "ignoreZodiacRingOpacity": false,
+    "includeAspectedPlanets": false,
+    "includeConjunctFixedStars": false,
+    "includeRulershipPlanets": false,
+    "relatedOpacity": 1,
+    "selectedColor": {
+      "layer": "primitive",
+      "source": "semantic",
+      "value": "accent"
+    },
+    "showBackgroundCircle": false,
+    "unselectedColor": {
+      "layer": "primitive",
+      "source": "semantic",
+      "value": "secondary"
+    },
+    "unselectedOpacity": 0.20000000000000004
+  },
+  "soloChart": {
+    "globalSettings": {
+      "defaultHitRadius": 20,
+      "margin": 8,
+      "minimumInnerRadius": 75,
+      "moduleHitRadiusOverrides": {},
+      "overlapPrevention": {
+        "enabled": true,
+        "nudgeDistance": 1
+      },
+      "ringGap": 0,
+      "staticOrientationDegree": 300,
+      "variableRingSizing": "equalDistribution"
+    },
+    "rings": [
+      {
+        "content": {
+          "$type": "solar.kairos.preset.ring.content.zodiac",
+          "showBoundaries": true,
+          "showDegrees": true,
+          "showSymbols": true
+        },
+        "enabled": true,
+        "id": "zodiac",
+        "ringType": "zodiac",
+        "style": {
+          "$type": "solar.kairos.preset.ring.style.zodiac",
+          "glyphSize": 15,
+          "majorMarkInterval": 10,
+          "majorMarkLength": 8,
+          "majorMarkWidth": 0.5,
+          "minorMarkInterval": 1,
+          "minorMarkLength": 4,
+          "minorMarkWidth": 0.5,
+          "radialLineWidth": 0.5,
+          "rotateGlyphs": true,
+          "segmentBorderWidth": 1,
+          "showDegreeMarkers": false
+        },
+        "thickness": {
+          "kind": "fixed",
+          "value": 20
+        }
+      },
+      {
+        "content": {
+          "$type": "solar.kairos.preset.ring.content.planets",
+          "showRetrograde": true,
+          "showSpeeds": false
+        },
+        "enabled": true,
+        "id": "planets",
+        "ringType": "planets",
+        "style": {
+          "$type": "solar.kairos.preset.ring.style.planets",
+          "anchorFromInnerEdge": true,
+          "angularCuspLineWidth": 1,
+          "circleRadius": 8,
+          "connectionLineWidth": 0.5,
+          "cuspLineWidth": 0.5,
+          "degreeMarkLength": 4,
+          "degreeMarkWidth": 1,
+          "degreeTextFontSize": 10,
+          "degreeTextLineSpacing": 3,
+          "degreeTextOffset": 4,
+          "glyphInsetFromAnchor": 20,
+          "glyphSize": 18,
+          "innerBoundaryLineWidth": 0,
+          "invertGlyphOrder": true,
+          "outerBoundaryLineWidth": 0,
+          "overlapPrevention": {
+            "enabled": true,
+            "nudgeDistance": 8
+          },
+          "showConnectionOnBothEdges": false,
+          "showCuspLines": true,
+          "showDegreeMarks": false,
+          "showDegreeText": true,
+          "showFrameDerivedPoints": true,
+          "showMinuteText": false,
+          "showRetrogradeGlyph": false,
+          "showSignGlyph": false,
+          "showTicksOnBothEdges": false,
+          "thickAngularLines": false,
+          "useGlyphs": true
+        },
+        "thickness": {
+          "kind": "auto"
+        }
+      },
+      {
+        "content": {
+          "$type": "solar.kairos.preset.ring.content.houses",
+          "showCusps": true,
+          "showNumbers": true,
+          "system": "Placidus"
+        },
+        "enabled": true,
+        "id": "houses",
+        "ringType": "houses",
+        "style": {
+          "$type": "solar.kairos.preset.ring.style.houses",
+          "angularCuspLineWidth": 1,
+          "boundaryLineColor": {
+            "layer": "bd",
+            "source": "semantic",
+            "value": "primary"
+          },
+          "cuspLineWidth": 0.5,
+          "innerBoundaryLineWidth": 0.5,
+          "numberFontSize": 10,
+          "numberFontWeight": "regular",
+          "outerBoundaryLineWidth": 0.5,
+          "rotateNumbers": true,
+          "thickAngularLines": false
+        },
+        "thickness": {
+          "kind": "fixed",
+          "value": 15
+        }
+      }
+    ]
+  },
+  "sourceTemplateName": "classic",
+  "sourceTemplateVersion": 4,
+  "tripleChart": {
+    "globalSettings": {
+      "defaultHitRadius": 20,
+      "margin": 8,
+      "minimumInnerRadius": 40,
+      "moduleHitRadiusOverrides": {},
+      "overlapPrevention": {
+        "enabled": true,
+        "nudgeDistance": 1
+      },
+      "ringGap": 0,
+      "staticOrientationDegree": 0,
+      "variableRingSizing": "equalDistribution"
+    },
+    "rings": [
+      {
+        "content": {
+          "$type": "solar.kairos.preset.ring.content.zodiac",
+          "showBoundaries": true,
+          "showDegrees": true,
+          "showSymbols": true
+        },
+        "enabled": true,
+        "id": "zodiac",
+        "ringType": "zodiac",
+        "style": {
+          "$type": "solar.kairos.preset.ring.style.zodiac",
+          "glyphSize": 13,
+          "majorMarkInterval": 10,
+          "majorMarkLength": 8,
+          "majorMarkWidth": 1,
+          "minorMarkInterval": 1,
+          "minorMarkLength": 4,
+          "minorMarkWidth": 0.5,
+          "radialLineWidth": 0.5,
+          "rotateGlyphs": true,
+          "segmentBorderWidth": 1,
+          "showDegreeMarkers": false
+        },
+        "thickness": {
+          "kind": "fixed",
+          "value": 15
+        }
+      },
+      {
+        "content": {
+          "$type": "solar.kairos.preset.ring.content.planets",
+          "showRetrograde": true,
+          "showSpeeds": false
+        },
+        "enabled": true,
+        "id": "planets1",
+        "ringType": "planets",
+        "style": {
+          "$type": "solar.kairos.preset.ring.style.planets",
+          "anchorFromInnerEdge": true,
+          "angularCuspLineWidth": 1,
+          "circleRadius": 8,
+          "connectionLineWidth": 0.5,
+          "cuspLineWidth": 0.5,
+          "degreeMarkLength": 4,
+          "degreeMarkWidth": 1,
+          "degreeTextFontSize": 7,
+          "degreeTextLineSpacing": 3,
+          "degreeTextOffset": 2,
+          "glyphInsetFromAnchor": 10,
+          "glyphSize": 14,
+          "innerBoundaryLineWidth": 0.5,
+          "invertGlyphOrder": true,
+          "outerBoundaryLineWidth": 0,
+          "overlapPrevention": {
+            "enabled": true,
+            "nudgeDistance": 8
+          },
+          "showConnectionOnBothEdges": false,
+          "showCuspLines": true,
+          "showDegreeMarks": false,
+          "showDegreeText": true,
+          "showFrameDerivedPoints": true,
+          "showMinuteText": false,
+          "showRetrogradeGlyph": false,
+          "showSignGlyph": false,
+          "showTicksOnBothEdges": false,
+          "thickAngularLines": false,
+          "useGlyphs": true
+        },
+        "thickness": {
+          "kind": "auto"
+        }
+      },
+      {
+        "content": {
+          "$type": "solar.kairos.preset.ring.content.planets",
+          "showRetrograde": true,
+          "showSpeeds": false
+        },
+        "enabled": true,
+        "id": "planets2",
+        "ringType": "planets",
+        "style": {
+          "$type": "solar.kairos.preset.ring.style.planets",
+          "anchorFromInnerEdge": false,
+          "angularCuspLineWidth": 1,
+          "circleRadius": 8,
+          "connectionLineWidth": 0.5,
+          "cuspLineWidth": 0.5,
+          "degreeMarkLength": 4,
+          "degreeMarkWidth": 1,
+          "degreeTextFontSize": 7,
+          "degreeTextLineSpacing": 3,
+          "degreeTextOffset": 2,
+          "glyphInsetFromAnchor": 11,
+          "glyphSize": 13,
+          "innerBoundaryLineWidth": 0.5,
+          "invertGlyphOrder": false,
+          "outerBoundaryLineWidth": 0,
+          "overlapPrevention": {
+            "enabled": true,
+            "nudgeDistance": 8
+          },
+          "showConnectionOnBothEdges": true,
+          "showCuspLines": true,
+          "showDegreeMarks": false,
+          "showDegreeText": true,
+          "showFrameDerivedPoints": true,
+          "showMinuteText": false,
+          "showRetrogradeGlyph": false,
+          "showSignGlyph": false,
+          "showTicksOnBothEdges": true,
+          "thickAngularLines": false,
+          "useGlyphs": true
+        },
+        "thickness": {
+          "kind": "auto"
+        }
+      },
+      {
+        "content": {
+          "$type": "solar.kairos.preset.ring.content.planets",
+          "showRetrograde": true,
+          "showSpeeds": false
+        },
+        "enabled": true,
+        "id": "planets3",
+        "ringType": "planets",
+        "style": {
+          "$type": "solar.kairos.preset.ring.style.planets",
+          "anchorFromInnerEdge": false,
+          "angularCuspLineWidth": 1,
+          "circleRadius": 8,
+          "connectionLineWidth": 0.5,
+          "cuspLineWidth": 0.5,
+          "degreeMarkLength": 4,
+          "degreeMarkWidth": 1,
+          "degreeTextFontSize": 7,
+          "degreeTextLineSpacing": 3,
+          "degreeTextOffset": 1,
+          "glyphInsetFromAnchor": 11,
+          "glyphSize": 12,
+          "innerBoundaryLineWidth": 0,
+          "invertGlyphOrder": true,
+          "outerBoundaryLineWidth": 0,
+          "overlapPrevention": {
+            "enabled": true,
+            "nudgeDistance": 8
+          },
+          "showConnectionOnBothEdges": false,
+          "showCuspLines": true,
+          "showDegreeMarks": false,
+          "showDegreeText": true,
+          "showFrameDerivedPoints": true,
+          "showMinuteText": false,
+          "showRetrogradeGlyph": false,
+          "showSignGlyph": false,
+          "showTicksOnBothEdges": false,
+          "thickAngularLines": false,
+          "useGlyphs": true
+        },
+        "thickness": {
+          "kind": "auto"
+        }
+      },
+      {
+        "content": {
+          "$type": "solar.kairos.preset.ring.content.houses",
+          "showCusps": true,
+          "showNumbers": true,
+          "system": "Placidus"
+        },
+        "enabled": true,
+        "id": "houses",
+        "ringType": "houses",
+        "style": {
+          "$type": "solar.kairos.preset.ring.style.houses",
+          "angularCuspLineWidth": 1,
+          "cuspLineWidth": 0.5,
+          "innerBoundaryLineWidth": 0.5,
+          "numberFontSize": 8,
+          "numberFontWeight": "regular",
+          "outerBoundaryLineWidth": 0.5,
+          "rotateNumbers": true,
+          "thickAngularLines": false
+        },
+        "thickness": {
+          "kind": "fixed",
+          "value": 10
+        }
+      }
+    ]
+  },
+  "visibility": {
+    "enabledBodies": [
+      "Neptune",
+      "Uranus",
+      "Mercury",
+      "Saturn",
+      "Midheaven",
+      "Descendant",
+      "Chiron",
+      "North Node",
+      "Moon",
+      "Sun",
+      "Juno",
+      "Jupiter",
+      "Venus",
+      "South Node",
+      "Mars",
+      "Pluto",
+      "Ceres",
+      "Pallas",
+      "Ascendant",
+      "Imum Coeli"
+    ]
+  }
+}
