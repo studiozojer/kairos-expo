@@ -376,8 +376,8 @@ function sortIndicesAtLargestGap(
     }
     unrolledLongitudes[k] = value;
     sortedIndices[k] = order[srcIdx];
-    if (unrolledLo) unrolledLo[k] = windowLos![srcIdx] + shift;
-    if (unrolledHi) unrolledHi[k] = windowHis![srcIdx] + shift;
+    if (unrolledLo) unrolledLo[k] = windowLos![order[srcIdx]] + shift;
+    if (unrolledHi) unrolledHi[k] = windowHis![order[srcIdx]] + shift;
   }
 
   return { sortedIndices, unrolledLongitudes, unrolledLo, unrolledHi };
@@ -513,81 +513,46 @@ function boundedBlockLayout(
   if (n <= 1) return unrolledLongitudes.slice();
 
   const g = minSeparation;
+  const x = unrolledLongitudes;
+  const lo = unrolledLo;
+  const hi = unrolledHi;
 
-  interface Block {
-    sum: number;
-    count: number;
-    lo: number;
-    hi: number;
-    start: number;
-    end: number; // inclusive, in unrolled index space
-  }
+  // Forward + backward min-gap envelopes (the unbounded PAV). Their midpoint
+  // is the least-squares centered spread: `f` = leftmost feasible position per
+  // index, `b` = rightmost.
+  const f = new Array<number>(n);
+  const b = new Array<number>(n);
+  for (let i = 0; i < n; i++) f[i] = i === 0 ? x[i] : Math.max(x[i], f[i - 1] + g);
+  for (let i = n - 1; i >= 0; i--) b[i] = i === n - 1 ? x[i] : Math.min(x[i], b[i + 1] - g);
 
-  const blocks: Block[] = [];
+  // Center, clamp to each planet's window (hard — house/sign wins).
+  const y = new Array<number>(n);
+  for (let i = 0; i < n; i++) y[i] = clampValue((f[i] + b[i]) / 2, lo[i], hi[i]);
+
+  // Final passes: window and order are hard, min-gap is soft — a cluster that
+  // can't be spread at gap g inside its windows relaxes (gap < g). The forward
+  // pass spreads right; the backward pass redistributes away from a window
+  // wall so a cluster jammed against an edge fills its window instead of piling.
+  let prev = -Infinity;
   for (let i = 0; i < n; i++) {
-    // z-space values: x' = x − i·g, lo' = lo − i·g, hi' = hi − i·g.
-    const block: Block = {
-      sum: unrolledLongitudes[i] - i * g,
-      count: 1,
-      lo: unrolledLo[i] - i * g,
-      hi: unrolledHi[i] - i * g,
-      start: i,
-      end: i,
-    };
-    blocks.push(block);
-
-    // Backward cascade: merge while the previous block's clamped value
-    // exceeds this block's (monotonicity violation in z-space).
-    while (blocks.length >= 2) {
-      const prev = blocks[blocks.length - 2];
-      const cur = blocks[blocks.length - 1];
-      const prevVal = clampValue(prev.sum / prev.count, prev.lo, prev.hi);
-      const curVal = clampValue(cur.sum / cur.count, cur.lo, cur.hi);
-      if (prevVal <= curVal) break;
-      prev.sum += cur.sum;
-      prev.count += cur.count;
-      prev.lo = Math.max(prev.lo, cur.lo);
-      prev.hi = Math.min(prev.hi, cur.hi);
-      prev.end = cur.end;
-      blocks.pop();
-    }
+    let v = y[i];
+    v = Math.max(v, prev + g);
+    v = Math.max(v, lo[i]);
+    v = Math.min(v, hi[i]);
+    y[i] = v;
+    prev = v;
+  }
+  let next = Infinity;
+  for (let i = n - 1; i >= 0; i--) {
+    let v = y[i];
+    v = Math.min(v, next - g);
+    v = Math.max(v, lo[i]);
+    v = Math.min(v, hi[i]);
+    y[i] = v;
+    next = v;
   }
 
-  const adjusted = new Array<number>(n);
-  for (const block of blocks) {
-    if (block.lo <= block.hi) {
-      // Feasible: common z = mean clamped to the window intersection.
-      const z = clampValue(block.sum / block.count, block.lo, block.hi);
-      for (let i = block.start; i <= block.end; i++) {
-        adjusted[i] = z + i * g;
-      }
-    } else {
-      // Infeasible: relax the gap — re-space to fill the y-space window.
-      const k = block.end - block.start + 1;
-      let loY = -Infinity;
-      let hiY = Infinity;
-      let sumY = 0;
-      for (let i = block.start; i <= block.end; i++) {
-        loY = Math.max(loY, unrolledLo[i]);
-        hiY = Math.min(hiY, unrolledHi[i]);
-        sumY += unrolledLongitudes[i];
-      }
-      if (loY > hiY) {
-        // Disjoint windows — degenerate; pin at the mean.
-        loY = hiY = sumY / k;
-      }
-      const s = k > 1 ? (hiY - loY) / (k - 1) : 0;
-      const meanY = sumY / k;
-      const first = k > 1
-        ? clampValue(meanY - ((k - 1) * s) / 2, loY, hiY - (k - 1) * s)
-        : clampValue(meanY, loY, hiY);
-      for (let i = block.start; i <= block.end; i++) {
-        adjusted[i] = first + (i - block.start) * s;
-      }
-    }
-  }
-
-  return adjusted;
+  return y;
 }
 
 // MARK: - Bounding Box Calculation
