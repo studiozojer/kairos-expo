@@ -43,6 +43,14 @@ export interface ChartPlacement {
   isRetrograde: boolean;
   /** Celestial-body name (Swift `Placement.celestialBody?.rawValue`); absent = always visible. */
   body?: string;
+  /**
+   * Displacement window (zodiac degrees) — own house (else sign), from
+   * buildConfiguration. When present on every placement, the solver bounds
+   * displacement to it (windowed PAV); absent → unbounded (legacy path).
+   * `windowHi` may exceed 360 for a house wrapping the 0° line.
+   */
+  windowLo?: number;
+  windowHi?: number;
 }
 
 /**
@@ -230,7 +238,7 @@ export class PlanetLayoutEngine {
    * PlanetRingLayoutCoordinator here.)
    */
   static calculateNonOverlappingLayout(
-    placements: { id: string; longitude: number }[],
+    placements: { id: string; longitude: number; windowLo?: number; windowHi?: number }[],
     config: PlanetLayoutConfig,
   ): LayoutPosition[] {
     // Empty / single-planet trivial cases.
@@ -242,10 +250,19 @@ export class PlanetLayoutEngine {
       }));
     }
 
-    // 1. Sort indices by true longitude with wraparound handling.
-    const { sortedIndices, shiftedLongitudes } = sortIndicesByLongitudeWithWraparound(
-      placements.map((p) => p.longitude),
+    const hasWindows = placements.every(
+      (p) => p.windowLo !== undefined && p.windowHi !== undefined,
     );
+
+    // 1. Sort by true longitude, unrolled at the largest empty arc (the seam
+    //    never slices a tight cluster — see sortIndicesAtLargestGap), unrolling
+    //    the displacement windows in lockstep when present.
+    const { sortedIndices, unrolledLongitudes, unrolledLo, unrolledHi } =
+      sortIndicesAtLargestGap(
+        placements.map((p) => p.longitude),
+        hasWindows ? placements.map((p) => p.windowLo as number) : undefined,
+        hasWindows ? placements.map((p) => p.windowHi as number) : undefined,
+      );
 
     // 2. Compute minimum angular separation from bbox + nudge.
     //    Bbox size is uniform across planets (same glyphSize/circleRadius for all),
@@ -254,8 +271,17 @@ export class PlanetLayoutEngine {
     const minSepPoints = bbox + config.nudgeDistance;
     const minSepAngular = angularSeparation(minSepPoints, config.radius);
 
-    // 3. Run PAV block layout on the sorted longitudes.
-    const adjustedSorted = buildBlocksAndPlace(shiftedLongitudes, minSepAngular);
+    // 3. Block layout on the sorted (unrolled) longitudes — windowed (bounded
+    //    PAV) when the placements carry displacement windows, else the legacy
+    //    unbounded PAV.
+    const adjustedSorted = hasWindows
+      ? boundedBlockLayout(
+          unrolledLongitudes,
+          unrolledLo as number[],
+          unrolledHi as number[],
+          minSepAngular,
+        )
+      : buildBlocksAndPlace(unrolledLongitudes, minSepAngular);
 
     // 4. Un-sort back to original placement order; normalize wraparound.
     const adjustedByIndex = new Array<number>(placements.length).fill(0);
@@ -278,46 +304,83 @@ export class PlanetLayoutEngine {
 // MARK: - Sort
 
 /**
- * Sort placement indices by true longitude with wraparound handling.
+ * Sort placement indices by true longitude, unrolling the circle at its
+ * **largest empty arc** so the sort seam never slices a tight cluster.
  *
- * When planets span more than 180° (which means there's necessarily an
- * empty arc somewhere of width `360° − span`), shift longitudes in
- * `[0°, 180°)` by +360° before sorting. This places the 0°/360° seam
- * between unshifted planets (now ending in `[180°, 360°)`) and shifted
- * planets (now starting in `[360°, 540°)`), so no adjacent zodiac pair is
- * split across the sort boundary. The chosen seam location isn't
- * necessarily the largest empty arc — but it's always *an* empty arc by
- * construction, which is all PAV needs.
+ * DELIBERATE DIVERGENCE from Swift (`sortIndicesByLongitudeWithWraparound`
+ * :263-279): the Swift original shifts everything below 180° by +360° when
+ * the span exceeds 180°, which fixes the seam at 0°/180°. A conjunction
+ * straddling that fixed seam (e.g. 179° + 181°) got its two halves pushed to
+ * opposite ends of the sorted list ~358° apart; the linear PAV sweep then
+ * never re-merged them — so min-separation was never enforced (overlap) and
+ * the block-mean overshoot around the seam inverted their order. Cutting at
+ * the actual widest empty gap guarantees the seam is nowhere near a cluster.
  *
- * Returns the sorted indices AND the (possibly shifted) longitudes in
- * sorted order — the shifted values are what the block layout operates
- * on; the un-shift happens during the final normalization step.
- *
- * (Swift `sortIndicesByLongitudeWithWraparound` :263-279.)
+ * Returns the sorted indices AND the unrolled (monotonically increasing)
+ * longitudes the block layout operates on; the un-unroll back to [0°, 360°)
+ * happens in the caller's final normalization step.
  */
-function sortIndicesByLongitudeWithWraparound(longitudes: number[]): {
+function sortIndicesAtLargestGap(
+  longitudes: number[],
+  windowLos?: number[],
+  windowHis?: number[],
+): {
   sortedIndices: number[];
-  shiftedLongitudes: number[];
+  unrolledLongitudes: number[];
+  unrolledLo?: number[];
+  unrolledHi?: number[];
 } {
-  const minLong = Math.min(...longitudes);
-  const maxLong = Math.max(...longitudes);
+  const n = longitudes.length;
+  const order = longitudes
+    .map((_, idx) => idx)
+    .sort((a, b) => longitudes[a] - longitudes[b]);
+  const sorted = order.map((idx) => longitudes[idx]);
 
-  const needsShift = maxLong - minLong > 180;
+  if (n <= 1) {
+    return {
+      sortedIndices: order,
+      unrolledLongitudes: sorted,
+      unrolledLo: windowLos ? order.map((i) => windowLos[i]) : undefined,
+      unrolledHi: windowHis ? order.map((i) => windowHis[i]) : undefined,
+    };
+  }
 
-  const working = longitudes
-    .map((longitude, idx) => {
-      let l = longitude;
-      if (needsShift && l < 180) {
-        l += 360;
-      }
-      return { idx, long: l };
-    })
-    .sort((a, b) => a.long - b.long);
+  // Largest circular gap between consecutive sorted longitudes; the seam
+  // (sort boundary) sits there.
+  let bestGap = -1;
+  let bestIdx = -1;
+  for (let k = 0; k < n; k++) {
+    const a = sorted[k];
+    const b = k + 1 === n ? sorted[0] + 360 : sorted[k + 1];
+    const gap = b - a;
+    if (gap > bestGap) {
+      bestGap = gap;
+      bestIdx = k;
+    }
+  }
 
-  return {
-    sortedIndices: working.map((w) => w.idx),
-    shiftedLongitudes: working.map((w) => w.long),
-  };
+  // Unroll starting just after the largest gap, adding 360 so the sequence
+  // is monotonically increasing — windows shift in lockstep with the value.
+  const startIdx = (bestIdx + 1) % n;
+  const unrolledLongitudes = new Array<number>(n);
+  const sortedIndices = new Array<number>(n);
+  const unrolledLo = windowLos ? new Array<number>(n) : undefined;
+  const unrolledHi = windowHis ? new Array<number>(n) : undefined;
+  for (let k = 0; k < n; k++) {
+    const srcIdx = (startIdx + k) % n;
+    let value = sorted[srcIdx];
+    let shift = 0;
+    if (k > 0 && value < unrolledLongitudes[k - 1]) {
+      shift = 360;
+      value += 360;
+    }
+    unrolledLongitudes[k] = value;
+    sortedIndices[k] = order[srcIdx];
+    if (unrolledLo) unrolledLo[k] = windowLos![order[srcIdx]] + shift;
+    if (unrolledHi) unrolledHi[k] = windowHis![order[srcIdx]] + shift;
+  }
+
+  return { sortedIndices, unrolledLongitudes, unrolledLo, unrolledHi };
 }
 
 // MARK: - PAV Block Layout
@@ -413,6 +476,83 @@ function buildBlocksAndPlace(sortedLongitudes: number[], minSeparation: number):
   }
 
   return adjusted;
+}
+
+// MARK: - Bounded Block Layout (windowed PAV)
+
+/** Clamp `value` into `[lo, hi]`. */
+function clampValue(value: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, value));
+}
+
+/**
+ * Bounded block layout — pool-adjacent-violators with each planet pinned to
+ * its displacement window `[lo, hi]` (its own house, else sign).
+ *
+ * Reduces to bounded isotonic regression. With `z_i = y_i − i·g` (g = min
+ * separation), "spread ≥ g apart" becomes "z non-decreasing" and each window
+ * `[lo_i, hi_i]` becomes `[lo_i − i·g, hi_i − i·g]`. PAV pools runs whose
+ * clamped block values violate monotonicity; a block's common z is its mean
+ * clamped to the members' window intersection.
+ *
+ * A block whose intersection is empty — the cluster can't be both spread and
+ * in-window — is **relaxed** (the infeasibility policy): its members are
+ * re-spaced in y-space to exactly fill the available window (spacing < g,
+ * down to touching). This keeps them in-house and accepts the overlap,
+ * rather than breaking the house bound.
+ *
+ * Returns adjusted longitudes in sorted (unrolled) order.
+ */
+function boundedBlockLayout(
+  unrolledLongitudes: number[],
+  unrolledLo: number[],
+  unrolledHi: number[],
+  minSeparation: number,
+): number[] {
+  const n = unrolledLongitudes.length;
+  if (n <= 1) return unrolledLongitudes.slice();
+
+  const g = minSeparation;
+  const x = unrolledLongitudes;
+  const lo = unrolledLo;
+  const hi = unrolledHi;
+
+  // Forward + backward min-gap envelopes (the unbounded PAV). Their midpoint
+  // is the least-squares centered spread: `f` = leftmost feasible position per
+  // index, `b` = rightmost.
+  const f = new Array<number>(n);
+  const b = new Array<number>(n);
+  for (let i = 0; i < n; i++) f[i] = i === 0 ? x[i] : Math.max(x[i], f[i - 1] + g);
+  for (let i = n - 1; i >= 0; i--) b[i] = i === n - 1 ? x[i] : Math.min(x[i], b[i + 1] - g);
+
+  // Center, clamp to each planet's window (hard — house/sign wins).
+  const y = new Array<number>(n);
+  for (let i = 0; i < n; i++) y[i] = clampValue((f[i] + b[i]) / 2, lo[i], hi[i]);
+
+  // Final passes: window and order are hard, min-gap is soft — a cluster that
+  // can't be spread at gap g inside its windows relaxes (gap < g). The forward
+  // pass spreads right; the backward pass redistributes away from a window
+  // wall so a cluster jammed against an edge fills its window instead of piling.
+  let prev = -Infinity;
+  for (let i = 0; i < n; i++) {
+    let v = y[i];
+    v = Math.max(v, prev + g);
+    v = Math.max(v, lo[i]);
+    v = Math.min(v, hi[i]);
+    y[i] = v;
+    prev = v;
+  }
+  let next = Infinity;
+  for (let i = n - 1; i >= 0; i--) {
+    let v = y[i];
+    v = Math.min(v, next - g);
+    v = Math.max(v, lo[i]);
+    v = Math.min(v, hi[i]);
+    y[i] = v;
+    next = v;
+  }
+
+  return y;
 }
 
 // MARK: - Bounding Box Calculation

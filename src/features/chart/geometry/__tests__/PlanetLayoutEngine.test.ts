@@ -291,3 +291,158 @@ test("wraparoundBlockHandledCorrectly", () => {
   // Symmetric: each moved by approximately the same amount.
   expect(Math.abs(moved0 - moved1) < 0.5).toBe(true); // "Wraparound block should spread symmetrically"
 });
+
+// MARK: - Seam-cut regression (divergence from Swift — the fixed 0°/180° seam)
+
+/** Minimum angular gap between adjacent planets around the full circle. */
+function minCircularGapDegrees(longitudes: number[]): number {
+  if (longitudes.length < 2) return Infinity;
+  const sorted = [...longitudes].sort((a, b) => a - b);
+  let minGap = Infinity;
+  for (let k = 0; k < sorted.length; k++) {
+    const a = sorted[k];
+    const b = k + 1 === sorted.length ? sorted[0] + 360 : sorted[k + 1];
+    minGap = Math.min(minGap, b - a);
+  }
+  return minGap;
+}
+
+/** True if `b` is a cyclic rotation of `a` (same circular order). */
+function isCyclicRotation(a: number[], b: number[]): boolean {
+  if (a.length !== b.length) return false;
+  const doubled = [...b, ...b];
+  const start = doubled.indexOf(a[0]);
+  if (start === -1) return false;
+  for (let k = 0; k < a.length; k++) {
+    if (doubled[start + k] !== a[k]) return false;
+  }
+  return true;
+}
+
+/** Indices sorted ascending by their corresponding value. */
+function orderByValues(values: number[]): number[] {
+  return values.map((_, i) => i).sort((x, y) => values[x] - values[y]);
+}
+
+/// A conjunction straddling the 180° line must not be split by the sort seam.
+/// Regression: the fixed 0°/180° seam put 179° and 181° at opposite ends of
+/// the sorted list ~358° apart, so PAV never enforced their separation and
+/// their glyphs overlapped (adjusted gap stayed 2° instead of ≥ minSep).
+test("straddlingPairAcrossSeamGetsSeparated", () => {
+  const layout = runEngineFullLayout([10.0, 179.0, 181.0, 350.0], 0.0);
+  const adjusted = layout.map((p) => p.adjustedLongitude);
+  const requiredSepDegrees = 2.0 * Math.asin(18 / 2 / 140.0) * (180.0 / Math.PI);
+  expect(minCircularGapDegrees(adjusted)).toBeGreaterThanOrEqual(requiredSepDegrees - 0.01);
+});
+
+/// A dense cluster straddling the seam must keep its circular order.
+/// Regression: block-mean overshoot across the fixed 180° seam inverted two
+/// conjunct planets (179° ↔ 181° swapped).
+test("denseClusterStraddlingSeamKeepsOrder", () => {
+  const longitudes = [160.0, 178.0, 179.0, 181.0, 182.0, 200.0, 350.0];
+  const layout = runEngineFullLayout(longitudes, 0.0);
+  const adjusted = layout.map((p) => p.adjustedLongitude);
+
+  const trueOrder = orderByValues(longitudes);
+  const adjOrder = orderByValues(adjusted);
+  expect(isCyclicRotation(trueOrder, adjOrder)).toBe(true);
+
+  const requiredSepDegrees = 2.0 * Math.asin(18 / 2 / 140.0) * (180.0 / Math.PI);
+  expect(minCircularGapDegrees(adjusted)).toBeGreaterThanOrEqual(requiredSepDegrees - 0.01);
+});
+
+// MARK: - Windowed (bounded) displacement
+
+/** Replicates the solver's min-separation computation for a circleRadius. */
+function minSepForCircleRadius(circleRadius: number, nudgeDistance = 0, radius = ENGINE_RADIUS): number {
+  const bbox = circleRadius * 2 + 2; // +2 padding (calculateBoundingBox)
+  return 2.0 * Math.asin((bbox + nudgeDistance) / 2 / radius) * (180.0 / Math.PI);
+}
+
+/** Windowed-layout config for the bounded path (useGlyphs=false → bbox from circleRadius). */
+function windowedConfig(nudgeDistance = 0.0) {
+  return {
+    radius: ENGINE_RADIUS,
+    nudgeDistance,
+    useGlyphs: USE_GLYPHS,
+    glyphSize: GLYPH_SIZE,
+    circleRadius: CIRCLE_RADIUS,
+  };
+}
+
+/// A straddling pair must stay in its own house AND get separated (windowed).
+test("windowedDisplacementStaysInWindowAndSeparates", () => {
+  const layout = PlanetLayoutEngine.calculateNonOverlappingLayout(
+    [
+      { id: "a", longitude: 14.5, windowLo: 0, windowHi: 15 },
+      { id: "b", longitude: 16.0, windowLo: 15, windowHi: 30 },
+    ],
+    windowedConfig(),
+  );
+  const g = minSepForCircleRadius(CIRCLE_RADIUS);
+  for (const p of layout) {
+    const [lo, hi] = p.id === "a" ? [0, 15] : [15, 30];
+    expect(p.adjustedLongitude).toBeGreaterThanOrEqual(lo - 0.001);
+    expect(p.adjustedLongitude).toBeLessThanOrEqual(hi + 0.001);
+  }
+  expect(Math.abs(layout[0].adjustedLongitude - layout[1].adjustedLongitude)).toBeGreaterThanOrEqual(
+    g - 0.01,
+  );
+});
+
+/// The bounded solver satisfies its contract on random feasible inputs:
+/// every planet stays in its window AND adjacent planets keep the min gap.
+/// (It need not match the exact least-squares optimum — the envelope approach
+/// is centered, constraint-correct, but not displacement-optimal when a
+/// window binds.)
+test("windowedDisplacementSatisfiesInvariantsOnRandomInputs", () => {
+  let seed = 20260908;
+  const rnd = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+  const g = minSepForCircleRadius(CIRCLE_RADIUS);
+  for (let trial = 0; trial < 300; trial++) {
+    const n = 2 + Math.floor(rnd() * 4); // 2..5
+    const base = 20 + rnd() * 100;
+    const xs: number[] = [];
+    for (let i = 0; i < n; i++) xs.push(base + rnd() * 40);
+    xs.sort((a, b) => a - b);
+    const lo = xs.map((x) => Math.floor(x / 30) * 30);
+    const hi = lo.map((l) => l + 30);
+
+    const layout = PlanetLayoutEngine.calculateNonOverlappingLayout(
+      xs.map((x, i) => ({ id: `p${i}`, longitude: x, windowLo: lo[i], windowHi: hi[i] })),
+      windowedConfig(),
+    );
+    const got = layout.map((p) => p.adjustedLongitude);
+
+    // 1. Every planet stays in its own window (hard invariant).
+    for (let i = 0; i < n; i++) {
+      expect(got[i]).toBeGreaterThanOrEqual(lo[i] - 0.001);
+      expect(got[i]).toBeLessThanOrEqual(hi[i] + 0.001);
+    }
+    // 2. Order is preserved (circular).
+    expect(isCyclicRotation(orderByValues(xs), orderByValues(got))).toBe(true);
+    // 3. Min separation held (sign windows are wide enough to always be feasible).
+    expect(minCircularGapDegrees(got)).toBeGreaterThanOrEqual(g - 0.01);
+  }
+});
+
+/// An infeasible cluster relaxes the gap (stays in-window) rather than
+/// breaking the house bound.
+test("infeasibleClusterRelaxesGapInsteadOfBreakingWindow", () => {
+  // 3 planets in a 10° window need ~14.7° of separation at g≈7.36° — infeasible.
+  const layout = PlanetLayoutEngine.calculateNonOverlappingLayout(
+    [4, 5, 6].map((x, i) => ({ id: `p${i}`, longitude: x, windowLo: 0, windowHi: 10 })),
+    windowedConfig(),
+  );
+  const adjusted = layout.map((p) => p.adjustedLongitude).sort((a, b) => a - b);
+  for (const a of adjusted) {
+    expect(a).toBeGreaterThanOrEqual(-0.001);
+    expect(a).toBeLessThanOrEqual(10.001);
+  }
+  // Relaxed: the cluster fills its window edge to edge.
+  expect(adjusted[0]).toBeCloseTo(0, 3);
+  expect(adjusted[2]).toBeCloseTo(10, 3);
+});

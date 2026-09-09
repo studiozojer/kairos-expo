@@ -286,6 +286,15 @@ export interface Placement {
   signPlacement: string;
   isRetrograde: boolean;
   glyphAsset: string;
+  /**
+   * Displacement window (zodiac degrees) the planet must stay within during
+   * overlap prevention — its own house when houses are enabled and it has a
+   * house, else its sign. Populated by `buildConfiguration`, not by
+   * `placementFromNode`. `windowHi` may exceed 360 when the window wraps
+   * the 0° Aries line (a house spanning the wrap).
+   */
+  windowLo?: number;
+  windowHi?: number;
 }
 
 export function placementFromNode(node: CelestialNodeDTO): Placement {
