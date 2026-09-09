@@ -291,3 +291,62 @@ test("wraparoundBlockHandledCorrectly", () => {
   // Symmetric: each moved by approximately the same amount.
   expect(Math.abs(moved0 - moved1) < 0.5).toBe(true); // "Wraparound block should spread symmetrically"
 });
+
+// MARK: - Seam-cut regression (divergence from Swift — the fixed 0°/180° seam)
+
+/** Minimum angular gap between adjacent planets around the full circle. */
+function minCircularGapDegrees(longitudes: number[]): number {
+  if (longitudes.length < 2) return Infinity;
+  const sorted = [...longitudes].sort((a, b) => a - b);
+  let minGap = Infinity;
+  for (let k = 0; k < sorted.length; k++) {
+    const a = sorted[k];
+    const b = k + 1 === sorted.length ? sorted[0] + 360 : sorted[k + 1];
+    minGap = Math.min(minGap, b - a);
+  }
+  return minGap;
+}
+
+/** True if `b` is a cyclic rotation of `a` (same circular order). */
+function isCyclicRotation(a: number[], b: number[]): boolean {
+  if (a.length !== b.length) return false;
+  const doubled = [...b, ...b];
+  const start = doubled.indexOf(a[0]);
+  if (start === -1) return false;
+  for (let k = 0; k < a.length; k++) {
+    if (doubled[start + k] !== a[k]) return false;
+  }
+  return true;
+}
+
+/** Indices sorted ascending by their corresponding value. */
+function orderByValues(values: number[]): number[] {
+  return values.map((_, i) => i).sort((x, y) => values[x] - values[y]);
+}
+
+/// A conjunction straddling the 180° line must not be split by the sort seam.
+/// Regression: the fixed 0°/180° seam put 179° and 181° at opposite ends of
+/// the sorted list ~358° apart, so PAV never enforced their separation and
+/// their glyphs overlapped (adjusted gap stayed 2° instead of ≥ minSep).
+test("straddlingPairAcrossSeamGetsSeparated", () => {
+  const layout = runEngineFullLayout([10.0, 179.0, 181.0, 350.0], 0.0);
+  const adjusted = layout.map((p) => p.adjustedLongitude);
+  const requiredSepDegrees = 2.0 * Math.asin(18 / 2 / 140.0) * (180.0 / Math.PI);
+  expect(minCircularGapDegrees(adjusted)).toBeGreaterThanOrEqual(requiredSepDegrees - 0.01);
+});
+
+/// A dense cluster straddling the seam must keep its circular order.
+/// Regression: block-mean overshoot across the fixed 180° seam inverted two
+/// conjunct planets (179° ↔ 181° swapped).
+test("denseClusterStraddlingSeamKeepsOrder", () => {
+  const longitudes = [160.0, 178.0, 179.0, 181.0, 182.0, 200.0, 350.0];
+  const layout = runEngineFullLayout(longitudes, 0.0);
+  const adjusted = layout.map((p) => p.adjustedLongitude);
+
+  const trueOrder = orderByValues(longitudes);
+  const adjOrder = orderByValues(adjusted);
+  expect(isCyclicRotation(trueOrder, adjOrder)).toBe(true);
+
+  const requiredSepDegrees = 2.0 * Math.asin(18 / 2 / 140.0) * (180.0 / Math.PI);
+  expect(minCircularGapDegrees(adjusted)).toBeGreaterThanOrEqual(requiredSepDegrees - 0.01);
+});
