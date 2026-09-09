@@ -350,3 +350,154 @@ test("denseClusterStraddlingSeamKeepsOrder", () => {
   const requiredSepDegrees = 2.0 * Math.asin(18 / 2 / 140.0) * (180.0 / Math.PI);
   expect(minCircularGapDegrees(adjusted)).toBeGreaterThanOrEqual(requiredSepDegrees - 0.01);
 });
+
+// MARK: - Windowed (bounded) displacement
+
+/** Replicates the solver's min-separation computation for a circleRadius. */
+function minSepForCircleRadius(circleRadius: number, nudgeDistance = 0, radius = ENGINE_RADIUS): number {
+  const bbox = circleRadius * 2 + 2; // +2 padding (calculateBoundingBox)
+  return 2.0 * Math.asin((bbox + nudgeDistance) / 2 / radius) * (180.0 / Math.PI);
+}
+
+/** Windowed-layout config for the bounded path (useGlyphs=false → bbox from circleRadius). */
+function windowedConfig(nudgeDistance = 0.0) {
+  return {
+    radius: ENGINE_RADIUS,
+    nudgeDistance,
+    useGlyphs: USE_GLYPHS,
+    glyphSize: GLYPH_SIZE,
+    circleRadius: CIRCLE_RADIUS,
+  };
+}
+
+/**
+ * Exact bounded isotonic regression via exhaustive contiguous partition in
+ * z-space — the correctness oracle for `boundedBlockLayout`. Returns null when
+ * no feasible partition exists (the input is genuinely infeasible at gap g).
+ */
+function exactBoundedLayout(
+  sortedX: number[],
+  sortedLo: number[],
+  sortedHi: number[],
+  g: number,
+): number[] | null {
+  const n = sortedX.length;
+  const xp = sortedX.map((v, i) => v - i * g);
+  const lop = sortedLo.map((v, i) => v - i * g);
+  const hip = sortedHi.map((v, i) => v - i * g);
+  let best = Infinity;
+  let bestZ: number[] | null = null;
+  for (let mask = 0; mask < 1 << (n - 1); mask++) {
+    const blocks: number[][] = [];
+    let start = 0;
+    for (let i = 0; i < n - 1; i++) {
+      if (mask & (1 << i)) {
+        blocks.push([start, i]);
+        start = i + 1;
+      }
+    }
+    blocks.push([start, n - 1]);
+    let ok = true;
+    let prev = -Infinity;
+    let cost = 0;
+    const z = new Array<number>(n);
+    for (const [a, b] of blocks) {
+      let sum = 0;
+      let lo = -Infinity;
+      let hi = Infinity;
+      for (let i = a; i <= b; i++) {
+        sum += xp[i];
+        lo = Math.max(lo, lop[i]);
+        hi = Math.min(hi, hip[i]);
+      }
+      if (lo > hi) {
+        ok = false;
+        break;
+      }
+      const v = Math.min(hi, Math.max(lo, sum / (b - a + 1)));
+      if (v < prev) {
+        ok = false;
+        break;
+      }
+      prev = v;
+      for (let i = a; i <= b; i++) {
+        z[i] = v;
+        cost += (v - xp[i]) * (v - xp[i]);
+      }
+    }
+    if (ok && cost < best) {
+      best = cost;
+      bestZ = [...z];
+    }
+  }
+  return bestZ ? bestZ.map((z, i) => z + i * g) : null;
+}
+
+/// A straddling pair must stay in its own house AND get separated (windowed).
+test("windowedDisplacementStaysInWindowAndSeparates", () => {
+  const layout = PlanetLayoutEngine.calculateNonOverlappingLayout(
+    [
+      { id: "a", longitude: 14.5, windowLo: 0, windowHi: 15 },
+      { id: "b", longitude: 16.0, windowLo: 15, windowHi: 30 },
+    ],
+    windowedConfig(),
+  );
+  const g = minSepForCircleRadius(CIRCLE_RADIUS);
+  for (const p of layout) {
+    const [lo, hi] = p.id === "a" ? [0, 15] : [15, 30];
+    expect(p.adjustedLongitude).toBeGreaterThanOrEqual(lo - 0.001);
+    expect(p.adjustedLongitude).toBeLessThanOrEqual(hi + 0.001);
+  }
+  expect(Math.abs(layout[0].adjustedLongitude - layout[1].adjustedLongitude)).toBeGreaterThanOrEqual(
+    g - 0.01,
+  );
+});
+
+/// The bounded solver must match the exact optimum on random feasible inputs.
+test("windowedPavMatchesExactOptimumOnRandomInputs", () => {
+  let seed = 20260908;
+  const rnd = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+  const g = minSepForCircleRadius(CIRCLE_RADIUS);
+  for (let trial = 0; trial < 300; trial++) {
+    const n = 2 + Math.floor(rnd() * 4); // 2..5
+    const base = 20 + rnd() * 100;
+    const xs: number[] = [];
+    for (let i = 0; i < n; i++) xs.push(base + rnd() * 40);
+    xs.sort((a, b) => a - b);
+    const lo = xs.map((x) => Math.floor(x / 30) * 30);
+    const hi = lo.map((l) => l + 30);
+
+    const expected = exactBoundedLayout(xs, lo, hi, g);
+    expect(expected).not.toBeNull(); // sign windows (30°) always feasible at this density
+
+    const layout = PlanetLayoutEngine.calculateNonOverlappingLayout(
+      xs.map((x, i) => ({ id: `p${i}`, longitude: x, windowLo: lo[i], windowHi: hi[i] })),
+      windowedConfig(),
+    );
+    const got = layout.map((p) => p.adjustedLongitude);
+    for (let i = 0; i < n; i++) {
+      expect(got[i]).toBeCloseTo(expected![i], 4);
+    }
+  }
+});
+
+/// An infeasible cluster relaxes the gap (stays in-window) rather than
+/// breaking the house bound.
+test("infeasibleClusterRelaxesGapInsteadOfBreakingWindow", () => {
+  // 3 planets in a 10° window need ~14.7° of separation at g≈7.36° — infeasible.
+  const layout = PlanetLayoutEngine.calculateNonOverlappingLayout(
+    [4, 5, 6].map((x, i) => ({ id: `p${i}`, longitude: x, windowLo: 0, windowHi: 10 })),
+    windowedConfig(),
+  );
+  const adjusted = layout.map((p) => p.adjustedLongitude).sort((a, b) => a - b);
+  for (const a of adjusted) {
+    expect(a).toBeGreaterThanOrEqual(-0.001);
+    expect(a).toBeLessThanOrEqual(10.001);
+  }
+  // Relaxed to fill the window: members touch 0 and 10, spaced 5° apart.
+  expect(adjusted[0]).toBeCloseTo(0, 3);
+  expect(adjusted[2]).toBeCloseTo(10, 3);
+});

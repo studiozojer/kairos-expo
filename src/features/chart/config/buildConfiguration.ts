@@ -75,6 +75,29 @@ function normalizeEnabledBody(entry: string): CelestialBodyId | undefined {
   return undefined;
 }
 
+/**
+ * The `[windowLo, windowHi]` displacement window for a placement — its own
+ * house when houses are enabled and it carries a house, else its sign. This
+ * is the bound the windowed PAV displacement respects (the "own house /
+ * sign" guarantee). Window values are zodiac degrees; `windowHi` may exceed
+ * 360 when a house wraps the 0° line.
+ */
+function windowForPlacement(
+  placement: Placement,
+  houseCusps: number[],
+  housesEnabled: boolean,
+): { windowLo: number; windowHi: number } {
+  const h = placement.housePlacement;
+  if (housesEnabled && h >= 1 && h <= 12) {
+    const lo = houseCusps[h - 1];
+    let hi = houseCusps[h % 12];
+    if (hi <= lo) hi += 360;
+    return { windowLo: lo, windowHi: hi };
+  }
+  const lo = Math.floor(placement.longitude / 30) * 30;
+  return { windowLo: lo, windowHi: lo + 30 };
+}
+
 /** The ring's PlanetsRingStyle if it carries one, else the static default. */
 function planetsStyleOf(ring: RingModule): PlanetsRingStyle {
   return ring.style.$type === PLANETS_STYLE_TYPE
@@ -96,6 +119,10 @@ export function buildConfiguration(
   const sortedHouses = [...chart.houses.nodes].sort((a, b) => a.house_number - b.house_number);
   const houseCusps = sortedHouses.map((h) => h.cusp_longitude);
   const orientation = sortedHouses[0]?.cusp_longitude ?? 0.0;
+
+  // Houses are "on" iff the preset has an enabled houses ring — the signal
+  // the windowed displacement uses to choose house-bound vs sign-bound.
+  const housesEnabled = preset.soloChart.rings.some((r) => r.type === "houses" && r.enabled);
 
   // Placements + North-Node dedup BEFORE any ring filter (Swift :109).
   const placements = deduplicateNorthNode(chart.celestial.nodes.map(placementFromNode));
@@ -131,7 +158,10 @@ export function buildConfiguration(
           rings.push({
             type: {
               kind: "planets",
-              placements: filtered,
+              // Displacement window per placement (house, else sign) — see
+              // windowed PAV (PlanetLayoutEngine). Applied here so the solver
+              // stays pure and the coordinator needs no cusp knowledge.
+              placements: filtered.map((p) => ({ ...p, ...windowForPlacement(p, houseCusps, housesEnabled) })),
               ringNumber: 1,
               maxRingNumber: 1,
               drawInnerBoundary: false,
