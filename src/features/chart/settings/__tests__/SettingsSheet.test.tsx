@@ -1,5 +1,5 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { TextInput } from 'react-native';
+import { Modal, TextInput } from 'react-native';
 import { SettingsSheet } from '../SettingsSheet';
 import { DEFAULT_SETTINGS } from '../chartSettings';
 import { searchAtlas } from '../atlas';
@@ -39,4 +39,19 @@ test('stale atlas results cannot replace a newer search or select the wrong city
   act(() => button(paris.name).props.onPress());
   expect(onChange).toHaveBeenLastCalledWith({ ...DEFAULT_SETTINGS, location: paris });
   expect(button('Default location')).toBeDefined();
+});
+
+// Modal retains its children during iOS dismissal even after visible becomes false.
+test('closing retains the settings surface until native dismissal completes', () => {
+  const props = { visible: true, settings: DEFAULT_SETTINGS, saveError: false, onChange: jest.fn(), onClose: jest.fn() };
+  act(() => { view = create(<SettingsSheet {...props} />); });
+  const open = view.root.findByType(Modal).props;
+  const editor = open.children.props.children.props.children;
+  expect(editor).toBeTruthy();
+  act(() => view.update(<SettingsSheet {...props} visible={false} />));
+  const closing = view.root.findByType(Modal).props;
+  expect(closing.visible).toBe(false);
+  expect(closing.children.props.children.props.children.type).toBe(editor.type);
+  expect(closing.backdropColor).toBeDefined();
+  expect(closing.backdropColor).toBe(open.backdropColor);
 });

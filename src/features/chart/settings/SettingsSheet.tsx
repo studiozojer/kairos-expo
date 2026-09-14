@@ -14,9 +14,10 @@ interface Props {
   onChange: (next: ChartSettings) => void;
   onClose: () => void;
 }
+// Let Modal retain the editor until native dismissal finishes, as Display does.
 export function SettingsSheet(props: Props) {
   return <ChartSheet visible={props.visible} onClose={props.onClose}>
-    {props.visible && <SettingsEditor {...props} />}
+    <SettingsEditor {...props} />
   </ChartSheet>;
 }
 function SettingsEditor({ settings, saveError, onChange, onClose }: Props) {

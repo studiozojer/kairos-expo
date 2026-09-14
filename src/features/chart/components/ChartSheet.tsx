@@ -12,7 +12,8 @@ const CLOSE = Skia.Path.MakeFromSVGString('M5 5L15 15M15 5L5 15')!;
 export function ChartSheet({ visible, onClose, children }: {
   visible: boolean; onClose: () => void; children: ReactNode;
 }) {
-  return <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={onClose}>
+  const t = useTheme();
+  return <Modal backdropColor={t.color.bgSolidBase} visible={visible} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={onClose}>
     <GestureHandlerRootView style={{ flex: 1 }}><SafeAreaProvider>{children}</SafeAreaProvider></GestureHandlerRootView>
   </Modal>;
 }
