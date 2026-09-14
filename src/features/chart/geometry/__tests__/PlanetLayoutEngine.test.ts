@@ -392,9 +392,7 @@ test("windowedDisplacementStaysInWindowAndSeparates", () => {
 
 /// The bounded solver satisfies its contract on random feasible inputs:
 /// every planet stays in its window AND adjacent planets keep the min gap.
-/// (It need not match the exact least-squares optimum — the envelope approach
-/// is centered, constraint-correct, but not displacement-optimal when a
-/// window binds.)
+/// Full separation remains feasible for these inputs, so no relaxation is needed.
 test("windowedDisplacementSatisfiesInvariantsOnRandomInputs", () => {
   let seed = 20260908;
   const rnd = () => {
@@ -444,5 +442,51 @@ test("infeasibleClusterRelaxesGapInsteadOfBreakingWindow", () => {
   }
   // Relaxed: the cluster fills its window edge to edge.
   expect(adjusted[0]).toBeCloseTo(0, 3);
+  expect(adjusted[1]).toBeCloseTo(5, 3);
   expect(adjusted[2]).toBeCloseTo(10, 3);
+});
+
+test("six Cancer placements share the available arc without a cusp pile-up", () => {
+  // Screenshot's cluster, deliberately in engine input order rather than sorted.
+  const xs = [103.322, 114.197, 93.104, 95.933, 116.025, 116.059];
+  const layout = PlanetLayoutEngine.calculateNonOverlappingLayout(
+    xs.map((longitude, i) => ({ id: String(i), longitude, windowLo: 90, windowHi: 120 })),
+    windowedConfig(),
+  );
+  const sorted = layout.map((p) => p.adjustedLongitude).sort((a, b) => a - b);
+  sorted.forEach((longitude, i) => expect(longitude).toBeCloseTo(90 + i * 6, 6));
+  expect(layout.map((p) => p.id)).toEqual(xs.map((_, i) => String(i)));
+});
+
+test("a crowded house does not compress a separate feasible conjunction", () => {
+  const xs = [4, 5, 6, 94, 95, 130];
+  const layout = PlanetLayoutEngine.calculateNonOverlappingLayout(
+    xs.map((longitude, i) => ({
+      id: String(i), longitude,
+      windowLo: i < 3 ? 0 : 90,
+      windowHi: i < 3 ? 10 : 150,
+    })), windowedConfig(),
+  );
+  const y = layout.map((p) => p.adjustedLongitude);
+  expect(y[1]).toBeCloseTo(5, 6);
+  expect(y[4] - y[3]).toBeCloseTo(minSepForCircleRadius(CIRCLE_RADIUS), 6);
+  expect((y[3] + y[4]) / 2).toBeCloseTo(94.5, 6);
+  expect(y[5]).toBeCloseTo(130, 6);
+});
+
+test("crowding across neighboring windows retains each body's bound and order", () => {
+  const xs = [178, 179, 180, 181, 182, 183];
+  const layout = PlanetLayoutEngine.calculateNonOverlappingLayout(
+    xs.map((longitude, i) => ({
+      id: String(i), longitude,
+      windowLo: i < 3 ? 170 : 181,
+      windowHi: i < 3 ? 181 : 190,
+    })), windowedConfig(),
+  );
+  const y = layout.map((p) => p.adjustedLongitude);
+  y.forEach((value, i) => {
+    expect(value).toBeGreaterThanOrEqual(i < 3 ? 170 : 181);
+    expect(value).toBeLessThanOrEqual(i < 3 ? 181 : 190);
+    if (i) expect(value - y[i - 1]).toBeGreaterThan(0);
+  });
 });

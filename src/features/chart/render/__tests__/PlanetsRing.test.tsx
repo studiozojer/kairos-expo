@@ -40,8 +40,10 @@ function HookHarness({
   return null;
 }
 
-function layoutFor(size = 390): WheelLayout {
-  const cfg = buildConfiguration(chart as ChartCalculationResponse, parsePreset(classic));
+function layoutFor(size = 390, extraBodies: string[] = []): WheelLayout {
+  const preset = parsePreset(classic);
+  preset.visibility.enabledBodies.push(...extraBodies);
+  const cfg = buildConfiguration(chart as ChartCalculationResponse, preset);
   let captured: WheelLayout | undefined;
   act(() => {
     TestRenderer.create(<HookHarness config={cfg} size={size} onResult={(l) => (captured = l)} />);
@@ -55,6 +57,24 @@ function planetsRingIndex(layout: WheelLayout): number {
   if (index < 0) throw new Error("classic preset has no planets ring");
   return index;
 }
+
+test.each([320, 390, 430])("Cancer cluster shares its window at canvas width %i", (size) => {
+  // The screenshot has these two bodies switched on in the Display sheet.
+  const layout = layoutFor(size, ["Vertex", "Part of Fortune"]);
+  const positions = layout.planetLayouts.get(planetsRingIndex(layout))!
+    .filter((p) => p.placement.longitude >= 90 && p.placement.longitude < 120)
+    .sort((a, b) => a.placement.longitude - b.placement.longitude);
+  expect(positions).toHaveLength(6);
+  positions.forEach((p, i) => {
+    const radius = Math.hypot(
+      p.adjustedPosition.x - layout.coordinates.center.x,
+      p.adjustedPosition.y - layout.coordinates.center.y,
+    );
+    const expected = layout.coordinates.pointForDegree(90 + i * 6, radius);
+    expect(p.adjustedPosition.x).toBeCloseTo(expected.x, 6);
+    expect(p.adjustedPosition.y).toBeCloseTo(expected.y, 6);
+  });
+});
 
 test("useWheelLayout produces one planet layout entry per visible placement", () => {
   const layout = layoutFor();

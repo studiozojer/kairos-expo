@@ -486,22 +486,16 @@ function clampValue(value: number, lo: number, hi: number): number {
 }
 
 /**
- * Bounded block layout — pool-adjacent-violators with each planet pinned to
- * its displacement window `[lo, hi]` (its own house, else sign).
+ * Reserve the requested gap wherever it fits. For each contiguous run, the
+ * sum of its gaps cannot exceed hi[last] - lo[first]. Process shorter runs
+ * first so a tight house relaxes its own gaps before a larger run is considered.
+ * When a run cannot fit, cap its largest gaps equally; already tighter gaps
+ * keep their spacing. This is local compression, not a wheel-wide size change.
  *
- * Reduces to bounded isotonic regression. With `z_i = y_i − i·g` (g = min
- * separation), "spread ≥ g apart" becomes "z non-decreasing" and each window
- * `[lo_i, hi_i]` becomes `[lo_i − i·g, hi_i − i·g]`. PAV pools runs whose
- * clamped block values violate monotonicity; a block's common z is its mean
- * clamped to the members' window intersection.
- *
- * A block whose intersection is empty — the cluster can't be both spread and
- * in-window — is **relaxed** (the infeasibility policy): its members are
- * re-spaced in y-space to exactly fill the available window (spacing < g,
- * down to touching). This keeps them in-house and accepts the overlap,
- * rather than breaking the house bound.
- *
- * Returns adjusted longitudes in sorted (unrolled) order.
+ * With those feasible gaps fixed, bounded PAV minimizes squared displacement
+ * from true longitude. Subtracting cumulative gaps turns minimum separation
+ * into monotonicity. Only colliding blocks merge; isolated bodies stay put.
+ * Bounds constrain centers, as before; glyph/text footprints are unchanged.
  */
 function boundedBlockLayout(
   unrolledLongitudes: number[],
@@ -512,47 +506,65 @@ function boundedBlockLayout(
   const n = unrolledLongitudes.length;
   if (n <= 1) return unrolledLongitudes.slice();
 
-  const g = minSeparation;
-  const x = unrolledLongitudes;
-  const lo = unrolledLo;
-  const hi = unrolledHi;
+  const gaps = new Array<number>(n - 1).fill(minSeparation);
+  for (let span = 1; span < n; span++) {
+    for (let start = 0; start + span < n; start++) {
+      const end = start + span;
+      const capacity = Math.max(0, unrolledHi[end] - unrolledLo[start]);
+      const sortedGaps = gaps.slice(start, end).sort((a, b) => a - b);
+      if (sortedGaps.reduce((sum, gap) => sum + gap, 0) <= capacity) continue;
 
-  // Forward + backward min-gap envelopes (the unbounded PAV). Their midpoint
-  // is the least-squares centered spread: `f` = leftmost feasible position per
-  // index, `b` = rightmost.
-  const f = new Array<number>(n);
-  const b = new Array<number>(n);
-  for (let i = 0; i < n; i++) f[i] = i === 0 ? x[i] : Math.max(x[i], f[i - 1] + g);
-  for (let i = n - 1; i >= 0; i--) b[i] = i === n - 1 ? x[i] : Math.min(x[i], b[i + 1] - g);
+      // Water-fill the available arc: retain smaller gaps, then share the
+      // remaining capacity equally among the larger ones.
+      let remaining = capacity;
+      let cap = 0;
+      for (let k = 0; k < sortedGaps.length; k++) {
+        cap = remaining / (sortedGaps.length - k);
+        if (sortedGaps[k] >= cap) break;
+        remaining -= sortedGaps[k];
+      }
+      for (let k = start; k < end; k++) gaps[k] = Math.min(gaps[k], cap);
+    }
+  }
 
-  // Center, clamp to each planet's window (hard — house/sign wins).
-  const y = new Array<number>(n);
-  for (let i = 0; i < n; i++) y[i] = clampValue((f[i] + b[i]) / 2, lo[i], hi[i]);
+  const offsets = new Array<number>(n).fill(0);
+  for (let i = 1; i < n; i++) offsets[i] = offsets[i - 1] + gaps[i - 1];
 
-  // Final passes: window and order are hard, min-gap is soft — a cluster that
-  // can't be spread at gap g inside its windows relaxes (gap < g). The forward
-  // pass spreads right; the backward pass redistributes away from a window
-  // wall so a cluster jammed against an edge fills its window instead of piling.
-  let prev = -Infinity;
+  interface BoundedBlock {
+    start: number;
+    count: number;
+    sum: number;
+    lo: number;
+    hi: number;
+    value: number;
+  }
+  const blocks: BoundedBlock[] = [];
   for (let i = 0; i < n; i++) {
-    let v = y[i];
-    v = Math.max(v, prev + g);
-    v = Math.max(v, lo[i]);
-    v = Math.min(v, hi[i]);
-    y[i] = v;
-    prev = v;
-  }
-  let next = Infinity;
-  for (let i = n - 1; i >= 0; i--) {
-    let v = y[i];
-    v = Math.min(v, next - g);
-    v = Math.max(v, lo[i]);
-    v = Math.min(v, hi[i]);
-    y[i] = v;
-    next = v;
+    const sum = unrolledLongitudes[i] - offsets[i];
+    const lo = unrolledLo[i] - offsets[i];
+    const hi = unrolledHi[i] - offsets[i];
+    const block: BoundedBlock = {
+      start: i, count: 1, sum, lo, hi, value: clampValue(sum, lo, hi),
+    };
+    while (blocks.length && blocks[blocks.length - 1].value > block.value) {
+      const previous = blocks.pop()!;
+      block.start = previous.start;
+      block.count += previous.count;
+      block.sum += previous.sum;
+      block.lo = Math.max(block.lo, previous.lo);
+      block.hi = Math.min(block.hi, previous.hi);
+      block.value = clampValue(block.sum / block.count, block.lo, block.hi);
+    }
+    blocks.push(block);
   }
 
-  return y;
+  const adjusted = new Array<number>(n);
+  for (const block of blocks) {
+    for (let i = block.start; i < block.start + block.count; i++) {
+      adjusted[i] = clampValue(block.value + offsets[i], unrolledLo[i], unrolledHi[i]);
+    }
+  }
+  return adjusted;
 }
 
 // MARK: - Bounding Box Calculation
