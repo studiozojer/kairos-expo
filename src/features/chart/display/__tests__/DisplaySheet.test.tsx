@@ -1,3 +1,4 @@
+import { MenuView } from '@react-native-menu/menu';
 import React from 'react';
 import { Modal } from 'react-native';
 import { State } from 'react-native-gesture-handler';
@@ -102,5 +103,25 @@ it('starts halfway and remembers dragged and hidden positions after closing the 
   act(() => renderer.update(render(true)));
   expect(cover()).toBe(0);
   expect(props.onChangePreset).not.toHaveBeenCalled();
+  act(() => renderer.unmount());
+});
+
+
+it('selects presets from the native menu without replacing the active settings subpage', () => {
+  const preset = bundledPreset('classic')!.preset;
+  const onSelectPreset = jest.fn();
+  let renderer!: TestRenderer.ReactTestRenderer;
+  act(() => { renderer = TestRenderer.create(<DisplaySheet visible preset={preset} presetName="classic" bodyNames={[]} config={buildConfiguration(chart as ChartCalculationResponse, preset)} onChangePreset={jest.fn()} onSelectPreset={onSelectPreset} onClose={jest.fn()} />); });
+  const root = renderer.root;
+  act(() => root.findByType(Choices).props.onChange('Style'));
+  act(() => root.findAllByType(LinkRow).find(n => n.props.label === 'Aspect line styling')!.props.onPress());
+  const menu = root.findByType(MenuView);
+  expect(menu.props.shouldOpenOnLongPress).toBe(false);
+  expect(menu.props.actions.find((a: { id: string }) => a.id === 'classic').state).toBe('on');
+  act(() => menu.props.onPressAction({ nativeEvent: { event: 'classic' } }));
+  expect(onSelectPreset).not.toHaveBeenCalled();
+  act(() => menu.props.onPressAction({ nativeEvent: { event: 'minimal' } }));
+  expect(onSelectPreset).toHaveBeenCalledWith('minimal');
+  expect(root.findAllByType(Choices).map(n => n.props.label)).toEqual(['Color', 'Shape']);
   act(() => renderer.unmount());
 });

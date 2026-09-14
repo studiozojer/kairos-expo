@@ -15,7 +15,6 @@ import { GLYPH_ASSETS, type GlyphName } from '../render/glyph-map.gen';
 import { ChartWheel } from '../render/ChartWheel';
 import type { ChartRenderingConfiguration } from '../config/ChartRenderingConfiguration';
 import { isBodyEnabled, toggleBody } from './displayPreset';
-import { BUNDLED_PRESET_NAMES } from './presets';
 import { LABEL_CONTROLS, planetStyles, updateOrientation, updatePlanetStyles } from './sharedControls';
 import { Action, Choices, LinkRow, Note, NumberRow, Section, Toggle } from './controls';
 import { resolveAspectType } from '../geometry/AspectFilter';
@@ -34,7 +33,7 @@ const PLANETS = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn',
 const LOTS = ['Part of Fortune', 'Lot of Spirit', 'Lot of Eros'];
 const POINTS = ['Ascendant', 'Midheaven', 'Descendant', 'Imum Coeli', 'North Node', 'South Node', 'Vertex', 'Black Moon Lilith'];
 const ASTEROIDS = ['Chiron', 'Ceres', 'Pallas', 'Juno', 'Vesta', 'Eros', 'Pholus'];
-const TITLES: Record<string, string> = { presets: 'Display preset', asteroids: 'Asteroids', lots: 'Lots', aspects: 'Aspect types & orbs', patterns: 'Aspect patterns', filters: 'Aspect filtering', lines: 'Aspect line styling', selection: 'Selection', orientation: 'Static orientation' };
+const TITLES: Record<string, string> = { asteroids: 'Asteroids', lots: 'Lots', aspects: 'Aspect types & orbs', patterns: 'Aspect patterns', filters: 'Aspect filtering', lines: 'Aspect line styling', selection: 'Selection', orientation: 'Static orientation' };
 const FILTERS = [['showSeparatingAspects', 'Separating aspects'], ['showFalseAspects', 'False aspects'], ['mutualAspectsOnly', 'Mutual aspects only'], ['interAspectsOnly', 'Inter aspects only'], ['filterBySelection', 'Filter by selection']] as const;
 const SELECTION = [
     ['showBackgroundCircle', 'Highlight selected'], ['includeAspectedPlanets', 'Include aspected planets'],
@@ -91,9 +90,7 @@ function DisplayEditor({ preset, presetName, bodyNames, config, onChangePreset: 
     const currentOrientation = preset.soloChart.globalSettings.staticOrientationDegree;
     const sizeValue = (key: 'glyphSize' | 'degreeTextFontSize') => styles.every(s => s[key] === styles[0]?.[key]) ? styles[0]?.[key] : undefined;
     let content;
-    if (page === 'presets')
-        content = <Section title="Choose a preset">{BUNDLED_PRESET_NAMES.map(name => <LinkRow key={name} label={name.charAt(0).toUpperCase() + name.slice(1)} detail={name === presetName ? 'Selected' : undefined} onPress={() => { onSelectPreset(name); setPage(null); }}/>)}</Section>;
-    else if (page === 'lots' || page === 'asteroids')
+    if (page === 'lots' || page === 'asteroids')
         content = <Section title={TITLES[page]}><Note>Included when their positions are available in the chart.</Note>{list.map(bodyToggle)}</Section>;
     else if (page === 'aspects')
         content = <Section title="Types & tolerance">{Object.entries(ASPECT_TYPES).map(([key, info]) => ({ ...info, displayName: resolveAspectType(key)!.wireName })).map(a => <View key={a.displayName}>
@@ -139,7 +136,7 @@ function DisplayEditor({ preset, presetName, bodyNames, config, onChangePreset: 
     else
         content = <><Section title="Reading comfort"><Choices label="Symbol size" value={sizeValue('glyphSize')} options={[[16, 'S'], [20, 'M'], [24, 'L']]} onChange={v => change(updatePlanetStyles(preset, { glyphSize: v }))}/><Choices label="Annotation size" value={sizeValue('degreeTextFontSize')} options={[[7.5, 'S'], [9.6, 'M'], [12, 'L']]} onChange={v => change(updatePlanetStyles(preset, { degreeTextFontSize: v }))}/></Section><Section title="Aspect lines"><LinkRow label="Aspect line styling" detail="Color, shape, weight, and opacity" onPress={() => setPage('lines')}/></Section><Section title="Interaction"><LinkRow label="Selection" detail="Highlighting, dimming, and related bodies" onPress={() => setPage('selection')}/></Section></>;
     return <View style={{ flex: 1, backgroundColor: t.color.bgSolidBase, paddingTop: insets.top }}>
-    <DisplayHeader presetName={presetName} onClose={onClose} onChoosePreset={() => setPage('presets')} />
+    <DisplayHeader presetName={presetName} onClose={onClose} onSelectPreset={onSelectPreset} />
     <View style={{ flex: 1 }} onLayout={({ nativeEvent: { layout } }) => setFrame(previous => previous.width === layout.width && previous.height === layout.height ? previous : { width: layout.width, height: layout.height })}><View style={{ position: 'absolute', top: 0, alignSelf: 'center' }}><ChartWheel config={config} size={width}/></View>
       <Animated.View testID="preview-cover" style={{ position: 'absolute', top: cover, bottom: 0, width: '100%', backgroundColor: t.color.bgSolidCard, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: t.border.hairline, borderColor: t.color.bdCard }}>
         <GestureDetector gesture={handleGesture}>
