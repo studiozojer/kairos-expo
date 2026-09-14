@@ -1,18 +1,15 @@
+import { PlanetPicker, PLANET_NAMES } from './PlanetPicker';
 import { SegmentedControl } from '@expo/ui/community/segmented-control';
 import { DisplayHeader } from './DisplayHeader';
 import { previewGesture } from './previewGesture';
 import { PatternIcon } from './PatternIcon';
 import { useEffect, useMemo, useState } from 'react';
-import { Animated, Modal, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Modal, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
-import { Canvas } from '@shopify/react-native-skia';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
 import type { Preset, SelectionStyleOverride } from '../schema/preset';
-import { ASPECT_TYPES, CELESTIAL_BODIES, ZODIAC_SIGNS } from '../schema/enums.gen';
-import { celestialBodyColor } from '../render/colors';
-import { Glyph } from '../render/Glyph';
-import { GLYPH_ASSETS, type GlyphName } from '../render/glyph-map.gen';
+import { ASPECT_TYPES, ZODIAC_SIGNS } from '../schema/enums.gen';
 import { ChartWheel } from '../render/ChartWheel';
 import type { ChartRenderingConfiguration } from '../config/ChartRenderingConfiguration';
 import { isBodyEnabled, toggleBody } from './displayPreset';
@@ -31,7 +28,6 @@ export interface DisplaySheetProps {
     onClose: () => void;
 }
 const DISPLAY_TABS = ['Bodies', 'Details', 'Style'];
-const PLANETS = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'];
 const LOTS = ['Part of Fortune', 'Lot of Spirit', 'Lot of Eros'];
 const POINTS = ['Ascendant', 'Midheaven', 'Descendant', 'Imum Coeli', 'North Node', 'South Node', 'Vertex', 'Black Moon Lilith'];
 const ASTEROIDS = ['Chiron', 'Ceres', 'Pallas', 'Juno', 'Vesta', 'Eros', 'Pholus'];
@@ -117,18 +113,11 @@ function DisplayEditor({ preset, presetName, bodyNames, config, onChangePreset: 
     else if (page === 'selection')
         content = <><Note>Selection preferences are retained in the preset. Chart selection is coming in a later renderer pass.</Note><Section title="Highlight & related bodies">{SELECTION.slice(0, 4).map(([key, label]) => <Toggle key={key} label={label} value={preset.selection[key]} onChange={v => selection({ [key]: v })}/>)}</Section><Section title="Dimming"><NumberRow label="Unselected opacity" value={preset.selection.unselectedOpacity * 100} max={100} step={5} suffix="%" onChange={v => selection({ unselectedOpacity: v / 100 })}/><NumberRow label="Related opacity" value={preset.selection.relatedOpacity * 100} max={100} step={5} suffix="%" onChange={v => selection({ relatedOpacity: v / 100 })}/>{SELECTION.slice(4).map(([key, label]) => <Toggle key={key} label={label} value={preset.selection[key]} onChange={v => selection({ [key]: v })}/>)}</Section></>;
     else if (tab === 'Bodies')
-        content = <><Section title="Planets"><View style={{ alignItems: 'flex-end' }}><Action label={PLANETS.every(n => isBodyEnabled(preset, n)) ? 'Hide all' : 'Show all'} onPress={() => {
-                const enabled = !PLANETS.every(n => isBodyEnabled(preset, n));
-                change(PLANETS.reduce((p, n) => toggleBody(p, n, enabled), preset));
-            }}/></View><View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>{PLANETS.map(name => {
-                const enabled = isBodyEnabled(preset, name);
-                const [bodyId, body] = Object.entries(CELESTIAL_BODIES).find(([, b]) => b.displayName === name)!;
-                const glyph = `celestials/${body?.glyphAsset}` as GlyphName;
-                return <Pressable key={name} accessibilityRole="checkbox" accessibilityLabel={name} accessibilityState={{ checked: enabled }} onPress={() => change(toggleBody(preset, name, !enabled))} style={{ width: '20%', paddingVertical: 12, alignItems: 'center', opacity: enabled ? 1 : .35 }}>
-      {glyph in GLYPH_ASSETS && <Canvas style={{ width: 30, height: 30 }}><Glyph name={glyph} x={15} y={15} size={25} color={celestialBodyColor(bodyId, preset.colors, t)}/></Canvas>}
-      <Text style={[t.type.whyteXxs, { color: t.color.txPrimary, marginTop: 6 }]}>{name}</Text>
-    </Pressable>;
-            })}</View></Section><Section title="Points">{POINTS.filter(n => bodyNames.includes(n)).map(bodyToggle)}</Section><Section title="More bodies"><LinkRow label="Asteroids" detail={enabledCount(ASTEROIDS)} onPress={() => setPage('asteroids')}/><LinkRow label="Lots" detail={enabledCount(LOTS)} onPress={() => setPage('lots')}/></Section></>;
+        content = <><Section title="Planets"><View style={{ alignItems: 'flex-end' }}><Action label={PLANET_NAMES.every(n => isBodyEnabled(preset, n)) ? 'Hide all' : 'Show all'} onPress={() => {
+                const enabled = !PLANET_NAMES.every(n => isBodyEnabled(preset, n));
+                change(PLANET_NAMES.reduce((p, n) => toggleBody(p, n, enabled), preset));
+            }}/></View><PlanetPicker enabledBodies={preset.visibility.enabledBodies} colors={preset.colors}
+              onToggle={name => change(toggleBody(preset, name, !isBodyEnabled(preset, name)))} /></Section><Section title="Points">{POINTS.filter(n => bodyNames.includes(n)).map(bodyToggle)}</Section><Section title="More bodies"><LinkRow label="Asteroids" detail={enabledCount(ASTEROIDS)} onPress={() => setPage('asteroids')}/><LinkRow label="Lots" detail={enabledCount(LOTS)} onPress={() => setPage('lots')}/></Section></>;
     else if (tab === 'Details')
         content = <><Section title="Beside each planet">{LABEL_CONTROLS.map(([key, label]) => {
                 const all = styles.length > 0 && styles.every(s => s[key]);
