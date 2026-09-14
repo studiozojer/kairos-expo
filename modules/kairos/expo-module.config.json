@@ -1,0 +1,17 @@
+{
+  "platforms": [
+    "apple",
+    "android"
+  ],
+  "apple": {
+    "modules": [
+      "KairosModule"
+    ],
+    "podspecPath": "KairosBridge.podspec"
+  },
+  "android": {
+    "modules": [
+      "studio.zojer.kairos.engine.KairosModule"
+    ]
+  }
+}

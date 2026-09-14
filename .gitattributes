@@ -1,0 +1,3 @@
+# Keep checksummed vendor data byte-for-byte, including its original line endings.
+modules/kairos/assets/Ephemeris/*.se1 binary
+modules/kairos/assets/Ephemeris/sefstars.txt binary

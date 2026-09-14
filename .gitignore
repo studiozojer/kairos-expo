@@ -41,3 +41,8 @@ yarn-error.*
 
 # SDD ledger and brainstorm mockups — scratch, not content
 .superpowers/
+
+# Local native module build intermediates
+modules/kairos/android/.cxx/
+modules/kairos/android/build/
+modules/kairos/android/.gradle/

@@ -1,0 +1,1 @@
+-keep class studio.zojer.kairos.engine.KairosNative { *; }

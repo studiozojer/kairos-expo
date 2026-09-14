@@ -1,0 +1,25 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'studio.zojer.kairos.engine'
+version = '0.1.0'
+
+android {
+  namespace 'studio.zojer.kairos.engine'
+  ndkVersion rootProject.ext.ndkVersion
+  defaultConfig {
+    ndk { abiFilters 'arm64-v8a', 'x86_64' }
+    versionCode 1
+    versionName '0.1.0'
+    consumerProguardFiles "consumer-rules.pro"
+    externalNativeBuild {
+      cmake { cppFlags '-std=c++17' }
+    }
+  }
+  externalNativeBuild { cmake { path 'CMakeLists.txt' } }
+  // Explicitly package Rust: CMake's no-SONAME import only links the JNI adapter.
+  sourceSets.main.jniLibs.srcDirs = ['src/main/jniLibs']
+  sourceSets.main.assets.srcDirs += ['../assets']
+}
