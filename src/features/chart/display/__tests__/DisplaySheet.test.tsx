@@ -1,5 +1,6 @@
 import React from 'react';
-import { PanResponder, type GestureResponderEvent, type PanResponderGestureState } from 'react-native';
+import { State } from 'react-native-gesture-handler';
+import { fireGestureHandler, getByGestureTestId } from 'react-native-gesture-handler/jest-utils';
 import TestRenderer, { act } from 'react-test-renderer';
 import { DisplaySheet } from '../DisplaySheet';
 import { ChartWheel } from '../../render/ChartWheel';
@@ -24,8 +25,7 @@ it('navigates the agreed pages, applies global labels, and keeps preview size fi
   expect(planetStyles(onChange.mock.calls[0][0]).every(s => s.showMinuteText)).toBe(true);
   act(() => root.findByType(Choices).props.onChange('Style'));
   expect(root.findAllByType(LinkRow).map(n => n.props.label)).toEqual(['Aspect line styling', 'Selection']);
-  const handle = root.findAll(n => n.props.accessibilityLabel === 'Hide chart preview' && typeof n.props.onPress === 'function')[0];
-  act(() => handle.props.onPress());
+  act(() => fireGestureHandler(getByGestureTestId('preview-tap')));
   expect(root.findByType(ChartWheel).props.size).toBe(size);
   act(() => renderer.unmount());
 });
@@ -36,7 +36,7 @@ it('keeps the editor in the modal tree while visibility changes for dismissal', 
   const open = DisplaySheet(props);
   const closing = DisplaySheet({ ...props, visible: false });
   expect(closing.props.visible).toBe(false);
-  expect(closing.props.children.props.children.type).toBe(open.props.children.props.children.type);
+  expect(closing.props.children.props.children.props.children.type).toBe(open.props.children.props.children.props.children.type);
   expect(open.props.presentationStyle).toBe('pageSheet');
   expect(open.props.allowSwipeDismissal).toBe(true);
   closing.props.onRequestClose();
@@ -44,25 +44,29 @@ it('keeps the editor in the modal tree while visibility changes for dismissal', 
 });
 
 it('keeps an intermediate drag position on release and across tab changes', () => {
-  const create = jest.spyOn(PanResponder, 'create');
   const preset = bundledPreset('classic')!.preset;
   let renderer!: TestRenderer.ReactTestRenderer;
   act(() => { renderer = TestRenderer.create(<DisplaySheet visible preset={preset} presetName="classic" bodyNames={[]} config={buildConfiguration(chart as ChartCalculationResponse, preset)} onChangePreset={jest.fn()} onSelectPreset={jest.fn()} onClose={jest.fn()} />); });
-  const gesture = create.mock.calls.at(-1)![0];
   const cover = () => renderer.root.findAll(n => n.props.testID === 'preview-cover')[0].props.style.top.__getValue();
   const original = cover();
   const size = renderer.root.findByType(ChartWheel).props.size;
   act(() => {
-    const event = {} as GestureResponderEvent;
-    const state = { dy: -original * .4, vy: -2 } as PanResponderGestureState;
-    gesture.onPanResponderGrant!(event, state);
-    gesture.onPanResponderMove!(event, state);
-    gesture.onPanResponderRelease!(event, state);
+    fireGestureHandler(getByGestureTestId('preview-pan'), [
+      { state: State.BEGAN, absoluteY: 600 },
+      { state: State.ACTIVE, absoluteY: 600 - original * .2 },
+      { state: State.ACTIVE, absoluteY: 600 - original * .4 },
+      { state: State.END, absoluteY: 600 - original * .4, velocityY: -2000 },
+    ]);
   });
   expect(cover()).toBeCloseTo(original * .6);
   act(() => renderer.root.findByType(Choices).props.onChange('Details'));
   expect(cover()).toBeCloseTo(original * .6);
   expect(renderer.root.findByType(ChartWheel).props.size).toBe(size);
+  act(() => fireGestureHandler(getByGestureTestId('preview-pan'), [
+    { state: State.BEGAN, absoluteY: 300 },
+    { state: State.ACTIVE, absoluteY: 300 + original * .1 },
+    { state: State.END, absoluteY: 300 + original * .1 },
+  ]));
+  expect(cover()).toBeCloseTo(original * .7);
   act(() => renderer.unmount());
-  create.mockRestore();
 });

@@ -36,3 +36,6 @@ jest.mock('expo-secure-store', () => {
 // is real (path math works in tests), `Canvas` becomes a plain RN View, and
 // the asset hooks (useSVG/useImage/useData) return null.
 require('@shopify/react-native-skia/jestSetup.js');
+
+// Native gesture events use the package's test harness (including modal roots).
+require('react-native-gesture-handler/jestSetup');

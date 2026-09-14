@@ -1,6 +1,8 @@
+import { previewGesture } from './previewGesture';
 import { PatternIcon } from './PatternIcon';
 import { useEffect, useMemo, useState } from 'react';
-import { Animated, Modal, PanResponder, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Modal, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Canvas } from '@shopify/react-native-skia';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
@@ -47,7 +49,7 @@ const SELECTION = [
  * fixed-size preview and retains the released position without detents. */
 export function DisplaySheet(props: DisplaySheetProps) {
     return <Modal visible={props.visible} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={props.onClose}>
-    <SafeAreaProvider><DisplayEditor {...props}/></SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}><SafeAreaProvider><DisplayEditor {...props}/></SafeAreaProvider></GestureHandlerRootView>
   </Modal>;
 }
 function DisplayEditor({ preset, presetName, bodyNames, config, onChangePreset: change, onSelectPreset, onClose }: DisplaySheetProps) {
@@ -66,22 +68,10 @@ function DisplayEditor({ preset, presetName, bodyNames, config, onChangePreset: 
     useEffect(() => {
         cover.setValue(restingPosition);
     }, [cover, restingPosition]);
-    const responder = useMemo(() => {
-        let start = 0;
-        const clamp = (value: number) => Math.max(0, Math.min(previewHeight, value));
-        const finish = (value: number) => {
-            const position = clamp(value);
-            cover.setValue(position);
-            setPreviewPosition(position);
-        };
-        return PanResponder.create({
-            onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
-            onPanResponderGrant: () => { cover.stopAnimation(v => { start = v; }); },
-            onPanResponderMove: (_, g) => cover.setValue(clamp(start + g.dy)),
-            onPanResponderRelease: (_, g) => finish(start + g.dy),
-            onPanResponderTerminate: () => cover.stopAnimation(finish),
-        });
-    }, [cover, previewHeight]);
+    const handleGesture = useMemo(
+        () => previewGesture(cover, previewHeight, setPreviewPosition),
+        [cover, previewHeight],
+    );
     const styles = planetStyles(preset);
     const aspects = preset.aspects;
     const patterns = aspects.patterns ?? { enabledTypes: [...PATTERN_NAMES], orb: 5 };
@@ -145,7 +135,15 @@ function DisplayEditor({ preset, presetName, bodyNames, config, onChangePreset: 
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, height: 52 }}><Action label="Close" onPress={onClose}/><Text style={[t.type.whyteMd, { color: t.color.txPrimary }]}>Display</Text><Action label={`${presetName.charAt(0).toUpperCase() + presetName.slice(1)} ⌄`} onPress={() => setPage('presets')}/></View>
     <View style={{ flex: 1 }} onLayout={({ nativeEvent: { layout } }) => setFrame(previous => previous.width === layout.width && previous.height === layout.height ? previous : { width: layout.width, height: layout.height })}><View style={{ position: 'absolute', top: 0, alignSelf: 'center' }}><ChartWheel config={config} size={width}/></View>
       <Animated.View testID="preview-cover" style={{ position: 'absolute', top: cover, bottom: 0, width: '100%', backgroundColor: t.color.bgSolidCard, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: t.border.hairline, borderColor: t.color.bdCard }}>
-        <View testID="preview-handle" {...responder.panHandlers}><Pressable accessibilityRole="button" accessibilityLabel={previewShown ? 'Hide chart preview' : 'Show chart preview'} onPress={() => setPreviewPosition(previewShown ? 0 : previewHeight)} style={{ height: 36, alignItems: 'center', justifyContent: 'center' }}><View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: t.color.txTertiary }}/></Pressable></View>
+        <GestureDetector gesture={handleGesture}>
+          <View testID="preview-handle" collapsable={false} accessible accessibilityRole="button"
+            accessibilityLabel={previewShown ? 'Hide chart preview' : 'Show chart preview'}
+            accessibilityHint="Drag to adjust the chart preview height, or double tap to toggle it."
+            onAccessibilityTap={() => setPreviewPosition(previewShown ? 0 : previewHeight)}
+            style={{ height: 44, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: t.color.txTertiary }}/>
+          </View>
+        </GestureDetector>
         {page ? <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 12 }}><Action label="‹ Back" onPress={() => setPage(null)}/><Text style={[t.type.whyteSm, { color: t.color.txPrimary, flex: 1 }]}>{TITLES[page]}</Text></View> : <View style={{ paddingHorizontal: 18 }}><Choices label="" value={tab} options={[["Bodies", "Bodies"], ["Details", "Details"], ["Style", "Style"]]} onChange={setTab}/></View>}
         <ScrollView key={page ?? tab} contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 18, paddingBottom: insets.bottom + 28 }}>{content}</ScrollView>
       </Animated.View>
