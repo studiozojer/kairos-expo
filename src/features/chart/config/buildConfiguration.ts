@@ -50,7 +50,6 @@ import {
   PLANETS_STYLE_TYPE,
   defaultRingStyle,
   type PlanetsRingStyle,
-  type RingStyle,
 } from "../schema/ring-styles";
 import type { ChartRenderingConfiguration, RingConfiguration } from "./ChartRenderingConfiguration";
 import {
@@ -118,7 +117,8 @@ export function buildConfiguration(
   // Swift sorts explicitly — PresetConfigurationBuilder :93).
   const sortedHouses = [...chart.houses.nodes].sort((a, b) => a.house_number - b.house_number);
   const houseCusps = sortedHouses.map((h) => h.cusp_longitude);
-  const orientation = sortedHouses[0]?.cusp_longitude ?? 0.0;
+  // Display orientation is a preset preference; house cusps remain astronomical data.
+  const orientation = preset.soloChart.globalSettings.staticOrientationDegree;
 
   // Houses are "on" iff the preset has an enabled houses ring — the signal
   // the windowed displacement uses to choose house-bound vs sign-bound.

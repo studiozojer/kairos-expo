@@ -8,18 +8,20 @@ import { useLoadTimeChart } from '@/features/chart/data/useLoadTimeChart';
 import { DEFAULT_LOCATION } from '@/features/chart/data/calculateChart';
 import { DisplaySheet } from '@/features/chart/display/DisplaySheet';
 import { bodyChoices } from '@/features/chart/display/displayPreset';
-import { bundledPreset } from '@/features/chart/display/presets';
+import { bundledPreset, bundledPresetSource } from '@/features/chart/display/presets';
 import { ChartWheel } from '@/features/chart/render/ChartWheel';
-import type { Preset } from '@/features/chart/schema/preset';
+import { presetDocument, editPresetDocument } from '@/features/chart/display/presetDocument';
 
-/** A single Seattle transit chart captured when this screen mounts. */
+/** A load-time Seattle chart with an in-memory display editor. The source
+ * document retains fields owned by other consumers; its projection feeds rendering. */
 export default function ChartHome() {
   const theme = useTheme();
   const { chart, status, retry, datetime } = useLoadTimeChart();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
-  const [preset, setPreset] = useState<Preset>(() => bundledPreset('classic')!.preset);
+  const [document, setDocument] = useState(() => presetDocument(bundledPresetSource('classic')));
+  const preset = document.preset;
   const [presetName, setPresetName] = useState('classic');
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -37,7 +39,7 @@ export default function ChartHome() {
   const selectPreset = (name: string) => {
     const next = bundledPreset(name);
     if (!next) return;
-    setPreset(next.preset);
+    setDocument(presetDocument(bundledPresetSource(name)));
     setPresetName(name);
   };
 
@@ -75,15 +77,16 @@ export default function ChartHome() {
         </Text>}
       </View>
 
-      <DisplaySheet
+      {config && <DisplaySheet
         visible={sheetOpen}
         preset={preset}
         presetName={presetName}
         bodyNames={bodyNames}
         onSelectPreset={selectPreset}
-        onChangePreset={setPreset}
+        config={config}
+        onChangePreset={next => setDocument(current => editPresetDocument(current, next))}
         onClose={() => setSheetOpen(false)}
-      />
+      />}
     </View>
   );
 }

@@ -29,7 +29,7 @@ test("classic + sibly builds a solo configuration", () => {
   const cfg = buildConfiguration(sibly, parsePreset(classic));
   expect(cfg.houseCusps).toHaveLength(12);
   expect(cfg.rings.some((r) => r.type.kind === "planets")).toBe(true);
-  expect(cfg.orientation).toBe(cfg.houseCusps[0]);
+  expect(cfg.orientation).toBe(classic.soloChart.globalSettings.staticOrientationDegree);
 });
 
 test("north node appears exactly once, and it is the first in engine order", () => {
@@ -115,15 +115,19 @@ test("unsupported ring types warn and are skipped (starfield fixedStars)", () =>
   }
 });
 
-test("aspect edges pass through raw; orientation is the house-1 cusp", () => {
+test("aspect edges pass through raw; orientation follows the preset", () => {
   const cfg = buildConfiguration(sibly, parsePreset(classic));
   // Builder does no aspect filtering — AspectConfiguration enabled/orb/type
   // filtering lives in the render overlay (kairos-ios AspectOverlay.swift,
   // AspectFilterResult.evaluate). The config carries the edges verbatim.
   expect(cfg.aspectEdges).toBe(sibly.celestial.edges as unknown as typeof cfg.aspectEdges);
   expect(cfg.aspects).toEqual(parsePreset(classic).aspects);
-  // Whole Sign Sibly: house 1 cusp = 240° (0° Sagittarius).
-  expect(cfg.orientation).toBe(240.0);
+  // Static orientation is independent of the house-1 cusp.
+  expect(cfg.orientation).toBe(classic.soloChart.globalSettings.staticOrientationDegree);
+  const rotated = parsePreset(classic);
+  rotated.soloChart.globalSettings.staticOrientationDegree = 90;
+  expect(buildConfiguration(sibly, rotated).orientation).toBe(90);
+  expect(buildConfiguration(sibly, rotated).houseCusps).toEqual(cfg.houseCusps);
 });
 
 test("rings preserve slot order (outermost-first, iOS RingGeometry index 0 = outermost)", () => {
