@@ -8,7 +8,6 @@ import type { GlyphName } from '../render/glyph-map.gen';
 import { resolveColorValue } from '../render/colors';
 
 const PLANET_IDS = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto'] as const;
-export const PLANET_NAMES = PLANET_IDS.map(id => CELESTIAL_BODIES[id].displayName);
 
 /** Chart-specific glyph toggles, matching kairos-ios PlanetToggleButton.
  * Pressable supplies touch/accessibility behavior; daoUI colors supply the surface. */

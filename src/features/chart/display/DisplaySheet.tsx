@@ -1,4 +1,4 @@
-import { PlanetPicker, PLANET_NAMES } from './PlanetPicker';
+import { PlanetPicker } from './PlanetPicker';
 import { SegmentedControl } from '@expo/ui/community/segmented-control';
 import { DisplayHeader } from './DisplayHeader';
 import { previewGesture } from './previewGesture';
@@ -113,10 +113,7 @@ function DisplayEditor({ preset, presetName, bodyNames, config, onChangePreset: 
     else if (page === 'selection')
         content = <><Note>Selection preferences are retained in the preset. Chart selection is coming in a later renderer pass.</Note><Section title="Highlight & related bodies">{SELECTION.slice(0, 4).map(([key, label]) => <Toggle key={key} label={label} value={preset.selection[key]} onChange={v => selection({ [key]: v })}/>)}</Section><Section title="Dimming"><NumberRow label="Unselected opacity" value={preset.selection.unselectedOpacity * 100} max={100} step={5} suffix="%" onChange={v => selection({ unselectedOpacity: v / 100 })}/><NumberRow label="Related opacity" value={preset.selection.relatedOpacity * 100} max={100} step={5} suffix="%" onChange={v => selection({ relatedOpacity: v / 100 })}/>{SELECTION.slice(4).map(([key, label]) => <Toggle key={key} label={label} value={preset.selection[key]} onChange={v => selection({ [key]: v })}/>)}</Section></>;
     else if (tab === 'Bodies')
-        content = <><Section title="Planets"><View style={{ alignItems: 'flex-end' }}><Action label={PLANET_NAMES.every(n => isBodyEnabled(preset, n)) ? 'Hide all' : 'Show all'} onPress={() => {
-                const enabled = !PLANET_NAMES.every(n => isBodyEnabled(preset, n));
-                change(PLANET_NAMES.reduce((p, n) => toggleBody(p, n, enabled), preset));
-            }}/></View><PlanetPicker enabledBodies={preset.visibility.enabledBodies} colors={preset.colors}
+        content = <><Section title="Planets"><PlanetPicker enabledBodies={preset.visibility.enabledBodies} colors={preset.colors}
               onToggle={name => change(toggleBody(preset, name, !isBodyEnabled(preset, name)))} /></Section><Section title="Points">{POINTS.filter(n => bodyNames.includes(n)).map(bodyToggle)}</Section><Section title="More bodies"><LinkRow label="Asteroids" detail={enabledCount(ASTEROIDS)} onPress={() => setPage('asteroids')}/><LinkRow label="Lots" detail={enabledCount(LOTS)} onPress={() => setPage('lots')}/></Section></>;
     else if (tab === 'Details')
         content = <><Section title="Beside each planet">{LABEL_CONTROLS.map(([key, label]) => {
@@ -135,11 +132,11 @@ function DisplayEditor({ preset, presetName, bodyNames, config, onChangePreset: 
             accessibilityLabel={previewShown ? 'Hide chart preview' : 'Show chart preview'}
             accessibilityHint="Drag to adjust the chart preview height, or double tap to toggle it."
             onAccessibilityTap={() => setPreviewPosition(previewShown ? 0 : previewHeight)}
-            style={{ height: 44, alignItems: 'center', justifyContent: 'center' }}>
+            style={{ height: 28, alignItems: 'center', justifyContent: 'center' }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: t.color.txTertiary }}/>
           </View>
         </GestureDetector>
-        {page ? <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 12 }}><Action label="‹ Back" onPress={() => setPage(null)}/><Text style={[t.type.whyteSm, { color: t.color.txPrimary, flex: 1 }]}>{TITLES[page]}</Text></View> : <View style={{ paddingHorizontal: t.space.lg, paddingVertical: t.space.sm }}>
+        {page ? <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 12 }}><Action label="‹ Back" onPress={() => setPage(null)}/><Text style={[t.type.whyteSm, { color: t.color.txPrimary, flex: 1 }]}>{TITLES[page]}</Text></View> : <View style={{ paddingHorizontal: t.space.lg, paddingBottom: t.space.sm }}>
           <SegmentedControl testID="display-tabs" values={DISPLAY_TABS} selectedIndex={DISPLAY_TABS.indexOf(tab)}
             onValueChange={setTab} appearance={t.scheme} style={{ width: '100%' }} />
         </View>}
