@@ -52,3 +52,6 @@ export function bundledPreset(name: string): BundledPreset | undefined {
   if (raw === undefined) return undefined;
   return { name, preset: parsePreset(raw) };
 }
+
+/** Untouched wire document, retained by the editor for lossless field edits. */
+export function bundledPresetSource(name: string): unknown { return RAW[name]; }

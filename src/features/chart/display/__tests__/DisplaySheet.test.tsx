@@ -1,0 +1,30 @@
+import React from 'react';
+import TestRenderer, { act } from 'react-test-renderer';
+import { DisplaySheet } from '../DisplaySheet';
+import { ChartWheel } from '../../render/ChartWheel';
+import { Choices, LinkRow, Toggle } from '../controls';
+import { bundledPreset } from '../presets';
+import { buildConfiguration } from '../../config/buildConfiguration';
+import type { ChartCalculationResponse } from '../../config/engine-types';
+import chart from '../../fixtures/engine/sibly-1776.json';
+import { planetStyles } from '../sharedControls';
+
+it('navigates the agreed pages, applies global labels, and keeps preview size fixed', () => {
+  const preset = bundledPreset('classic')!.preset;
+  const onChange = jest.fn();
+  let renderer!: TestRenderer.ReactTestRenderer;
+  act(() => { renderer = TestRenderer.create(<DisplaySheet visible preset={preset} presetName="classic" bodyNames={[]} config={buildConfiguration(chart as ChartCalculationResponse, preset)} onChangePreset={onChange} onSelectPreset={jest.fn()} onClose={jest.fn()} />); });
+  const root = renderer.root;
+  const size = root.findByType(ChartWheel).props.size;
+  expect(root.findAllByType(LinkRow).map(n => n.props.label)).toEqual(['Asteroids', 'Lots']);
+  act(() => root.findByType(Choices).props.onChange('Details'));
+  expect(root.findAllByType(LinkRow).map(n => n.props.label)).toEqual(['Aspect types & orbs', 'Aspect patterns', 'Aspect filtering', 'Static orientation']);
+  act(() => root.findAllByType(Toggle).find(n => n.props.label === 'Minutes')!.props.onChange(true));
+  expect(planetStyles(onChange.mock.calls[0][0]).every(s => s.showMinuteText)).toBe(true);
+  act(() => root.findByType(Choices).props.onChange('Style'));
+  expect(root.findAllByType(LinkRow).map(n => n.props.label)).toEqual(['Aspect line styling', 'Selection']);
+  const handle = root.findAll(n => n.props.accessibilityLabel === 'Hide chart preview' && typeof n.props.onPress === 'function')[0];
+  act(() => handle.props.onPress());
+  expect(root.findByType(ChartWheel).props.size).toBe(size);
+  act(() => renderer.unmount());
+});

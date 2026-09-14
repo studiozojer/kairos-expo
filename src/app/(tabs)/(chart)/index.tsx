@@ -8,30 +8,20 @@ import type { ChartCalculationResponse } from '@/features/chart/config/engine-ty
 import chart from '@/features/chart/fixtures/engine/sibly-1776.json';
 import { DisplaySheet } from '@/features/chart/display/DisplaySheet';
 import { bodyChoices } from '@/features/chart/display/displayPreset';
-import { bundledPreset } from '@/features/chart/display/presets';
+import { bundledPreset, bundledPresetSource } from '@/features/chart/display/presets';
 import { ChartWheel } from '@/features/chart/render/ChartWheel';
-import type { Preset } from '@/features/chart/schema/preset';
+import { presetDocument, editPresetDocument } from '@/features/chart/display/presetDocument';
 
-/**
- * The chart tab — the interactive experience users know, ported deliberately.
- *
- * Stage 1 premise slice: the Skia wheel shell (Task 8) over the canned
- * sibly-1776 engine response + the classic preset. Chart data plumbing
- * (live engine, time scrubbing) is deliberately not here yet.
- *
- * The Display sheet (fork B of the athanor's chart-wheel fork) makes the
- * wheel's style/visibility editable in memory: pick a bundled preset, toggle
- * rings/bodies/aspects. The preset is the single source of truth — each edit
- * rebuilds the config and the wheel re-renders. Nothing persists yet (no vault);
- * that is a later, separate step (the direction note's "preset picker" + a few
- * dials, proven on device before any engine wiring).
- */
+/** The fixture-backed chart and its live, in-memory display editor. The source
+ * document retains fields owned by other consumers; the parsed projection feeds
+ * rendering. Navigation and preview state are separate from preset data. */
 export default function ChartHome() {
   const theme = useTheme();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
-  const [preset, setPreset] = useState<Preset>(() => bundledPreset('classic')!.preset);
+  const [document, setDocument] = useState(() => presetDocument(bundledPresetSource('classic')));
+  const preset = document.preset;
   const [presetName, setPresetName] = useState('classic');
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -49,7 +39,7 @@ export default function ChartHome() {
   const selectPreset = (name: string) => {
     const next = bundledPreset(name);
     if (!next) return;
-    setPreset(next.preset);
+    setDocument(presetDocument(bundledPresetSource(name)));
     setPresetName(name);
   };
 
@@ -78,7 +68,8 @@ export default function ChartHome() {
         presetName={presetName}
         bodyNames={bodyNames}
         onSelectPreset={selectPreset}
-        onChangePreset={setPreset}
+        config={config}
+        onChangePreset={next => setDocument(current => editPresetDocument(current, next))}
         onClose={() => setSheetOpen(false)}
       />
     </View>

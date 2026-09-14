@@ -1,3 +1,4 @@
+import { PatternOverlay } from './PatternOverlay';
 /**
  * ChartWheel — the wheel shell. A Skia Canvas of `size`×`size`; every ring
  * draws inside one Group carrying the `transform` prop (the one-renderer
@@ -119,6 +120,7 @@ export function ChartWheel({ config, size, transform = IDENTITY_TRANSFORM }: Cha
           })}
           {/* Overlays draw last, on top of every ring (Swift
               ChartWheelRenderer.swift: rings, then overlays). */}
+          <PatternOverlay config={config} layout={layout} />
           <AspectOverlay config={config} layout={layout} />
         </Group>
       </ChartPaintProvider>

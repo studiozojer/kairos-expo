@@ -1,206 +1,151 @@
-import { Modal, Pressable, ScrollView, Switch, Text, View } from "react-native";
-
-import { useTheme } from "@/theme";
-
-import type { Preset } from "../schema/preset";
-import {
-  RING_LABELS,
-  isBodyEnabled,
-  isRingEnabled,
-  renderableRings,
-  toggleBody,
-  toggleRing,
-} from "./displayPreset";
-import { BUNDLED_PRESET_NAMES } from "./presets";
-
-/**
- * DisplaySheet — the in-memory rendering surface for the chart wheel. A
- * bottom sheet that edits the WIRE `Preset` the wheel is built from: pick a
- * bundled base preset, toggle rings off/on, toggle which bodies show, and
- * switch the aspect overlay. Every control mutates the preset through the pure
- * helpers in displayPreset.ts; the parent feeds the result back through
- * `buildConfiguration` and the wheel re-renders.
- *
- * This is the deliberate small surface from the display-preset direction note:
- * a style preset plus a few toggles, none of the 30-field `PlanetsRingStyle`
- * switchboard. The controls are the fields that already exist on the wire, so
- * nothing here is persisted or invented.
- */
-
+import { PatternIcon } from './PatternIcon';
+import { useEffect, useMemo, useState } from 'react';
+import { Animated, Modal, PanResponder, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { Canvas } from '@shopify/react-native-skia';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '@/theme';
+import type { Preset, SelectionStyleOverride } from '../schema/preset';
+import { ASPECT_TYPES, CELESTIAL_BODIES, ZODIAC_SIGNS } from '../schema/enums.gen';
+import { celestialBodyColor } from '../render/colors';
+import { Glyph } from '../render/Glyph';
+import { GLYPH_ASSETS, type GlyphName } from '../render/glyph-map.gen';
+import { ChartWheel } from '../render/ChartWheel';
+import type { ChartRenderingConfiguration } from '../config/ChartRenderingConfiguration';
+import { isBodyEnabled, toggleBody } from './displayPreset';
+import { BUNDLED_PRESET_NAMES } from './presets';
+import { LABEL_CONTROLS, planetStyles, updateOrientation, updatePlanetStyles } from './sharedControls';
+import { Action, Choices, LinkRow, Note, NumberRow, Section, Toggle } from './controls';
+import { resolveAspectType } from '../geometry/AspectFilter';
+import { PATTERN_NAMES } from '../geometry/AspectPatterns';
 export interface DisplaySheetProps {
-  visible: boolean;
-  preset: Preset;
-  /** The currently-selected bundled preset name (for the picker highlight). */
-  presetName: string;
-  /** Body display names to offer as toggles (from `bodyChoices(chart)`). */
-  bodyNames: string[];
-  onSelectPreset: (name: string) => void;
-  onChangePreset: (next: Preset) => void;
-  onClose: () => void;
+    visible: boolean;
+    preset: Preset;
+    presetName: string;
+    bodyNames: string[];
+    config: ChartRenderingConfiguration;
+    onSelectPreset: (name: string) => void;
+    onChangePreset: (next: Preset) => void;
+    onClose: () => void;
 }
-
-interface ToggleRowProps {
-  label: string;
-  value: boolean;
-  onChange: (value: boolean) => void;
+const PLANETS = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'];
+const LOTS = ['Part of Fortune', 'Lot of Spirit', 'Lot of Eros'];
+const POINTS = ['Ascendant', 'Midheaven', 'Descendant', 'Imum Coeli', 'North Node', 'South Node', 'Vertex', 'Black Moon Lilith'];
+const ASTEROIDS = ['Chiron', 'Ceres', 'Pallas', 'Juno', 'Vesta', 'Eros', 'Pholus'];
+const TITLES: Record<string, string> = { presets: 'Display preset', asteroids: 'Asteroids', lots: 'Lots', aspects: 'Aspect types & orbs', patterns: 'Aspect patterns', filters: 'Aspect filtering', lines: 'Aspect line styling', selection: 'Selection', orientation: 'Static orientation' };
+const FILTERS = [['showSeparatingAspects', 'Separating aspects'], ['showFalseAspects', 'False aspects'], ['mutualAspectsOnly', 'Mutual aspects only'], ['interAspectsOnly', 'Inter aspects only'], ['filterBySelection', 'Filter by selection']] as const;
+const SELECTION = [
+    ['showBackgroundCircle', 'Highlight selected'], ['includeAspectedPlanets', 'Include aspected planets'],
+    ['includeConjunctFixedStars', 'Include conjunct fixed stars'], ['includeRulershipPlanets', 'Include rulership planets'],
+    ['ignoreZodiacRingOpacity', 'Keep zodiac at full opacity'], ['affectsGlyphs', 'Symbols'],
+    ['affectsDegreeText', 'Degree text'], ['affectsDegreeMarks', 'Degree marks'],
+    ['affectsHouseNumbers', 'House numbers'], ['affectsCuspLines', 'Cusp lines'],
+] as const satisfies readonly (readonly [
+    keyof SelectionStyleOverride,
+    string
+])[];
+/** Full-screen native modal with a fixed preview. The internal cover is custom:
+ * system modal detents resize the presentation, rather than reveal this canvas.
+ * Drag ownership is limited to the handle; the native ScrollView owns scrolling. */
+export function DisplaySheet(props: DisplaySheetProps) {
+    return <Modal visible={props.visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={props.onClose}>
+    {props.visible && <DisplayEditor {...props}/>}
+  </Modal>;
 }
-
-export function DisplaySheet({
-  visible,
-  preset,
-  presetName,
-  bodyNames,
-  onSelectPreset,
-  onChangePreset,
-  onClose,
-}: DisplaySheetProps) {
-  const theme = useTheme();
-  const rings = renderableRings(preset);
-
-  const toggleAspects = (next: boolean) => {
-    onChangePreset({
-      ...preset,
-      aspects: { ...preset.aspects, enabled: next },
-    });
-  };
-
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, justifyContent: "flex-end" }}>
-        <Pressable style={{ flex: 1 }} onPress={onClose} />
-        <View
-          style={{
-            backgroundColor: theme.color.bgSolidCard,
-            borderTopLeftRadius: theme.radius.xl,
-            borderTopRightRadius: theme.radius.xl,
-            borderTopWidth: theme.border.hairline,
-            borderColor: theme.color.bdCard,
-            maxHeight: "78%",
-          }}>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              paddingHorizontal: theme.space.lg,
-              paddingTop: theme.space.lg,
-              paddingBottom: theme.space.sm,
-            }}>
-            <Text style={[theme.type.whyteMd, { color: theme.color.txPrimary }]}>Display</Text>
-            <Pressable onPress={onClose} hitSlop={8}>
-              <Text style={[theme.type.whyteSm, { color: theme.color.txAccent }]}>Done</Text>
-            </Pressable>
-          </View>
-
-          <ScrollView bounces={false}>
-            {/* Preset picker */}
-            <Text
-              style={[
-                theme.type.whyteXxs,
-                { color: theme.color.txTertiary, paddingHorizontal: theme.space.lg, marginTop: theme.space.sm },
-              ]}>
-              STYLE
-            </Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{
-                paddingHorizontal: theme.space.lg,
-                paddingVertical: theme.space.sm,
-                gap: theme.space.xs,
-              }}>
-              {BUNDLED_PRESET_NAMES.map((name) => {
-                const active = name === presetName;
-                return (
-                  <Pressable
-                    key={name}
-                    onPress={() => onSelectPreset(name)}
-                    style={{
-                      paddingHorizontal: theme.space.md,
-                      paddingVertical: theme.space.sm,
-                      borderRadius: theme.radius.full,
-                      backgroundColor: active
-                        ? theme.color.bgSolidButton
-                        : theme.color.bgSolidCardSecondary,
-                      borderWidth: theme.border.hairline,
-                      borderColor: active ? theme.color.bgSolidButton : theme.color.bdCard,
-                    }}>
-                    <Text
-                      style={[
-                        theme.type.whyteSm,
-                        { color: active ? theme.color.txButton : theme.color.txSecondary },
-                      ]}>
-                      {name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-
-            {/* Rings + aspects */}
-            <Text
-              style={[
-                theme.type.whyteXxs,
-                { color: theme.color.txTertiary, paddingHorizontal: theme.space.lg, marginTop: theme.space.md },
-              ]}>
-              LAYERS
-            </Text>
-            <View style={{ paddingHorizontal: theme.space.lg }}>
-              {rings.map((type) => (
-                <ToggleRow
-                  key={type}
-                  label={RING_LABELS[type]}
-                  value={isRingEnabled(preset, type)}
-                  onChange={(v) => onChangePreset(toggleRing(preset, type, v))}
-                />
-              ))}
-              <ToggleRow label="Aspects" value={preset.aspects.enabled} onChange={toggleAspects} />
-            </View>
-
-            {/* Bodies */}
-            <Text
-              style={[
-                theme.type.whyteXxs,
-                { color: theme.color.txTertiary, paddingHorizontal: theme.space.lg, marginTop: theme.space.md },
-              ]}>
-              BODIES
-            </Text>
-            <View style={{ paddingHorizontal: theme.space.lg, paddingBottom: theme.space.xxl }}>
-              {bodyNames.map((name) => (
-                <ToggleRow
-                  key={name}
-                  label={name}
-                  value={isBodyEnabled(preset, name)}
-                  onChange={(v) => onChangePreset(toggleBody(preset, name, v))}
-                />
-              ))}
-            </View>
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
-function ToggleRow({ label, value, onChange }: ToggleRowProps) {
-  const theme = useTheme();
-  return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingVertical: theme.space.sm,
-        borderBottomWidth: theme.border.hairline,
-        borderBottomColor: theme.color.bdSecondary,
-      }}>
-      <Text style={[theme.type.whyteSm, { color: theme.color.txPrimary }]}>{label}</Text>
-      <Switch
-        value={value}
-        onValueChange={onChange}
-        trackColor={{ true: theme.color.txAccent }}
-        thumbColor={theme.color.bgSolidCard}
-      />
+function DisplayEditor({ preset, presetName, bodyNames, config, onChangePreset: change, onSelectPreset, onClose }: DisplaySheetProps) {
+    const t = useTheme();
+    const insets = useSafeAreaInsets();
+    const { width, height } = useWindowDimensions();
+    const [tab, setTab] = useState('Bodies');
+    const [page, setPage] = useState<string | null>(null);
+    const [previewShown, setPreviewShown] = useState(true);
+    const previewHeight = Math.max(0, Math.min(width, height - insets.top - insets.bottom - 200));
+    const [cover] = useState(() => new Animated.Value(previewHeight));
+    useEffect(() => {
+        const animation = Animated.spring(cover, { toValue: previewShown ? previewHeight : 0, useNativeDriver: false, overshootClamping: true });
+        animation.start();
+        return () => animation.stop();
+    }, [cover, previewHeight, previewShown]);
+    const responder = useMemo(() => {
+        let start = 0;
+        const finish = (show: boolean) => {
+            setPreviewShown(show);
+            Animated.spring(cover, { toValue: show ? previewHeight : 0, useNativeDriver: false, overshootClamping: true }).start();
+        };
+        return PanResponder.create({
+            onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
+            onPanResponderGrant: () => { cover.stopAnimation(v => { start = v; }); },
+            onPanResponderMove: (_, g) => cover.setValue(Math.max(0, Math.min(previewHeight, start + g.dy))),
+            onPanResponderRelease: (_, g) => finish(g.vy > .3 || (g.vy >= -.3 && start + g.dy > previewHeight / 2)),
+            onPanResponderTerminate: () => finish(previewShown),
+        });
+    }, [cover, previewHeight, previewShown]);
+    const styles = planetStyles(preset);
+    const aspects = preset.aspects;
+    const patterns = aspects.patterns ?? { enabledTypes: [...PATTERN_NAMES], orb: 5 };
+    const aspect = (patch: Partial<Preset['aspects']>) => change({ ...preset, aspects: { ...aspects, ...patch } });
+    const line = (patch: Partial<Preset['aspectOverlay']>) => change({ ...preset, aspectOverlay: { ...preset.aspectOverlay, ...patch } });
+    const selection = (patch: Partial<Preset['selection']>) => change({ ...preset, selection: { ...preset.selection, ...patch } });
+    const enabledCount = (names: string[]) => `${names.filter(n => isBodyEnabled(preset, n)).length} of ${names.length} shown`;
+    const bodyToggle = (name: string) => <Toggle key={name} label={name} value={isBodyEnabled(preset, name)} onChange={v => change(toggleBody(preset, name, v))}/>;
+    const list = page === 'lots' ? LOTS : ASTEROIDS;
+    const currentOrientation = preset.soloChart.globalSettings.staticOrientationDegree;
+    const sizeValue = (key: 'glyphSize' | 'degreeTextFontSize') => styles.every(s => s[key] === styles[0]?.[key]) ? styles[0]?.[key] : undefined;
+    let content;
+    if (page === 'presets')
+        content = <Section title="Choose a preset">{BUNDLED_PRESET_NAMES.map(name => <LinkRow key={name} label={name.charAt(0).toUpperCase() + name.slice(1)} detail={name === presetName ? 'Selected' : undefined} onPress={() => { onSelectPreset(name); setPage(null); }}/>)}</Section>;
+    else if (page === 'lots' || page === 'asteroids')
+        content = <Section title={TITLES[page]}><Note>Included when their positions are available in the chart.</Note>{list.map(bodyToggle)}</Section>;
+    else if (page === 'aspects')
+        content = <Section title="Types & tolerance">{Object.entries(ASPECT_TYPES).map(([key, info]) => ({ ...info, displayName: resolveAspectType(key)!.wireName })).map(a => <View key={a.displayName}>
+    <Toggle label={a.displayName} detail={`${a.angle}°`} value={aspects.enabledTypes.includes(a.displayName)} onChange={v => aspect({ enabledTypes: v ? [...aspects.enabledTypes, a.displayName] : aspects.enabledTypes.filter(n => n !== a.displayName) })}/>
+    {aspects.enabledTypes.includes(a.displayName) && <NumberRow label={`${a.displayName} orb ±`} value={aspects.orbs.orbs[a.displayName] ?? a.defaultOrb} onChange={v => aspect({ orbs: { orbs: { ...aspects.orbs.orbs, [a.displayName]: v } } })}/>}
+  </View>)}</Section>;
+    else if (page === 'patterns')
+        content = <><Section title="Tolerance"><NumberRow label="Pattern orb ±" value={patterns.orb} onChange={v => aspect({ patterns: { ...patterns, orb: v } })}/><Note>Every defining aspect must be within this tolerance.</Note></Section><Section title="Shapes">{PATTERN_NAMES.map(name => <Toggle key={name} label={name} leading={<PatternIcon name={name} />} value={patterns.enabledTypes.includes(name)} onChange={v => aspect({ patterns: { ...patterns, enabledTypes: v ? [...patterns.enabledTypes, name] : patterns.enabledTypes.filter(n => n !== name) } })}/>)}</Section></>;
+    else if (page === 'filters')
+        content = <Section title="Rendering">{FILTERS.map(([key, name]) => <Toggle key={key} label={name} value={aspects[key]} disabled={!aspects.enabled || key === 'interAspectsOnly'} detail={key === 'interAspectsOnly' ? 'Available with multiple charts' : key === 'filterBySelection' ? 'Used when a body is selected' : undefined} onChange={v => aspect({ [key]: v })}/>)}</Section>;
+    else if (page === 'orientation')
+        content = <Section title="Sign at the left edge"><Choices label="Static orientation" value={currentOrientation} options={ZODIAC_SIGNS.map((name, i) => [i * 30, name.charAt(0).toUpperCase() + name.slice(1)] as const)} onChange={v => change(updateOrientation(preset, v))}/></Section>;
+    else if (page === 'lines')
+        content = <Section title="Aspect lines">
+    <Choices label="Color" value={preset.aspectOverlay.colorMode} options={[["byType", "Aspect"], ["byCelestial", "Planet"], ["monochrome", "One color"]]} onChange={v => line({ colorMode: v })}/>
+    <Choices label="Shape" value={preset.aspectOverlay.renderMode} options={[["straight", "Straight"], ["bezier", "Curved"]]} onChange={v => line({ renderMode: v })}/>
+    {preset.aspectOverlay.renderMode === 'bezier' && <NumberRow label="Curve strength" value={preset.aspectOverlay.bezierCurveStrength} onChange={v => line({ bezierCurveStrength: v })} max={1} step={.05} suffix=""/>}
+    <NumberRow label="Line width" value={preset.aspectOverlay.lineWidth} onChange={v => line({ lineWidth: v })} min={.25} max={4} step={.25} suffix=""/>
+    <NumberRow label="Opacity" value={preset.aspectOverlay.opacity * 100} onChange={v => line({ opacity: v / 100 })} max={100} step={5} suffix="%"/>
+    <Toggle label="Dash separating aspects" value={preset.aspectOverlay.useDashedForSeparating} onChange={v => line({ useDashedForSeparating: v })}/>
+  </Section>;
+    else if (page === 'selection')
+        content = <><Note>Selection preferences are retained in the preset. Chart selection is coming in a later renderer pass.</Note><Section title="Highlight & related bodies">{SELECTION.slice(0, 4).map(([key, label]) => <Toggle key={key} label={label} value={preset.selection[key]} onChange={v => selection({ [key]: v })}/>)}</Section><Section title="Dimming"><NumberRow label="Unselected opacity" value={preset.selection.unselectedOpacity * 100} max={100} step={5} suffix="%" onChange={v => selection({ unselectedOpacity: v / 100 })}/><NumberRow label="Related opacity" value={preset.selection.relatedOpacity * 100} max={100} step={5} suffix="%" onChange={v => selection({ relatedOpacity: v / 100 })}/>{SELECTION.slice(4).map(([key, label]) => <Toggle key={key} label={label} value={preset.selection[key]} onChange={v => selection({ [key]: v })}/>)}</Section></>;
+    else if (tab === 'Bodies')
+        content = <><Section title="Planets"><View style={{ alignItems: 'flex-end' }}><Action label={PLANETS.every(n => isBodyEnabled(preset, n)) ? 'Hide all' : 'Show all'} onPress={() => {
+                const enabled = !PLANETS.every(n => isBodyEnabled(preset, n));
+                change(PLANETS.reduce((p, n) => toggleBody(p, n, enabled), preset));
+            }}/></View><View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>{PLANETS.map(name => {
+                const enabled = isBodyEnabled(preset, name);
+                const [bodyId, body] = Object.entries(CELESTIAL_BODIES).find(([, b]) => b.displayName === name)!;
+                const glyph = `celestials/${body?.glyphAsset}` as GlyphName;
+                return <Pressable key={name} accessibilityRole="checkbox" accessibilityLabel={name} accessibilityState={{ checked: enabled }} onPress={() => change(toggleBody(preset, name, !enabled))} style={{ width: '20%', paddingVertical: 12, alignItems: 'center', opacity: enabled ? 1 : .35 }}>
+      {glyph in GLYPH_ASSETS && <Canvas style={{ width: 30, height: 30 }}><Glyph name={glyph} x={15} y={15} size={25} color={celestialBodyColor(bodyId, preset.colors, t)}/></Canvas>}
+      <Text style={[t.type.whyteXxs, { color: t.color.txPrimary, marginTop: 6 }]}>{name}</Text>
+    </Pressable>;
+            })}</View></Section><Section title="Points">{POINTS.filter(n => bodyNames.includes(n)).map(bodyToggle)}</Section><Section title="More bodies"><LinkRow label="Asteroids" detail={enabledCount(ASTEROIDS)} onPress={() => setPage('asteroids')}/><LinkRow label="Lots" detail={enabledCount(LOTS)} onPress={() => setPage('lots')}/></Section></>;
+    else if (tab === 'Details')
+        content = <><Section title="Beside each planet">{LABEL_CONTROLS.map(([key, label]) => {
+                const all = styles.length > 0 && styles.every(s => s[key]);
+                const mixed = !all && styles.some(s => s[key]);
+                return <Toggle key={key} label={label} value={all} detail={mixed ? 'Varies by layer · change to apply everywhere' : undefined} onChange={v => change(updatePlanetStyles(preset, { [key]: v }))}/>;
+            })}</Section><Section title="Aspects"><Toggle label="Aspect lines" value={aspects.enabled} onChange={v => aspect({ enabled: v })}/><Toggle label="Aspect patterns" value={aspects.showPatterns ?? false} onChange={v => aspect({ showPatterns: v })}/><LinkRow label="Aspect types & orbs" detail={`${aspects.enabledTypes.length} types shown`} onPress={() => setPage('aspects')}/><LinkRow label="Aspect patterns" detail={`${patterns.enabledTypes.length} shapes · ±${patterns.orb}°`} onPress={() => setPage('patterns')}/><LinkRow label="Aspect filtering" onPress={() => setPage('filters')}/></Section><Section title="Orientation"><LinkRow label="Static orientation" detail={ZODIAC_SIGNS[currentOrientation / 30] ?? `${currentOrientation}°`} onPress={() => setPage('orientation')}/></Section></>;
+    else
+        content = <><Section title="Reading comfort"><Choices label="Symbol size" value={sizeValue('glyphSize')} options={[[16, 'S'], [20, 'M'], [24, 'L']]} onChange={v => change(updatePlanetStyles(preset, { glyphSize: v }))}/><Choices label="Annotation size" value={sizeValue('degreeTextFontSize')} options={[[7.5, 'S'], [9.6, 'M'], [12, 'L']]} onChange={v => change(updatePlanetStyles(preset, { degreeTextFontSize: v }))}/></Section><Section title="Aspect lines"><LinkRow label="Aspect line styling" detail="Color, shape, weight, and opacity" onPress={() => setPage('lines')}/></Section><Section title="Interaction"><LinkRow label="Selection" detail="Highlighting, dimming, and related bodies" onPress={() => setPage('selection')}/></Section></>;
+    return <View style={{ flex: 1, backgroundColor: t.color.bgSolidBase, paddingTop: insets.top }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, height: 52 }}><Action label="Close" onPress={onClose}/><Text style={[t.type.whyteMd, { color: t.color.txPrimary }]}>Display</Text><Action label={`${presetName.charAt(0).toUpperCase() + presetName.slice(1)} ⌄`} onPress={() => setPage('presets')}/></View>
+    <View style={{ flex: 1 }}><View style={{ position: 'absolute', top: 0, alignSelf: 'center' }}><ChartWheel config={config} size={width}/></View>
+      <Animated.View style={{ position: 'absolute', top: cover, bottom: 0, width: '100%', backgroundColor: t.color.bgSolidCard, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: t.border.hairline, borderColor: t.color.bdCard }}>
+        <View {...responder.panHandlers}><Pressable accessibilityRole="button" accessibilityLabel={previewShown ? 'Hide chart preview' : 'Show chart preview'} onPress={() => setPreviewShown(!previewShown)} style={{ height: 36, alignItems: 'center', justifyContent: 'center' }}><View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: t.color.txTertiary }}/></Pressable></View>
+        {page ? <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 12 }}><Action label="‹ Back" onPress={() => setPage(null)}/><Text style={[t.type.whyteSm, { color: t.color.txPrimary, flex: 1 }]}>{TITLES[page]}</Text></View> : <View style={{ paddingHorizontal: 18 }}><Choices label="" value={tab} options={[["Bodies", "Bodies"], ["Details", "Details"], ["Style", "Style"]]} onChange={setTab}/></View>}
+        <ScrollView key={page ?? tab} contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 18, paddingBottom: insets.bottom + 28 }}>{content}</ScrollView>
+      </Animated.View>
     </View>
-  );
+  </View>;
 }
