@@ -1,3 +1,4 @@
+import { DisplayHeader } from './DisplayHeader';
 import { previewGesture } from './previewGesture';
 import { PatternIcon } from './PatternIcon';
 import { useEffect, useMemo, useState } from 'react';
@@ -138,7 +139,7 @@ function DisplayEditor({ preset, presetName, bodyNames, config, onChangePreset: 
     else
         content = <><Section title="Reading comfort"><Choices label="Symbol size" value={sizeValue('glyphSize')} options={[[16, 'S'], [20, 'M'], [24, 'L']]} onChange={v => change(updatePlanetStyles(preset, { glyphSize: v }))}/><Choices label="Annotation size" value={sizeValue('degreeTextFontSize')} options={[[7.5, 'S'], [9.6, 'M'], [12, 'L']]} onChange={v => change(updatePlanetStyles(preset, { degreeTextFontSize: v }))}/></Section><Section title="Aspect lines"><LinkRow label="Aspect line styling" detail="Color, shape, weight, and opacity" onPress={() => setPage('lines')}/></Section><Section title="Interaction"><LinkRow label="Selection" detail="Highlighting, dimming, and related bodies" onPress={() => setPage('selection')}/></Section></>;
     return <View style={{ flex: 1, backgroundColor: t.color.bgSolidBase, paddingTop: insets.top }}>
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, height: 52 }}><Action label="Close" onPress={onClose}/><Text style={[t.type.whyteMd, { color: t.color.txPrimary }]}>Display</Text><Action label={`${presetName.charAt(0).toUpperCase() + presetName.slice(1)} ⌄`} onPress={() => setPage('presets')}/></View>
+    <DisplayHeader presetName={presetName} onClose={onClose} onChoosePreset={() => setPage('presets')} />
     <View style={{ flex: 1 }} onLayout={({ nativeEvent: { layout } }) => setFrame(previous => previous.width === layout.width && previous.height === layout.height ? previous : { width: layout.width, height: layout.height })}><View style={{ position: 'absolute', top: 0, alignSelf: 'center' }}><ChartWheel config={config} size={width}/></View>
       <Animated.View testID="preview-cover" style={{ position: 'absolute', top: cover, bottom: 0, width: '100%', backgroundColor: t.color.bgSolidCard, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: t.border.hairline, borderColor: t.color.bdCard }}>
         <GestureDetector gesture={handleGesture}>
