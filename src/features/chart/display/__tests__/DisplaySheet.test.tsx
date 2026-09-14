@@ -1,3 +1,4 @@
+import { SegmentedControl } from '@expo/ui/community/segmented-control';
 import { MenuView } from '@react-native-menu/menu';
 import React from 'react';
 import { Modal } from 'react-native';
@@ -21,11 +22,11 @@ it('navigates the agreed pages, applies global labels, and keeps preview size fi
   const root = renderer.root;
   const size = root.findByType(ChartWheel).props.size;
   expect(root.findAllByType(LinkRow).map(n => n.props.label)).toEqual(['Asteroids', 'Lots']);
-  act(() => root.findByType(Choices).props.onChange('Details'));
+  act(() => root.findByType(SegmentedControl).props.onValueChange('Details'));
   expect(root.findAllByType(LinkRow).map(n => n.props.label)).toEqual(['Aspect types & orbs', 'Aspect patterns', 'Aspect filtering', 'Static orientation']);
   act(() => root.findAllByType(Toggle).find(n => n.props.label === 'Minutes')!.props.onChange(true));
   expect(planetStyles(onChange.mock.calls[0][0]).every(s => s.showMinuteText)).toBe(true);
-  act(() => root.findByType(Choices).props.onChange('Style'));
+  act(() => root.findByType(SegmentedControl).props.onValueChange('Style'));
   expect(root.findAllByType(LinkRow).map(n => n.props.label)).toEqual(['Aspect line styling', 'Selection']);
   act(() => fireGestureHandler(getByGestureTestId('preview-tap')));
   expect(root.findByType(ChartWheel).props.size).toBe(size);
@@ -65,7 +66,7 @@ it('keeps an intermediate drag position on release and across tab changes', () =
     ]);
   });
   expect(cover()).toBeCloseTo(original * .6);
-  act(() => renderer.root.findByType(Choices).props.onChange('Details'));
+  act(() => renderer.root.findByType(SegmentedControl).props.onValueChange('Details'));
   expect(cover()).toBeCloseTo(original * .6);
   expect(renderer.root.findByType(ChartWheel).props.size).toBe(size);
   act(() => fireGestureHandler(getByGestureTestId('preview-pan'), [
@@ -113,7 +114,7 @@ it('selects presets from the native menu without replacing the active settings s
   let renderer!: TestRenderer.ReactTestRenderer;
   act(() => { renderer = TestRenderer.create(<DisplaySheet visible preset={preset} presetName="classic" bodyNames={[]} config={buildConfiguration(chart as ChartCalculationResponse, preset)} onChangePreset={jest.fn()} onSelectPreset={onSelectPreset} onClose={jest.fn()} />); });
   const root = renderer.root;
-  act(() => root.findByType(Choices).props.onChange('Style'));
+  act(() => root.findByType(SegmentedControl).props.onValueChange('Style'));
   act(() => root.findAllByType(LinkRow).find(n => n.props.label === 'Aspect line styling')!.props.onPress());
   const menu = root.findByType(MenuView);
   expect(menu.props.shouldOpenOnLongPress).toBe(false);

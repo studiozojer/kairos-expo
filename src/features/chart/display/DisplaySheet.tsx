@@ -1,3 +1,4 @@
+import { SegmentedControl } from '@expo/ui/community/segmented-control';
 import { DisplayHeader } from './DisplayHeader';
 import { previewGesture } from './previewGesture';
 import { PatternIcon } from './PatternIcon';
@@ -29,6 +30,7 @@ export interface DisplaySheetProps {
     onChangePreset: (next: Preset) => void;
     onClose: () => void;
 }
+const DISPLAY_TABS = ['Bodies', 'Details', 'Style'];
 const PLANETS = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'];
 const LOTS = ['Part of Fortune', 'Lot of Spirit', 'Lot of Eros'];
 const POINTS = ['Ascendant', 'Midheaven', 'Descendant', 'Imum Coeli', 'North Node', 'South Node', 'Vertex', 'Black Moon Lilith'];
@@ -148,7 +150,10 @@ function DisplayEditor({ preset, presetName, bodyNames, config, onChangePreset: 
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: t.color.txTertiary }}/>
           </View>
         </GestureDetector>
-        {page ? <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 12 }}><Action label="‹ Back" onPress={() => setPage(null)}/><Text style={[t.type.whyteSm, { color: t.color.txPrimary, flex: 1 }]}>{TITLES[page]}</Text></View> : <View style={{ paddingHorizontal: 18 }}><Choices label="" value={tab} options={[["Bodies", "Bodies"], ["Details", "Details"], ["Style", "Style"]]} onChange={setTab}/></View>}
+        {page ? <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 12 }}><Action label="‹ Back" onPress={() => setPage(null)}/><Text style={[t.type.whyteSm, { color: t.color.txPrimary, flex: 1 }]}>{TITLES[page]}</Text></View> : <View style={{ paddingHorizontal: t.space.lg, paddingVertical: t.space.sm }}>
+          <SegmentedControl testID="display-tabs" values={DISPLAY_TABS} selectedIndex={DISPLAY_TABS.indexOf(tab)}
+            onValueChange={setTab} appearance={t.scheme} style={{ width: '100%' }} />
+        </View>}
         <ScrollView key={page ?? tab} contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 18, paddingBottom: insets.bottom + 28 }}>{content}</ScrollView>
       </Animated.View>
     </View>
