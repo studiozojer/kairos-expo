@@ -1,6 +1,7 @@
+import { ChartSheet, SheetHeader, SheetBackRow } from '../components/ChartSheet';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
 import { Action, LinkRow, Note, Row, Section } from '../display/controls';
 import { HOUSE_SYSTEMS, type ChartLocation, type ChartSettings } from './chartSettings';
@@ -14,22 +15,17 @@ interface Props {
   onClose: () => void;
 }
 export function SettingsSheet(props: Props) {
-  return <Modal visible={props.visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={props.onClose}>
-    <SafeAreaProvider>{props.visible && <SettingsEditor {...props} />}</SafeAreaProvider>
-  </Modal>;
+  return <ChartSheet visible={props.visible} onClose={props.onClose}>
+    {props.visible && <SettingsEditor {...props} />}
+  </ChartSheet>;
 }
 function SettingsEditor({ settings, saveError, onChange, onClose }: Props) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const [page, setPage] = useState<'location' | 'houses' | null>(null);
   return <View style={{ flex: 1, backgroundColor: t.color.bgSolidBase, paddingTop: insets.top, paddingBottom: insets.bottom }}>
-    <View style={{ minHeight: 56, flexDirection: 'row', alignItems: 'center', paddingHorizontal: t.space.lg }}>
-      <View style={{ flex: 1 }}>{page && <Action label="Back" onPress={() => setPage(null)} />}</View>
-      <Text accessibilityRole="header" style={[t.type.whyteMd, { color: t.color.txPrimary }]}>
-        {page === 'location' ? 'Default location' : page === 'houses' ? 'House system' : 'Settings'}
-      </Text>
-      <View style={{ flex: 1, alignItems: 'flex-end' }}><Action label="Done" onPress={onClose} /></View>
-    </View>
+    <SheetHeader title="Settings" closeLabel="Close chart settings" onClose={onClose} />
+    {page && <SheetBackRow title={page === 'location' ? 'Default location' : 'House system'} onBack={() => setPage(null)} />}
     {saveError && <Text accessibilityRole="alert" style={[t.type.whyteXs, { color: t.color.txAccent, paddingHorizontal: t.space.lg }]}>Couldn’t save defaults on this device. Choose again to retry.</Text>}
     {page === 'location' ? <LocationPicker selected={settings.location} onSelect={location => { onChange({ ...settings, location }); setPage(null); }} /> :
       <ScrollView contentContainerStyle={{ padding: t.space.lg }}>
