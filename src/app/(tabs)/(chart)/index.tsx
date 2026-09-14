@@ -1,22 +1,22 @@
 import { useMemo, useState } from 'react';
-import { Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/theme';
 import { buildConfiguration } from '@/features/chart/config/buildConfiguration';
-import type { ChartCalculationResponse } from '@/features/chart/config/engine-types';
-import chart from '@/features/chart/fixtures/engine/sibly-1776.json';
+import { useLoadTimeChart } from '@/features/chart/data/useLoadTimeChart';
+import { DEFAULT_LOCATION } from '@/features/chart/data/calculateChart';
 import { DisplaySheet } from '@/features/chart/display/DisplaySheet';
 import { bodyChoices } from '@/features/chart/display/displayPreset';
 import { bundledPreset, bundledPresetSource } from '@/features/chart/display/presets';
 import { ChartWheel } from '@/features/chart/render/ChartWheel';
 import { presetDocument, editPresetDocument } from '@/features/chart/display/presetDocument';
 
-/** The fixture-backed chart and its live, in-memory display editor. The source
- * document retains fields owned by other consumers; the parsed projection feeds
- * rendering. Navigation and preview state are separate from preset data. */
+/** A load-time Seattle chart with an in-memory display editor. The source
+ * document retains fields owned by other consumers; its projection feeds rendering. */
 export default function ChartHome() {
   const theme = useTheme();
+  const { chart, status, retry, datetime } = useLoadTimeChart();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
@@ -25,15 +25,15 @@ export default function ChartHome() {
   const [presetName, setPresetName] = useState('classic');
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const bodyNames = useMemo(() => bodyChoices(chart as ChartCalculationResponse), []);
+  const bodyNames = useMemo(() => chart ? bodyChoices(chart) : [], [chart]);
 
   // PINNED (do not inline): buildConfiguration returns a fresh object per
   // call, and ChartWheel's layout memo keys on config identity — an unpinned
   // config re-lays-out every render. Keyed on the editable preset so the sheet
   // drives a live re-render without a route change.
   const config = useMemo(
-    () => buildConfiguration(chart as ChartCalculationResponse, preset),
-    [preset],
+    () => chart ? buildConfiguration(chart, preset) : undefined,
+    [chart, preset],
   );
 
   const selectPreset = (name: string) => {
@@ -49,20 +49,35 @@ export default function ChartHome() {
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: 'flex-end',
+          justifyContent: 'space-between',
           paddingHorizontal: theme.space.lg,
           paddingTop: insets.top + theme.space.sm,
         }}>
-        <Pressable onPress={() => setSheetOpen(true)} hitSlop={8}>
+        <Text style={[theme.type.fraktionXxs, { color: theme.color.txAccent }]}>
+          {DEFAULT_LOCATION.name}
+        </Text>
+        <Pressable accessibilityRole="button" disabled={!chart} onPress={() => setSheetOpen(true)} hitSlop={8}>
           <Text style={[theme.type.whyteSm, { color: theme.color.txAccent }]}>Display</Text>
         </Pressable>
       </View>
 
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ChartWheel config={config} size={width} />
+        {config ? <ChartWheel config={config} size={width} /> : status === 'error' ? (
+          <View style={{ alignItems: 'center', gap: theme.space.md }}>
+            <Text accessibilityRole="alert" style={[theme.type.whyteSm, { color: theme.color.txAccent }]}>
+              Couldn’t load the chart.
+            </Text>
+            <Pressable accessibilityRole="button" onPress={retry} hitSlop={12}>
+              <Text style={[theme.type.whyteSm, { color: theme.color.txAccent }]}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : <ActivityIndicator accessibilityLabel="Loading current transits" color={theme.color.txAccent} />}
+        {chart && <Text style={[theme.type.fraktionXxs, { color: theme.color.txAccent }]}>
+          {new Date(datetime).toLocaleString('en-US', { timeZone: DEFAULT_LOCATION.timezone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })}
+        </Text>}
       </View>
 
-      <DisplaySheet
+      {config && <DisplaySheet
         visible={sheetOpen}
         preset={preset}
         presetName={presetName}
@@ -71,7 +86,7 @@ export default function ChartHome() {
         config={config}
         onChangePreset={next => setDocument(current => editPresetDocument(current, next))}
         onClose={() => setSheetOpen(false)}
-      />
+      />}
     </View>
   );
 }

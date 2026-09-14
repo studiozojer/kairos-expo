@@ -1,0 +1,17 @@
+{
+  "engine_commit": "764bc05e71ce8f70cc217240f9f379936cacfa30",
+  "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "dirty": false,
+  "jianyi_commit": "66e68e91181f7145d3e0dde8f6ef98f6e0eefdf1",
+  "cargo_lock_sha256": "c52f59d510f0a136e4a3923b75916fcbedbb5e08b1a3de82b4872267d44dd082",
+  "features": [
+    "database-sqlite",
+    "tokio-minimal"
+  ],
+  "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
+  "files": {
+    "Info.plist": "66a6fc1582a5ce5c63b1fb8183853d8a3e87663aef918d6493ab0cedd57cfb3b",
+    "ios-arm64/libkairos.a": "9691d8c90976fe735c24a48ee650462f44d34c9a063a7081ba9287cfbf7528bf",
+    "ios-arm64-simulator/libkairos.a": "da2368040a429262e4147f09678f8da7f59b50bdcc97393c2388a92050c762cb"
+  }
+}

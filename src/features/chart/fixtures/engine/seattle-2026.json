@@ -1,0 +1,1274 @@
+{
+  "celestial": {
+    "nodes": [
+      {
+        "id": "sun",
+        "body": "Sun",
+        "body_id": 0,
+        "node_type": "planet",
+        "position": {
+          "longitude": 171.0088412567151,
+          "latitude": -9.229693083303154e-05,
+          "distance": 1.0061341715856438,
+          "speed_longitude": 0.9738803595095715,
+          "speed_latitude": -2.5326721735029154e-05,
+          "speed_distance": -0.00026802093565881025,
+          "right_ascension": 171.7399798059462,
+          "declination": 3.5638655608784235
+        },
+        "house_placement": 10,
+        "sign_placement": "Virgo"
+      },
+      {
+        "id": "moon",
+        "body": "Moon",
+        "body_id": 1,
+        "node_type": "planet",
+        "position": {
+          "longitude": 203.72495130545815,
+          "latitude": -4.242105463680769,
+          "distance": 0.002597866963898907,
+          "speed_longitude": 12.914592629444797,
+          "speed_latitude": -0.6916500558666601,
+          "speed_distance": 3.190949224657262e-05,
+          "right_ascension": 200.3548296941761,
+          "declination": -13.147939460115731
+        },
+        "house_placement": 11,
+        "sign_placement": "Libra"
+      },
+      {
+        "id": "mercury",
+        "body": "Mercury",
+        "body_id": 2,
+        "node_type": "planet",
+        "position": {
+          "longitude": 185.17168304310266,
+          "latitude": 0.3847945613087661,
+          "distance": 1.3418558650763188,
+          "speed_longitude": 1.6339077886996456,
+          "speed_latitude": -0.11690844880529186,
+          "speed_distance": -0.006159309502907598,
+          "right_ascension": 184.89960131209082,
+          "declination": -1.701451565832352
+        },
+        "house_placement": 11,
+        "sign_placement": "Libra"
+      },
+      {
+        "id": "venus",
+        "body": "Venus",
+        "body_id": 3,
+        "node_type": "planet",
+        "position": {
+          "longitude": 212.1525073179118,
+          "latitude": -5.053088603313531,
+          "distance": 0.4590651837573514,
+          "speed_longitude": 0.5888753408448134,
+          "speed_latitude": -0.13057426105201583,
+          "speed_distance": -0.007156299675802562,
+          "right_ascension": 208.1543922359205,
+          "declination": -16.95771520913133
+        },
+        "house_placement": 12,
+        "sign_placement": "Scorpio"
+      },
+      {
+        "id": "mars",
+        "body": "Mars",
+        "body_id": 4,
+        "node_type": "planet",
+        "position": {
+          "longitude": 111.38290290389396,
+          "latitude": 0.7316457848908405,
+          "distance": 1.776470530567696,
+          "speed_longitude": 0.6141814014468217,
+          "speed_latitude": 0.015818860754768255,
+          "speed_distance": -0.006056043116124797,
+          "right_ascension": 113.23463792264381,
+          "declination": 22.46161756828203
+        },
+        "house_placement": 8,
+        "sign_placement": "Cancer"
+      },
+      {
+        "id": "jupiter",
+        "body": "Jupiter",
+        "body_id": 5,
+        "node_type": "planet",
+        "position": {
+          "longitude": 136.32389775944205,
+          "latitude": 0.5556896995221778,
+          "distance": 6.09759006637743,
+          "speed_longitude": 0.19951406299830707,
+          "speed_latitude": 0.00220347962850681,
+          "speed_distance": -0.008818348236716263,
+          "right_ascension": 138.95369344676033,
+          "declination": 16.47338518835086
+        },
+        "house_placement": 9,
+        "sign_placement": "Leo"
+      },
+      {
+        "id": "saturn",
+        "body": "Saturn",
+        "body_id": 6,
+        "node_type": "planet",
+        "position": {
+          "longitude": 12.869336640294819,
+          "latitude": -2.686895418923033,
+          "distance": 8.499550004952612,
+          "speed_longitude": -0.06976523093149137,
+          "speed_latitude": -0.002260945218118641,
+          "speed_distance": -0.006204214087031414,
+          "right_ascension": 12.885496856368452,
+          "declination": 2.6069813970448665
+        },
+        "house_placement": 5,
+        "sign_placement": "Aries"
+      },
+      {
+        "id": "uranus",
+        "body": "Uranus",
+        "body_id": 7,
+        "node_type": "planet",
+        "position": {
+          "longitude": 65.6930685701998,
+          "latitude": -0.1539330021356692,
+          "distance": 19.154300947528732,
+          "speed_longitude": -0.002574005010188732,
+          "speed_latitude": 1.186832190566155e-05,
+          "speed_distance": -0.01641839502184259,
+          "right_ascension": 63.818836157074415,
+          "declination": 21.102198994905898
+        },
+        "house_placement": 7,
+        "sign_placement": "Gemini"
+      },
+      {
+        "id": "neptune",
+        "body": "Neptune",
+        "body_id": 8,
+        "node_type": "planet",
+        "position": {
+          "longitude": 3.3359311375998284,
+          "latitude": -1.4173250084142115,
+          "distance": 28.895002606495055,
+          "speed_longitude": -0.026962714495065425,
+          "speed_latitude": -0.0002909798699091927,
+          "speed_distance": -0.003434049138303463,
+          "right_ascension": 3.624131242621601,
+          "declination": 0.025491816622541037
+        },
+        "house_placement": 4,
+        "sign_placement": "Aries"
+      },
+      {
+        "id": "pluto",
+        "body": "Pluto",
+        "body_id": 9,
+        "node_type": "planet",
+        "position": {
+          "longitude": 303.30489529419094,
+          "latitude": -4.299541666848946,
+          "distance": 34.9152961571277,
+          "speed_longitude": -0.014024381968598338,
+          "speed_latitude": 0.0001947878606603536,
+          "speed_distance": 0.01339216135742136,
+          "right_ascension": 306.69139244193553,
+          "declination": -23.595711995734174
+        },
+        "house_placement": 3,
+        "sign_placement": "Aquarius"
+      },
+      {
+        "id": "meannode",
+        "body": "MeanNode",
+        "body_id": 10,
+        "node_type": "node",
+        "position": {
+          "longitude": 328.6265584679624,
+          "latitude": 0.0,
+          "distance": 0.0025695552897999903,
+          "speed_longitude": -0.05298318341348208,
+          "speed_latitude": 0.0,
+          "speed_distance": 0.0,
+          "right_ascension": 330.7749630256465,
+          "declination": -11.951215918661129
+        },
+        "house_placement": 3,
+        "sign_placement": "Aquarius"
+      },
+      {
+        "id": "meanapogee",
+        "body": "MeanApogee",
+        "body_id": 12,
+        "node_type": "point",
+        "position": {
+          "longitude": 269.89723885243194,
+          "latitude": -4.401081302289216,
+          "distance": 0.002710625131722546,
+          "speed_longitude": 0.11168131564477699,
+          "speed_latitude": 0.007662237493909288,
+          "speed_distance": 0.0,
+          "right_ascension": 269.88413142869575,
+          "declination": -27.83918572174269
+        },
+        "house_placement": 2,
+        "sign_placement": "Sagittarius"
+      },
+      {
+        "id": "chiron",
+        "body": "Chiron",
+        "body_id": 15,
+        "node_type": "asteroid",
+        "position": {
+          "longitude": 30.14895099849535,
+          "latitude": 0.1950355333251904,
+          "distance": 17.468851072072656,
+          "speed_longitude": -0.0334341063795737,
+          "speed_latitude": -0.0011643281601732573,
+          "speed_distance": -0.011123264478766728,
+          "right_ascension": 27.983153726707002,
+          "declination": 11.706373993605826
+        },
+        "house_placement": 6,
+        "sign_placement": "Taurus"
+      },
+      {
+        "id": "southnodemean",
+        "body": "SouthNodeMean",
+        "body_id": 23,
+        "node_type": "node",
+        "position": {
+          "longitude": 148.6265584679624,
+          "latitude": 0.0,
+          "distance": 0.0025695552897999903,
+          "speed_longitude": -0.05298318341348208,
+          "speed_latitude": 0.0,
+          "speed_distance": 0.0,
+          "right_ascension": 330.7749630256465,
+          "declination": -11.951215918661129
+        },
+        "house_placement": 9,
+        "sign_placement": "Leo"
+      },
+      {
+        "id": "ascendant",
+        "body": "Ascendant",
+        "body_id": 2001,
+        "node_type": "angle",
+        "position": {
+          "longitude": 228.07434118894395,
+          "latitude": 0.0,
+          "distance": 0.0,
+          "speed_longitude": 0.0,
+          "speed_latitude": 0.0,
+          "speed_distance": 0.0,
+          "right_ascension": 0.0,
+          "declination": 0.0
+        },
+        "house_placement": null,
+        "sign_placement": "Scorpio"
+      },
+      {
+        "id": "midheaven",
+        "body": "Midheaven",
+        "body_id": 2002,
+        "node_type": "angle",
+        "position": {
+          "longitude": 153.5346443901908,
+          "latitude": 0.0,
+          "distance": 0.0,
+          "speed_longitude": 0.0,
+          "speed_latitude": 0.0,
+          "speed_distance": 0.0,
+          "right_ascension": 0.0,
+          "declination": 0.0
+        },
+        "house_placement": null,
+        "sign_placement": "Virgo"
+      },
+      {
+        "id": "descendant",
+        "body": "Descendant",
+        "body_id": 2003,
+        "node_type": "angle",
+        "position": {
+          "longitude": 48.07434118894395,
+          "latitude": 0.0,
+          "distance": 0.0,
+          "speed_longitude": 0.0,
+          "speed_latitude": 0.0,
+          "speed_distance": 0.0,
+          "right_ascension": 0.0,
+          "declination": 0.0
+        },
+        "house_placement": null,
+        "sign_placement": "Taurus"
+      },
+      {
+        "id": "imum_coeli",
+        "body": "Imum Coeli",
+        "body_id": 2004,
+        "node_type": "angle",
+        "position": {
+          "longitude": 333.5346443901908,
+          "latitude": 0.0,
+          "distance": 0.0,
+          "speed_longitude": 0.0,
+          "speed_latitude": 0.0,
+          "speed_distance": 0.0,
+          "right_ascension": 0.0,
+          "declination": 0.0
+        },
+        "house_placement": null,
+        "sign_placement": "Pisces"
+      },
+      {
+        "id": "vertex",
+        "body": "Vertex",
+        "body_id": 2005,
+        "node_type": "angle",
+        "position": {
+          "longitude": 88.86254443712032,
+          "latitude": 0.0,
+          "distance": 0.0,
+          "speed_longitude": 0.0,
+          "speed_latitude": 0.0,
+          "speed_distance": 0.0,
+          "right_ascension": 0.0,
+          "declination": 0.0
+        },
+        "house_placement": null,
+        "sign_placement": "Gemini"
+      },
+      {
+        "id": "part_of_fortune",
+        "body": "Part of Fortune",
+        "body_id": 2007,
+        "node_type": "point",
+        "position": {
+          "longitude": 260.79045123768697,
+          "latitude": 0.0,
+          "distance": 0.0,
+          "speed_longitude": 0.0,
+          "speed_latitude": 0.0,
+          "speed_distance": 0.0,
+          "right_ascension": 0.0,
+          "declination": 0.0
+        },
+        "house_placement": null,
+        "sign_placement": "Sagittarius"
+      },
+      {
+        "id": "lot_of_spirit",
+        "body": "Lot of Spirit",
+        "body_id": 2008,
+        "node_type": "point",
+        "position": {
+          "longitude": 195.35823114020093,
+          "latitude": 0.0,
+          "distance": 0.0,
+          "speed_longitude": 0.0,
+          "speed_latitude": 0.0,
+          "speed_distance": 0.0,
+          "right_ascension": 0.0,
+          "declination": 0.0
+        },
+        "house_placement": null,
+        "sign_placement": "Libra"
+      },
+      {
+        "id": "lot_of_eros",
+        "body": "Lot of Eros",
+        "body_id": 2009,
+        "node_type": "point",
+        "position": {
+          "longitude": 244.8686173666548,
+          "latitude": 0.0,
+          "distance": 0.0,
+          "speed_longitude": 0.0,
+          "speed_latitude": 0.0,
+          "speed_distance": 0.0,
+          "right_ascension": 0.0,
+          "declination": 0.0
+        },
+        "house_placement": null,
+        "sign_placement": "Sagittarius"
+      }
+    ],
+    "edges": [
+      {
+        "from": "sun",
+        "to": "mars",
+        "aspect_type": "Sextile",
+        "orb": -0.3740616471788627,
+        "strength": 9.064845882052843,
+        "is_applying": true
+      },
+      {
+        "from": "sun",
+        "to": "ascendant",
+        "aspect_type": "Sextile",
+        "orb": -2.934500067771154,
+        "strength": 2.6637498305721152,
+        "is_applying": false
+      },
+      {
+        "from": "sun",
+        "to": "descendant",
+        "aspect_type": "Trine",
+        "orb": 2.934500067771154,
+        "strength": 5.1091665537147435,
+        "is_applying": false
+      },
+      {
+        "from": "sun",
+        "to": "part_of_fortune",
+        "aspect_type": "Square",
+        "orb": -0.21839001902813493,
+        "strength": 9.636016634953108,
+        "is_applying": false
+      },
+      {
+        "from": "moon",
+        "to": "mars",
+        "aspect_type": "Square",
+        "orb": 2.3420484015641847,
+        "strength": 6.096585997393026,
+        "is_applying": false
+      },
+      {
+        "from": "moon",
+        "to": "meannode",
+        "aspect_type": "Trine",
+        "orb": 4.901607162504263,
+        "strength": 1.830654729159562,
+        "is_applying": true
+      },
+      {
+        "from": "moon",
+        "to": "chiron",
+        "aspect_type": "Opposition",
+        "orb": -6.423999693037217,
+        "strength": 1.9700003837034785,
+        "is_applying": true
+      },
+      {
+        "from": "moon",
+        "to": "vertex",
+        "aspect_type": "Trine",
+        "orb": -5.137593131662172,
+        "strength": 1.437344780563047,
+        "is_applying": true
+      },
+      {
+        "from": "moon",
+        "to": "part_of_fortune",
+        "aspect_type": "Sextile",
+        "orb": -2.9345000677711823,
+        "strength": 2.663749830572044,
+        "is_applying": false
+      },
+      {
+        "from": "mercury",
+        "to": "saturn",
+        "aspect_type": "Opposition",
+        "orb": -7.697653597192158,
+        "strength": 0.37793300350980275,
+        "is_applying": true
+      },
+      {
+        "from": "mercury",
+        "to": "uranus",
+        "aspect_type": "Trine",
+        "orb": -0.5213855270971379,
+        "strength": 9.13102412150477,
+        "is_applying": true
+      },
+      {
+        "from": "mercury",
+        "to": "neptune",
+        "aspect_type": "Opposition",
+        "orb": -1.835751905502832,
+        "strength": 7.70531011812146,
+        "is_applying": false
+      },
+      {
+        "from": "mercury",
+        "to": "pluto",
+        "aspect_type": "Trine",
+        "orb": -1.8667877489117188,
+        "strength": 6.888687085147135,
+        "is_applying": false
+      },
+      {
+        "from": "mercury",
+        "to": "meanapogee",
+        "aspect_type": "Square",
+        "orb": -5.274444190670721,
+        "strength": 1.209259682215465,
+        "is_applying": false
+      },
+      {
+        "from": "mercury",
+        "to": "midheaven",
+        "aspect_type": "Semisextile",
+        "orb": 1.6370386529118548,
+        "strength": 1.814806735440726,
+        "is_applying": false
+      },
+      {
+        "from": "mercury",
+        "to": "imum_coeli",
+        "aspect_type": "Quincunx",
+        "orb": -1.6370386529118548,
+        "strength": 4.543204490293817,
+        "is_applying": false
+      },
+      {
+        "from": "mercury",
+        "to": "lot_of_eros",
+        "aspect_type": "Sextile",
+        "orb": -0.30306567644785787,
+        "strength": 9.242335808880355,
+        "is_applying": false
+      },
+      {
+        "from": "venus",
+        "to": "neptune",
+        "aspect_type": "Quincunx",
+        "orb": 1.1834238196880165,
+        "strength": 6.055253934373278,
+        "is_applying": true
+      },
+      {
+        "from": "venus",
+        "to": "pluto",
+        "aspect_type": "Square",
+        "orb": 1.1523879762791296,
+        "strength": 8.079353372868118,
+        "is_applying": true
+      },
+      {
+        "from": "venus",
+        "to": "meannode",
+        "aspect_type": "Trine",
+        "orb": -3.525948849949401,
+        "strength": 4.123418583417664,
+        "is_applying": false
+      },
+      {
+        "from": "venus",
+        "to": "meanapogee",
+        "aspect_type": "Sextile",
+        "orb": -2.2552684654798725,
+        "strength": 4.361828836300319,
+        "is_applying": false
+      },
+      {
+        "from": "venus",
+        "to": "chiron",
+        "aspect_type": "Opposition",
+        "orb": -2.003556319416475,
+        "strength": 7.495554600729406,
+        "is_applying": false
+      },
+      {
+        "from": "venus",
+        "to": "midheaven",
+        "aspect_type": "Sextile",
+        "orb": -1.3821370722789936,
+        "strength": 6.544657319302516,
+        "is_applying": true
+      },
+      {
+        "from": "venus",
+        "to": "imum_coeli",
+        "aspect_type": "Trine",
+        "orb": 1.3821370722789936,
+        "strength": 7.696438212868344,
+        "is_applying": true
+      },
+      {
+        "from": "venus",
+        "to": "vertex",
+        "aspect_type": "Trine",
+        "orb": 3.2899628807914922,
+        "strength": 4.51672853201418,
+        "is_applying": false
+      },
+      {
+        "from": "mars",
+        "to": "ascendant",
+        "aspect_type": "Trine",
+        "orb": -3.3085617149500166,
+        "strength": 4.485730475083305,
+        "is_applying": false
+      },
+      {
+        "from": "mars",
+        "to": "descendant",
+        "aspect_type": "Sextile",
+        "orb": 3.3085617149500166,
+        "strength": 1.7285957126249585,
+        "is_applying": false
+      },
+      {
+        "from": "mars",
+        "to": "part_of_fortune",
+        "aspect_type": "Quincunx",
+        "orb": -0.5924516662070118,
+        "strength": 8.025161112643294,
+        "is_applying": false
+      },
+      {
+        "from": "jupiter",
+        "to": "saturn",
+        "aspect_type": "Trine",
+        "orb": 3.454561119147229,
+        "strength": 4.242398134754619,
+        "is_applying": false
+      },
+      {
+        "from": "jupiter",
+        "to": "ascendant",
+        "aspect_type": "Square",
+        "orb": 1.7504434295018996,
+        "strength": 7.0825942841635,
+        "is_applying": true
+      },
+      {
+        "from": "jupiter",
+        "to": "descendant",
+        "aspect_type": "Square",
+        "orb": -1.7504434295018996,
+        "strength": 7.0825942841635,
+        "is_applying": true
+      },
+      {
+        "from": "jupiter",
+        "to": "part_of_fortune",
+        "aspect_type": "Trine",
+        "orb": 4.4665534782449186,
+        "strength": 2.555744202925136,
+        "is_applying": true
+      },
+      {
+        "from": "jupiter",
+        "to": "lot_of_spirit",
+        "aspect_type": "Sextile",
+        "orb": -0.9656666192411194,
+        "strength": 7.5858334518972015,
+        "is_applying": false
+      },
+      {
+        "from": "saturn",
+        "to": "lot_of_spirit",
+        "aspect_type": "Opposition",
+        "orb": -2.4888944999061096,
+        "strength": 6.888881875117363,
+        "is_applying": false
+      },
+      {
+        "from": "uranus",
+        "to": "neptune",
+        "aspect_type": "Sextile",
+        "orb": 2.35713743259997,
+        "strength": 4.107156418500075,
+        "is_applying": false
+      },
+      {
+        "from": "uranus",
+        "to": "pluto",
+        "aspect_type": "Trine",
+        "orb": 2.3881732760088425,
+        "strength": 6.0197112066519285,
+        "is_applying": false
+      },
+      {
+        "from": "uranus",
+        "to": "midheaven",
+        "aspect_type": "Square",
+        "orb": -2.1584241800089927,
+        "strength": 6.402626366651679,
+        "is_applying": true
+      },
+      {
+        "from": "uranus",
+        "to": "imum_coeli",
+        "aspect_type": "Square",
+        "orb": 2.1584241800089785,
+        "strength": 6.4026263666517025,
+        "is_applying": true
+      },
+      {
+        "from": "uranus",
+        "to": "lot_of_eros",
+        "aspect_type": "Opposition",
+        "orb": -0.8244512035449816,
+        "strength": 8.969435995568773,
+        "is_applying": true
+      },
+      {
+        "from": "neptune",
+        "to": "pluto",
+        "aspect_type": "Sextile",
+        "orb": 0.031035843408858454,
+        "strength": 9.922410391477854,
+        "is_applying": true
+      },
+      {
+        "from": "neptune",
+        "to": "meanapogee",
+        "aspect_type": "Square",
+        "orb": 3.4386922851678605,
+        "strength": 4.268846191386899,
+        "is_applying": true
+      },
+      {
+        "from": "neptune",
+        "to": "midheaven",
+        "aspect_type": "Quincunx",
+        "orb": 0.19871325259097716,
+        "strength": 9.33762249136341,
+        "is_applying": false
+      },
+      {
+        "from": "neptune",
+        "to": "imum_coeli",
+        "aspect_type": "Semisextile",
+        "orb": -0.19871325259100558,
+        "strength": 9.006433737044972,
+        "is_applying": false
+      },
+      {
+        "from": "neptune",
+        "to": "vertex",
+        "aspect_type": "Square",
+        "orb": -4.473386700479509,
+        "strength": 2.544355499200819,
+        "is_applying": true
+      },
+      {
+        "from": "neptune",
+        "to": "lot_of_eros",
+        "aspect_type": "Trine",
+        "orb": -1.532686229054974,
+        "strength": 7.445522951575043,
+        "is_applying": false
+      },
+      {
+        "from": "pluto",
+        "to": "chiron",
+        "aspect_type": "Square",
+        "orb": -3.1559442956955763,
+        "strength": 4.740092840507373,
+        "is_applying": false
+      },
+      {
+        "from": "pluto",
+        "to": "midheaven",
+        "aspect_type": "Quincunx",
+        "orb": -0.22974909599986404,
+        "strength": 9.234169680000454,
+        "is_applying": false
+      },
+      {
+        "from": "pluto",
+        "to": "imum_coeli",
+        "aspect_type": "Semisextile",
+        "orb": 0.22974909599986404,
+        "strength": 8.85125452000068,
+        "is_applying": false
+      },
+      {
+        "from": "pluto",
+        "to": "lot_of_eros",
+        "aspect_type": "Sextile",
+        "orb": -1.563722072463861,
+        "strength": 6.090694818840348,
+        "is_applying": false
+      },
+      {
+        "from": "meannode",
+        "to": "meanapogee",
+        "aspect_type": "Sextile",
+        "orb": -1.2706803844695287,
+        "strength": 6.823299038826178,
+        "is_applying": false
+      },
+      {
+        "from": "meannode",
+        "to": "chiron",
+        "aspect_type": "Sextile",
+        "orb": 1.5223925305329544,
+        "strength": 6.194018673667614,
+        "is_applying": false
+      },
+      {
+        "from": "meannode",
+        "to": "midheaven",
+        "aspect_type": "Opposition",
+        "orb": -4.908085922228395,
+        "strength": 3.8648925972145065,
+        "is_applying": false
+      },
+      {
+        "from": "meannode",
+        "to": "imum_coeli",
+        "aspect_type": "Conjunction",
+        "orb": 4.908085922228395,
+        "strength": 3.8648925972145065,
+        "is_applying": false
+      },
+      {
+        "from": "meannode",
+        "to": "vertex",
+        "aspect_type": "Trine",
+        "orb": 0.23598596915792314,
+        "strength": 9.606690051403461,
+        "is_applying": false
+      },
+      {
+        "from": "meanapogee",
+        "to": "chiron",
+        "aspect_type": "Trine",
+        "orb": 0.25171214606342573,
+        "strength": 9.580479756560957,
+        "is_applying": true
+      },
+      {
+        "from": "meanapogee",
+        "to": "midheaven",
+        "aspect_type": "Trine",
+        "orb": -3.637405537758866,
+        "strength": 3.937657437068556,
+        "is_applying": true
+      },
+      {
+        "from": "meanapogee",
+        "to": "imum_coeli",
+        "aspect_type": "Sextile",
+        "orb": 3.637405537758866,
+        "strength": 0.9064861556028347,
+        "is_applying": true
+      },
+      {
+        "from": "meanapogee",
+        "to": "vertex",
+        "aspect_type": "Opposition",
+        "orb": -1.0346944153116056,
+        "strength": 8.706631980860493,
+        "is_applying": false
+      },
+      {
+        "from": "chiron",
+        "to": "midheaven",
+        "aspect_type": "Trine",
+        "orb": 3.3856933916954546,
+        "strength": 4.357177680507576,
+        "is_applying": false
+      },
+      {
+        "from": "chiron",
+        "to": "imum_coeli",
+        "aspect_type": "Sextile",
+        "orb": -3.3856933916954404,
+        "strength": 1.535766520761399,
+        "is_applying": false
+      },
+      {
+        "from": "chiron",
+        "to": "vertex",
+        "aspect_type": "Sextile",
+        "orb": -1.2864065613750313,
+        "strength": 6.783983596562422,
+        "is_applying": true
+      },
+      {
+        "from": "midheaven",
+        "to": "lot_of_eros",
+        "aspect_type": "Square",
+        "orb": 1.333972976463997,
+        "strength": 7.776711705893339,
+        "is_applying": false
+      },
+      {
+        "from": "descendant",
+        "to": "part_of_fortune",
+        "aspect_type": "Quincunx",
+        "orb": -2.716110048743019,
+        "strength": 0.9462998375232701,
+        "is_applying": false
+      },
+      {
+        "from": "descendant",
+        "to": "lot_of_spirit",
+        "aspect_type": "Quincunx",
+        "orb": -2.716110048743019,
+        "strength": 0.9462998375232701,
+        "is_applying": false
+      },
+      {
+        "from": "imum_coeli",
+        "to": "vertex",
+        "aspect_type": "Trine",
+        "orb": -4.672099953070472,
+        "strength": 2.2131667448825474,
+        "is_applying": false
+      },
+      {
+        "from": "imum_coeli",
+        "to": "lot_of_eros",
+        "aspect_type": "Square",
+        "orb": -1.333972976463997,
+        "strength": 7.776711705893339,
+        "is_applying": false
+      }
+    ]
+  },
+  "houses": {
+    "nodes": [
+      {
+        "id": "house_1",
+        "house_number": 1,
+        "cusp_longitude": 228.07434118894395,
+        "sign_on_cusp": "Scorpio",
+        "size_degrees": 30.03181448669119
+      },
+      {
+        "id": "house_2",
+        "house_number": 2,
+        "cusp_longitude": 258.10615567563514,
+        "sign_on_cusp": "Sagittarius",
+        "size_degrees": 37.05996705170185
+      },
+      {
+        "id": "house_3",
+        "house_number": 3,
+        "cusp_longitude": 295.166122727337,
+        "sign_on_cusp": "Capricorn",
+        "size_degrees": 38.36852166285382
+      },
+      {
+        "id": "house_4",
+        "house_number": 4,
+        "cusp_longitude": 333.5346443901908,
+        "sign_on_cusp": "Pisces",
+        "size_degrees": 31.593453387232557
+      },
+      {
+        "id": "house_5",
+        "house_number": 5,
+        "cusp_longitude": 5.128097777423363,
+        "sign_on_cusp": "Aries",
+        "size_degrees": 24.040538115300308
+      },
+      {
+        "id": "house_6",
+        "house_number": 6,
+        "cusp_longitude": 29.16863589272367,
+        "sign_on_cusp": "Aries",
+        "size_degrees": 18.905705296220276
+      },
+      {
+        "id": "house_7",
+        "house_number": 7,
+        "cusp_longitude": 48.07434118894395,
+        "sign_on_cusp": "Taurus",
+        "size_degrees": 30.03181448669119
+      },
+      {
+        "id": "house_8",
+        "house_number": 8,
+        "cusp_longitude": 78.10615567563514,
+        "sign_on_cusp": "Gemini",
+        "size_degrees": 37.05996705170185
+      },
+      {
+        "id": "house_9",
+        "house_number": 9,
+        "cusp_longitude": 115.16612272733698,
+        "sign_on_cusp": "Cancer",
+        "size_degrees": 38.36852166285382
+      },
+      {
+        "id": "house_10",
+        "house_number": 10,
+        "cusp_longitude": 153.5346443901908,
+        "sign_on_cusp": "Virgo",
+        "size_degrees": 31.59345338723253
+      },
+      {
+        "id": "house_11",
+        "house_number": 11,
+        "cusp_longitude": 185.12809777742333,
+        "sign_on_cusp": "Libra",
+        "size_degrees": 24.040538115300336
+      },
+      {
+        "id": "house_12",
+        "house_number": 12,
+        "cusp_longitude": 209.16863589272367,
+        "sign_on_cusp": "Libra",
+        "size_degrees": 18.905705296220276
+      }
+    ],
+    "edges": [
+      {
+        "from": "house_1",
+        "to": "house_7",
+        "relationship": "opposition"
+      },
+      {
+        "from": "house_1",
+        "to": "house_5",
+        "relationship": "trine"
+      },
+      {
+        "from": "house_1",
+        "to": "house_4",
+        "relationship": "square"
+      },
+      {
+        "from": "house_1",
+        "to": "house_3",
+        "relationship": "sextile"
+      },
+      {
+        "from": "house_2",
+        "to": "house_8",
+        "relationship": "opposition"
+      },
+      {
+        "from": "house_2",
+        "to": "house_6",
+        "relationship": "trine"
+      },
+      {
+        "from": "house_2",
+        "to": "house_5",
+        "relationship": "square"
+      },
+      {
+        "from": "house_2",
+        "to": "house_4",
+        "relationship": "sextile"
+      },
+      {
+        "from": "house_3",
+        "to": "house_9",
+        "relationship": "opposition"
+      },
+      {
+        "from": "house_3",
+        "to": "house_7",
+        "relationship": "trine"
+      },
+      {
+        "from": "house_3",
+        "to": "house_6",
+        "relationship": "square"
+      },
+      {
+        "from": "house_3",
+        "to": "house_5",
+        "relationship": "sextile"
+      },
+      {
+        "from": "house_4",
+        "to": "house_10",
+        "relationship": "opposition"
+      },
+      {
+        "from": "house_4",
+        "to": "house_8",
+        "relationship": "trine"
+      },
+      {
+        "from": "house_4",
+        "to": "house_7",
+        "relationship": "square"
+      },
+      {
+        "from": "house_4",
+        "to": "house_6",
+        "relationship": "sextile"
+      },
+      {
+        "from": "house_5",
+        "to": "house_11",
+        "relationship": "opposition"
+      },
+      {
+        "from": "house_5",
+        "to": "house_9",
+        "relationship": "trine"
+      },
+      {
+        "from": "house_5",
+        "to": "house_8",
+        "relationship": "square"
+      },
+      {
+        "from": "house_5",
+        "to": "house_7",
+        "relationship": "sextile"
+      },
+      {
+        "from": "house_6",
+        "to": "house_12",
+        "relationship": "opposition"
+      },
+      {
+        "from": "house_6",
+        "to": "house_10",
+        "relationship": "trine"
+      },
+      {
+        "from": "house_6",
+        "to": "house_9",
+        "relationship": "square"
+      },
+      {
+        "from": "house_6",
+        "to": "house_8",
+        "relationship": "sextile"
+      },
+      {
+        "from": "house_7",
+        "to": "house_1",
+        "relationship": "opposition"
+      },
+      {
+        "from": "house_7",
+        "to": "house_11",
+        "relationship": "trine"
+      },
+      {
+        "from": "house_7",
+        "to": "house_10",
+        "relationship": "square"
+      },
+      {
+        "from": "house_7",
+        "to": "house_9",
+        "relationship": "sextile"
+      },
+      {
+        "from": "house_8",
+        "to": "house_2",
+        "relationship": "opposition"
+      },
+      {
+        "from": "house_8",
+        "to": "house_12",
+        "relationship": "trine"
+      },
+      {
+        "from": "house_8",
+        "to": "house_11",
+        "relationship": "square"
+      },
+      {
+        "from": "house_8",
+        "to": "house_10",
+        "relationship": "sextile"
+      },
+      {
+        "from": "house_9",
+        "to": "house_3",
+        "relationship": "opposition"
+      },
+      {
+        "from": "house_9",
+        "to": "house_1",
+        "relationship": "trine"
+      },
+      {
+        "from": "house_9",
+        "to": "house_12",
+        "relationship": "square"
+      },
+      {
+        "from": "house_9",
+        "to": "house_11",
+        "relationship": "sextile"
+      },
+      {
+        "from": "house_10",
+        "to": "house_4",
+        "relationship": "opposition"
+      },
+      {
+        "from": "house_10",
+        "to": "house_2",
+        "relationship": "trine"
+      },
+      {
+        "from": "house_10",
+        "to": "house_1",
+        "relationship": "square"
+      },
+      {
+        "from": "house_10",
+        "to": "house_12",
+        "relationship": "sextile"
+      },
+      {
+        "from": "house_11",
+        "to": "house_5",
+        "relationship": "opposition"
+      },
+      {
+        "from": "house_11",
+        "to": "house_3",
+        "relationship": "trine"
+      },
+      {
+        "from": "house_11",
+        "to": "house_2",
+        "relationship": "square"
+      },
+      {
+        "from": "house_11",
+        "to": "house_1",
+        "relationship": "sextile"
+      },
+      {
+        "from": "house_12",
+        "to": "house_6",
+        "relationship": "opposition"
+      },
+      {
+        "from": "house_12",
+        "to": "house_4",
+        "relationship": "trine"
+      },
+      {
+        "from": "house_12",
+        "to": "house_3",
+        "relationship": "square"
+      },
+      {
+        "from": "house_12",
+        "to": "house_2",
+        "relationship": "sextile"
+      }
+    ]
+  },
+  "chart_metadata": {
+    "chart_id": "841ea35a-c133-40c2-bbb6-3def62907b9a",
+    "chart_type": "Transit",
+    "datetime": "2026-09-13T19:00:00Z",
+    "coordinates": {
+      "latitude": 47.6062,
+      "longitude": -122.3321,
+      "elevation": 0.0
+    },
+    "location_info": null,
+    "is_time_variant": true
+  }
+}

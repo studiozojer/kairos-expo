@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Kairōs",
+    "name": "Kair\u014ds",
     "slug": "kairos-expo",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -32,7 +32,8 @@
       ],
       "./plugins/with-signing",
       "expo-web-browser",
-      "expo-secure-store"
+      "expo-secure-store",
+      "./plugins/with-kairos"
     ],
     "experiments": {
       "typedRoutes": true,
