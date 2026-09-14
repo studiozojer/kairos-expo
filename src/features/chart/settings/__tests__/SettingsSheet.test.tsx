@@ -1,0 +1,42 @@
+import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { TextInput } from 'react-native';
+import { SettingsSheet } from '../SettingsSheet';
+import { DEFAULT_SETTINGS } from '../chartSettings';
+import { searchAtlas } from '../atlas';
+
+jest.mock('../atlas', () => ({ searchAtlas: jest.fn() }));
+let view: ReactTestRenderer;
+const london = { name: 'London, England, GB', latitude: 51.5, longitude: -0.12, elevation: 0, timezone: 'Europe/London' };
+const paris = { ...london, name: 'Paris, FR', latitude: 48.85, longitude: 2.35, timezone: 'Europe/Paris' };
+const button = (label: string) => view.root.findAll(node => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')[0];
+beforeEach(() => { jest.useFakeTimers(); jest.mocked(searchAtlas).mockReset(); });
+afterEach(() => { act(() => view.unmount()); jest.useRealTimers(); });
+
+test('house selection updates the calculation defaults and exposes the selected value', () => {
+  const onChange = jest.fn();
+  const props = { visible: true, settings: DEFAULT_SETTINGS, saveError: false, onChange, onClose: jest.fn() };
+  act(() => { view = create(<SettingsSheet {...props} />); });
+  act(() => button('Default house system').props.onPress());
+  expect(button('Placidus').props.accessibilityState.checked).toBe(true);
+  act(() => button('Whole Sign').props.onPress());
+  expect(onChange).toHaveBeenLastCalledWith({ ...DEFAULT_SETTINGS, houseSystem: 'Whole Sign' });
+  act(() => view.update(<SettingsSheet {...props} settings={{ ...DEFAULT_SETTINGS, houseSystem: 'Whole Sign' }} />));
+  expect(button('Whole Sign').props.accessibilityState.checked).toBe(true);
+});
+
+test('stale atlas results cannot replace a newer search or select the wrong city', async () => {
+  let finishOld!: (value: typeof london[]) => void;
+  jest.mocked(searchAtlas).mockImplementationOnce(() => new Promise(resolve => { finishOld = resolve; })).mockResolvedValue([paris]);
+  const onChange = jest.fn();
+  act(() => { view = create(<SettingsSheet visible settings={DEFAULT_SETTINGS} saveError={false} onChange={onChange} onClose={jest.fn()} />); });
+  act(() => button('Default location').props.onPress());
+  act(() => view.root.findByType(TextInput).props.onChangeText('London'));
+  await act(async () => { jest.advanceTimersByTime(250); });
+  act(() => view.root.findByType(TextInput).props.onChangeText('Paris'));
+  await act(async () => { jest.advanceTimersByTime(250); });
+  await act(async () => { finishOld([london]); });
+  expect(button(london.name)).toBeUndefined();
+  act(() => button(paris.name).props.onPress());
+  expect(onChange).toHaveBeenLastCalledWith({ ...DEFAULT_SETTINGS, location: paris });
+  expect(button('Default location')).toBeDefined();
+});

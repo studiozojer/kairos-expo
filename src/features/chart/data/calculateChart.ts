@@ -1,11 +1,8 @@
 import { calculateChart as nativeCalculate } from '../../../../modules/kairos';
 import type { ChartCalculationResponse } from '../config/engine-types';
 
-// Fixed city reference, not the device's measured location. UTC drives calculations.
-export const DEFAULT_LOCATION = {
-  name: 'Seattle, WA', latitude: 47.6062, longitude: -122.3321,
-  elevation: 0, timezone: 'America/Los_Angeles',
-} as const;
+import { DEFAULT_SETTINGS, type ChartSettings } from '../settings/chartSettings';
+export { DEFAULT_LOCATION } from '../settings/chartSettings';
 
 // Calculate independently of display visibility: toggles only change rendering.
 export const SKY_BODIES = [
@@ -13,7 +10,7 @@ export const SKY_BODIES = [
   'Uranus', 'Neptune', 'Pluto', 'MeanNode', 'MeanApogee', 'Chiron',
 ] as const;
 
-export function chartRequest(datetime: string) {
+export function chartRequest(datetime: string, settings: ChartSettings = DEFAULT_SETTINGS) {
   const time = Date.parse(datetime);
   // Deliberate first-slice coverage inside the bundled contemporary ephemeris.
   if (!Number.isFinite(time) || time < Date.UTC(1900, 0, 1) || time >= Date.UTC(2100, 0, 1)) {
@@ -21,16 +18,16 @@ export function chartRequest(datetime: string) {
   }
   return {
     datetime: new Date(time).toISOString(),
-    latitude: DEFAULT_LOCATION.latitude,
-    longitude: DEFAULT_LOCATION.longitude,
-    elevation: DEFAULT_LOCATION.elevation,
-    chart_kind: 'Transit', house_system: 'Placidus', zodiac_system: 'Tropical',
+    latitude: settings.location.latitude,
+    longitude: settings.location.longitude,
+    elevation: settings.location.elevation,
+    chart_kind: 'Transit', house_system: settings.houseSystem, zodiac_system: 'Tropical',
     lunar_node_type: 'Mean', enabled_bodies: SKY_BODIES, enabled_stars: [],
   };
 }
 
-export async function calculateChart(datetime: string): Promise<ChartCalculationResponse> {
-  const request = chartRequest(datetime);
+export async function calculateChart(datetime: string, settings: ChartSettings = DEFAULT_SETTINGS): Promise<ChartCalculationResponse> {
+  const request = chartRequest(datetime, settings);
   const chart: ChartCalculationResponse = JSON.parse(await nativeCalculate(JSON.stringify(request)));
   // Check the native boundary before feeding geometry; a cast is not validation.
   if (!chart?.celestial || !Array.isArray(chart.celestial.nodes) ||

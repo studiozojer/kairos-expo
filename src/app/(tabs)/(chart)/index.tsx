@@ -5,18 +5,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
 import { buildConfiguration } from '@/features/chart/config/buildConfiguration';
 import { useLoadTimeChart } from '@/features/chart/data/useLoadTimeChart';
-import { DEFAULT_LOCATION } from '@/features/chart/data/calculateChart';
+import { useChartSettings } from '@/features/chart/settings/useChartSettings';
+import { SettingsSheet } from '@/features/chart/settings/SettingsSheet';
 import { DisplaySheet } from '@/features/chart/display/DisplaySheet';
 import { bodyChoices } from '@/features/chart/display/displayPreset';
 import { bundledPreset, bundledPresetSource } from '@/features/chart/display/presets';
 import { ChartWheel } from '@/features/chart/render/ChartWheel';
 import { presetDocument, editPresetDocument } from '@/features/chart/display/presetDocument';
 
-/** A load-time Seattle chart with an in-memory display editor. The source
+/** A load-time chart with an in-memory display editor. The source
  * document retains fields owned by other consumers; its projection feeds rendering. */
 export default function ChartHome() {
   const theme = useTheme();
-  const { chart, status, retry, datetime } = useLoadTimeChart();
+  const { settings, loaded, update, saveError } = useChartSettings();
+  const { chart, status, retry, datetime } = useLoadTimeChart(settings, loaded);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
@@ -53,8 +56,12 @@ export default function ChartHome() {
           paddingHorizontal: theme.space.lg,
           paddingTop: insets.top + theme.space.sm,
         }}>
-        <Text style={[theme.type.fraktionXxs, { color: theme.color.txAccent }]}>
-          {DEFAULT_LOCATION.name}
+        <Pressable accessibilityRole="button" accessibilityLabel="Chart settings" disabled={!loaded} onPress={() => setSettingsOpen(true)}
+          style={{ minHeight: 44, justifyContent: 'center' }}>
+          <Text style={[theme.type.whyteSm, { color: theme.color.txAccent }]}>Settings</Text>
+        </Pressable>
+        <Text numberOfLines={1} style={[theme.type.fraktionXxs, { color: theme.color.txAccent, flex: 1, textAlign: 'center', marginHorizontal: theme.space.sm }]}>
+          {settings.location.name}
         </Text>
         <Pressable accessibilityRole="button" disabled={!chart} onPress={() => setSheetOpen(true)} hitSlop={8}>
           <Text style={[theme.type.whyteSm, { color: theme.color.txAccent }]}>Display</Text>
@@ -73,10 +80,11 @@ export default function ChartHome() {
           </View>
         ) : <ActivityIndicator accessibilityLabel="Loading current transits" color={theme.color.txAccent} />}
         {chart && <Text style={[theme.type.fraktionXxs, { color: theme.color.txAccent }]}>
-          {new Date(datetime).toLocaleString('en-US', { timeZone: DEFAULT_LOCATION.timezone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })}
+          {new Date(datetime).toLocaleString('en-US', { timeZone: settings.location.timezone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })}
         </Text>}
       </View>
 
+      <SettingsSheet visible={settingsOpen} settings={settings} saveError={saveError} onChange={update} onClose={() => setSettingsOpen(false)} />
       {config && <DisplaySheet
         visible={sheetOpen}
         preset={preset}

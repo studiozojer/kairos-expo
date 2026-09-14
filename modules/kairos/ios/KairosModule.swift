@@ -12,6 +12,10 @@ public class KairosModule: Module {
             try Self.initializeIfNeeded()
             return try Self.unwrap(request.withCString { kairos_calculate_chart($0) })
         }.runOnQueue(Self.engineQueue)
+        AsyncFunction("searchLocations") { (query: String) -> String in
+            try Self.initializeIfNeeded()
+            return try Self.unwrap(query.withCString { kairos_search_locations($0, 30) })
+        }.runOnQueue(Self.engineQueue)
     }
 
     private static func initializeIfNeeded() throws {
@@ -28,9 +32,10 @@ public class KairosModule: Module {
             let actual = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
             guard actual == expected else { throw KairosException("Ephemeris checksum failed: \(name)") }
         }
-        // No atlas resource or user database: existing engine falls back to static cities.
+        guard let atlasURL = bundle.url(forResource: "atlas", withExtension: "db")
+        else { throw KairosException("Bundled atlas is missing. Rebuild the app.") }
         _ = try unwrap(url.path.withCString { path in
-            ":memory:".withCString { atlas in kairos_init(atlas, path) }
+            "sqlite://\(atlasURL.path)?mode=ro".withCString { atlas in kairos_init(atlas, path) }
         })
         initialized = true
     }

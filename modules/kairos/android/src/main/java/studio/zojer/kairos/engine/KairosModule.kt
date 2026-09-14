@@ -11,11 +11,11 @@ import org.json.JSONObject
 internal object KairosNative {
   private var initialized = false
   private var loaded = false
-  external fun initialize(path: String): String
+  external fun initialize(path: String, atlasPath: String): String
+  external fun search(query: String): String
   external fun calculate(request: String): String
 
-  @Synchronized
-  fun chart(context: Context, request: String): String {
+  private fun initializeIfNeeded(context: Context) {
     if (!loaded) {
       System.loadLibrary("kairos_jni")
       loaded = true
@@ -31,16 +31,33 @@ internal object KairosNative {
         // Re-extract on process startup; no stale file survives an app update.
         File(directory, name).writeBytes(bytes)
       }
-      initialize(directory.absolutePath)
+      val atlas = File(context.filesDir, "kairos-atlas.db")
+      context.assets.open("Atlas/atlas.db").use { input -> atlas.outputStream().use { input.copyTo(it) } }
+      initialize(directory.absolutePath, "sqlite://${atlas.absolutePath}?mode=ro")
       initialized = true
     }
+  }
+
+  @Synchronized
+  fun chart(context: Context, request: String): String {
+    initializeIfNeeded(context)
     return calculate(request)
+  }
+
+  @Synchronized
+  fun locations(context: Context, query: String): String {
+    initializeIfNeeded(context)
+    return search(query)
   }
 }
 
 class KairosModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("Kairos")
+    AsyncFunction("searchLocations") { query: String ->
+      val context = appContext.reactContext ?: error("React context unavailable")
+      KairosNative.locations(context, query)
+    }
     AsyncFunction("calculateChart") { request: String ->
       val context = appContext.reactContext ?: error("React context unavailable")
       KairosNative.chart(context, request)

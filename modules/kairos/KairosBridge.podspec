@@ -13,7 +13,7 @@ Pod::Spec.new do |s|
   s.source_files = 'ios/*.swift', 'include/*.h'
   s.public_header_files = 'include/*.h'
   s.vendored_frameworks = 'ios/KairosEngine.xcframework'
-  s.resource_bundles = { 'KairosEphemeris' => ['assets/Ephemeris/*'] }
+  s.resource_bundles = { 'KairosEphemeris' => ['assets/Ephemeris/*', 'assets/Atlas/*'] }
   s.libraries = 'c++', 'sqlite3'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
 end
