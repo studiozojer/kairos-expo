@@ -48,11 +48,18 @@ const SELECTION = [
 /** The native sheet owns dismissal. Its inner handle only reveals/covers the
  * fixed-size preview and retains the released position without detents. */
 export function DisplaySheet(props: DisplaySheetProps) {
+    // This component stays mounted when the native modal releases its contents.
+    // Keep the preview preference here, outside both the modal and preset data.
+    const [previewPosition, setPreviewPosition] = useState<number | null>(null);
     return <Modal visible={props.visible} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={props.onClose}>
-    <GestureHandlerRootView style={{ flex: 1 }}><SafeAreaProvider><DisplayEditor {...props}/></SafeAreaProvider></GestureHandlerRootView>
+    <GestureHandlerRootView style={{ flex: 1 }}><SafeAreaProvider><DisplayEditor {...props} previewPosition={previewPosition} onChangePreviewPosition={setPreviewPosition}/></SafeAreaProvider></GestureHandlerRootView>
   </Modal>;
 }
-function DisplayEditor({ preset, presetName, bodyNames, config, onChangePreset: change, onSelectPreset, onClose }: DisplaySheetProps) {
+interface DisplayEditorProps extends DisplaySheetProps {
+    previewPosition: number | null;
+    onChangePreviewPosition: (position: number) => void;
+}
+function DisplayEditor({ preset, presetName, bodyNames, config, onChangePreset: change, onSelectPreset, onClose, previewPosition, onChangePreviewPosition: setPreviewPosition }: DisplayEditorProps) {
     const t = useTheme();
     const insets = useSafeAreaInsets();
     const window = useWindowDimensions();
@@ -60,17 +67,16 @@ function DisplayEditor({ preset, presetName, bodyNames, config, onChangePreset: 
     const width = frame.width;
     const [tab, setTab] = useState('Bodies');
     const [page, setPage] = useState<string | null>(null);
-    const [previewPosition, setPreviewPosition] = useState<number | null>(null);
     const previewHeight = Math.max(0, Math.min(width, frame.height - insets.bottom - 144));
-    const [cover] = useState(() => new Animated.Value(previewHeight));
-    const restingPosition = Math.max(0, Math.min(previewHeight, previewPosition ?? previewHeight));
+    const restingPosition = Math.max(0, Math.min(previewHeight, previewPosition ?? width / 2));
+    const [cover] = useState(() => new Animated.Value(restingPosition));
     const previewShown = restingPosition > 0;
     useEffect(() => {
         cover.setValue(restingPosition);
     }, [cover, restingPosition]);
     const handleGesture = useMemo(
         () => previewGesture(cover, previewHeight, setPreviewPosition),
-        [cover, previewHeight],
+        [cover, previewHeight, setPreviewPosition],
     );
     const styles = planetStyles(preset);
     const aspects = preset.aspects;

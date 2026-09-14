@@ -1,4 +1,5 @@
 import React from 'react';
+import { Modal } from 'react-native';
 import { State } from 'react-native-gesture-handler';
 import { fireGestureHandler, getByGestureTestId } from 'react-native-gesture-handler/jest-utils';
 import TestRenderer, { act } from 'react-test-renderer';
@@ -33,14 +34,18 @@ it('navigates the agreed pages, applies global labels, and keeps preview size fi
 it('keeps the editor in the modal tree while visibility changes for dismissal', () => {
   const preset = bundledPreset('classic')!.preset;
   const props = { visible: true, preset, presetName: 'classic', bodyNames: [], config: buildConfiguration(chart as ChartCalculationResponse, preset), onChangePreset: jest.fn(), onSelectPreset: jest.fn(), onClose: jest.fn() };
-  const open = DisplaySheet(props);
-  const closing = DisplaySheet({ ...props, visible: false });
-  expect(closing.props.visible).toBe(false);
-  expect(closing.props.children.props.children.props.children.type).toBe(open.props.children.props.children.props.children.type);
-  expect(open.props.presentationStyle).toBe('pageSheet');
-  expect(open.props.allowSwipeDismissal).toBe(true);
-  closing.props.onRequestClose();
+  let renderer!: TestRenderer.ReactTestRenderer;
+  act(() => { renderer = TestRenderer.create(<DisplaySheet {...props} />); });
+  const open = renderer.root.findByType(Modal).props;
+  act(() => renderer.update(<DisplaySheet {...props} visible={false} />));
+  const closing = renderer.root.findByType(Modal).props;
+  expect(closing.visible).toBe(false);
+  expect(closing.children.props.children.props.children.type).toBe(open.children.props.children.props.children.type);
+  expect(open.presentationStyle).toBe('pageSheet');
+  expect(open.allowSwipeDismissal).toBe(true);
+  act(() => closing.onRequestClose());
   expect(props.onClose).toHaveBeenCalledTimes(1);
+  act(() => renderer.unmount());
 });
 
 it('keeps an intermediate drag position on release and across tab changes', () => {
@@ -68,5 +73,34 @@ it('keeps an intermediate drag position on release and across tab changes', () =
     { state: State.END, absoluteY: 300 + original * .1 },
   ]));
   expect(cover()).toBeCloseTo(original * .7);
+  act(() => renderer.unmount());
+});
+
+
+it('starts halfway and remembers dragged and hidden positions after closing the sheet', () => {
+  const preset = bundledPreset('classic')!.preset;
+  const props = { preset, presetName: 'classic', bodyNames: [], config: buildConfiguration(chart as ChartCalculationResponse, preset), onChangePreset: jest.fn(), onSelectPreset: jest.fn(), onClose: jest.fn() };
+  let renderer!: TestRenderer.ReactTestRenderer;
+  const render = (visible: boolean) => <DisplaySheet {...props} visible={visible} />;
+  act(() => { renderer = TestRenderer.create(render(true)); });
+  const cover = () => renderer.root.findAll(n => n.props.testID === 'preview-cover')[0].props.style.top.__getValue();
+  const half = renderer.root.findByType(ChartWheel).props.size / 2;
+  expect(cover()).toBe(half);
+  act(() => fireGestureHandler(getByGestureTestId('preview-pan'), [
+    { state: State.BEGAN, absoluteY: 400 },
+    { state: State.ACTIVE, absoluteY: 340 },
+    { state: State.END, absoluteY: 340 },
+  ]));
+  expect(cover()).toBe(half - 60);
+  act(() => renderer.update(render(false)));
+  expect(renderer.root.findAllByType(ChartWheel)).toHaveLength(0);
+  act(() => renderer.update(render(true)));
+  expect(cover()).toBe(half - 60);
+  act(() => fireGestureHandler(getByGestureTestId('preview-tap')));
+  expect(cover()).toBe(0);
+  act(() => renderer.update(render(false)));
+  act(() => renderer.update(render(true)));
+  expect(cover()).toBe(0);
+  expect(props.onChangePreset).not.toHaveBeenCalled();
   act(() => renderer.unmount());
 });
