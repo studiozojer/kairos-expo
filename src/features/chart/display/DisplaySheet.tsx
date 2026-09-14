@@ -2,7 +2,7 @@ import { PatternIcon } from './PatternIcon';
 import { useEffect, useMemo, useState } from 'react';
 import { Animated, Modal, PanResponder, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { Canvas } from '@shopify/react-native-skia';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
 import type { Preset, SelectionStyleOverride } from '../schema/preset';
 import { ASPECT_TYPES, CELESTIAL_BODIES, ZODIAC_SIGNS } from '../schema/enums.gen';
@@ -43,42 +43,45 @@ const SELECTION = [
     keyof SelectionStyleOverride,
     string
 ])[];
-/** Full-screen native modal with a fixed preview. The internal cover is custom:
- * system modal detents resize the presentation, rather than reveal this canvas.
- * Drag ownership is limited to the handle; the native ScrollView owns scrolling. */
+/** The native sheet owns dismissal. Its inner handle only reveals/covers the
+ * fixed-size preview and retains the released position without detents. */
 export function DisplaySheet(props: DisplaySheetProps) {
-    return <Modal visible={props.visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={props.onClose}>
-    {props.visible && <DisplayEditor {...props}/>}
+    return <Modal visible={props.visible} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={props.onClose}>
+    <SafeAreaProvider><DisplayEditor {...props}/></SafeAreaProvider>
   </Modal>;
 }
 function DisplayEditor({ preset, presetName, bodyNames, config, onChangePreset: change, onSelectPreset, onClose }: DisplaySheetProps) {
     const t = useTheme();
     const insets = useSafeAreaInsets();
-    const { width, height } = useWindowDimensions();
+    const window = useWindowDimensions();
+    const [frame, setFrame] = useState({ width: window.width, height: window.height });
+    const width = frame.width;
     const [tab, setTab] = useState('Bodies');
     const [page, setPage] = useState<string | null>(null);
-    const [previewShown, setPreviewShown] = useState(true);
-    const previewHeight = Math.max(0, Math.min(width, height - insets.top - insets.bottom - 200));
+    const [previewPosition, setPreviewPosition] = useState<number | null>(null);
+    const previewHeight = Math.max(0, Math.min(width, frame.height - insets.bottom - 144));
     const [cover] = useState(() => new Animated.Value(previewHeight));
+    const restingPosition = Math.max(0, Math.min(previewHeight, previewPosition ?? previewHeight));
+    const previewShown = restingPosition > 0;
     useEffect(() => {
-        const animation = Animated.spring(cover, { toValue: previewShown ? previewHeight : 0, useNativeDriver: false, overshootClamping: true });
-        animation.start();
-        return () => animation.stop();
-    }, [cover, previewHeight, previewShown]);
+        cover.setValue(restingPosition);
+    }, [cover, restingPosition]);
     const responder = useMemo(() => {
         let start = 0;
-        const finish = (show: boolean) => {
-            setPreviewShown(show);
-            Animated.spring(cover, { toValue: show ? previewHeight : 0, useNativeDriver: false, overshootClamping: true }).start();
+        const clamp = (value: number) => Math.max(0, Math.min(previewHeight, value));
+        const finish = (value: number) => {
+            const position = clamp(value);
+            cover.setValue(position);
+            setPreviewPosition(position);
         };
         return PanResponder.create({
             onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
             onPanResponderGrant: () => { cover.stopAnimation(v => { start = v; }); },
-            onPanResponderMove: (_, g) => cover.setValue(Math.max(0, Math.min(previewHeight, start + g.dy))),
-            onPanResponderRelease: (_, g) => finish(g.vy > .3 || (g.vy >= -.3 && start + g.dy > previewHeight / 2)),
-            onPanResponderTerminate: () => finish(previewShown),
+            onPanResponderMove: (_, g) => cover.setValue(clamp(start + g.dy)),
+            onPanResponderRelease: (_, g) => finish(start + g.dy),
+            onPanResponderTerminate: () => cover.stopAnimation(finish),
         });
-    }, [cover, previewHeight, previewShown]);
+    }, [cover, previewHeight]);
     const styles = planetStyles(preset);
     const aspects = preset.aspects;
     const patterns = aspects.patterns ?? { enabledTypes: [...PATTERN_NAMES], orb: 5 };
@@ -140,9 +143,9 @@ function DisplayEditor({ preset, presetName, bodyNames, config, onChangePreset: 
         content = <><Section title="Reading comfort"><Choices label="Symbol size" value={sizeValue('glyphSize')} options={[[16, 'S'], [20, 'M'], [24, 'L']]} onChange={v => change(updatePlanetStyles(preset, { glyphSize: v }))}/><Choices label="Annotation size" value={sizeValue('degreeTextFontSize')} options={[[7.5, 'S'], [9.6, 'M'], [12, 'L']]} onChange={v => change(updatePlanetStyles(preset, { degreeTextFontSize: v }))}/></Section><Section title="Aspect lines"><LinkRow label="Aspect line styling" detail="Color, shape, weight, and opacity" onPress={() => setPage('lines')}/></Section><Section title="Interaction"><LinkRow label="Selection" detail="Highlighting, dimming, and related bodies" onPress={() => setPage('selection')}/></Section></>;
     return <View style={{ flex: 1, backgroundColor: t.color.bgSolidBase, paddingTop: insets.top }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, height: 52 }}><Action label="Close" onPress={onClose}/><Text style={[t.type.whyteMd, { color: t.color.txPrimary }]}>Display</Text><Action label={`${presetName.charAt(0).toUpperCase() + presetName.slice(1)} ⌄`} onPress={() => setPage('presets')}/></View>
-    <View style={{ flex: 1 }}><View style={{ position: 'absolute', top: 0, alignSelf: 'center' }}><ChartWheel config={config} size={width}/></View>
-      <Animated.View style={{ position: 'absolute', top: cover, bottom: 0, width: '100%', backgroundColor: t.color.bgSolidCard, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: t.border.hairline, borderColor: t.color.bdCard }}>
-        <View {...responder.panHandlers}><Pressable accessibilityRole="button" accessibilityLabel={previewShown ? 'Hide chart preview' : 'Show chart preview'} onPress={() => setPreviewShown(!previewShown)} style={{ height: 36, alignItems: 'center', justifyContent: 'center' }}><View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: t.color.txTertiary }}/></Pressable></View>
+    <View style={{ flex: 1 }} onLayout={({ nativeEvent: { layout } }) => setFrame(previous => previous.width === layout.width && previous.height === layout.height ? previous : { width: layout.width, height: layout.height })}><View style={{ position: 'absolute', top: 0, alignSelf: 'center' }}><ChartWheel config={config} size={width}/></View>
+      <Animated.View testID="preview-cover" style={{ position: 'absolute', top: cover, bottom: 0, width: '100%', backgroundColor: t.color.bgSolidCard, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: t.border.hairline, borderColor: t.color.bdCard }}>
+        <View testID="preview-handle" {...responder.panHandlers}><Pressable accessibilityRole="button" accessibilityLabel={previewShown ? 'Hide chart preview' : 'Show chart preview'} onPress={() => setPreviewPosition(previewShown ? 0 : previewHeight)} style={{ height: 36, alignItems: 'center', justifyContent: 'center' }}><View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: t.color.txTertiary }}/></Pressable></View>
         {page ? <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 12 }}><Action label="‹ Back" onPress={() => setPage(null)}/><Text style={[t.type.whyteSm, { color: t.color.txPrimary, flex: 1 }]}>{TITLES[page]}</Text></View> : <View style={{ paddingHorizontal: 18 }}><Choices label="" value={tab} options={[["Bodies", "Bodies"], ["Details", "Details"], ["Style", "Style"]]} onChange={setTab}/></View>}
         <ScrollView key={page ?? tab} contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 18, paddingBottom: insets.bottom + 28 }}>{content}</ScrollView>
       </Animated.View>
