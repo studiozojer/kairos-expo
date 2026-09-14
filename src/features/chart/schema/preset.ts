@@ -100,6 +100,10 @@ import {
  * rewrite; this mirror preserves it. Wire-compatible both directions.
  */
 export interface AspectConfiguration {
+  /** Swift-compatible visibility flag; absent in older documents. */
+  showPatterns?: boolean;
+  /** Additive pattern preferences, independent of ordinary aspect orbs. */
+  patterns?: { enabledTypes: string[]; orb: number };
   enabledTypes: string[];
   enabled: boolean;
   orbs: AspectOrbs;
@@ -130,6 +134,11 @@ export function parseAspectConfiguration(v: unknown): AspectConfiguration {
   const enabledTypes = strArr(o.enabledTypes, d.enabledTypes);
   return {
     enabledTypes,
+    ...(typeof o.showPatterns === 'boolean' ? { showPatterns: o.showPatterns } : {}),
+    ...(o.patterns && typeof o.patterns === 'object' ? { patterns: {
+      enabledTypes: strArr(obj(o.patterns).enabledTypes, []),
+      orb: Math.max(0, Math.min(15, num(obj(o.patterns).orb, 5))),
+    } } : {}),
     // Swift: decodeIfPresent(Bool) ?? !enabledTypes.isEmpty (legacy semantic).
     enabled: bool(o.enabled, enabledTypes.length > 0),
     orbs: parseAspectOrbs(o.orbs),
@@ -146,6 +155,8 @@ export function parseAspectConfiguration(v: unknown): AspectConfiguration {
 export function serializeAspectConfiguration(a: AspectConfiguration): unknown {
   return {
     enabledTypes: [...a.enabledTypes],
+    ...(a.showPatterns !== undefined ? { showPatterns: a.showPatterns } : {}),
+    ...(a.patterns ? { patterns: { ...a.patterns, enabledTypes: [...a.patterns.enabledTypes] } } : {}),
     enabled: a.enabled,
     orbs: serializeAspectOrbs(a.orbs),
     showGrid: a.showGrid,

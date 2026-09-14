@@ -59,7 +59,7 @@ export interface ChartRenderingConfiguration {
   rings: RingConfiguration[];
   /** 12 cusp longitudes, house 1 first (sorted by house_number). */
   houseCusps: number[];
-  /** House-1 cusp longitude (the ascendant), degrees. */
+  /** Preset static orientation: longitude placed at the left edge, degrees. */
   orientation: number;
   /** The preset's aspect config — applied at RENDER time by the overlay. */
   aspects: AspectConfiguration;
