@@ -1,8 +1,8 @@
 # Kairos native module
 
-Calculates a chart at a supplied UTC instant using the bundled Swiss Ephemeris. Initialization is lazy, once per process, and serialized with calculations. No motion-tree initialization or server access occurs. The chart route captures one instant per mount; retries preserve it and display edits do not recalculate.
+Calculates a chart at a supplied UTC instant using the bundled Swiss Ephemeris. Initialization is lazy, once per process, and serialized with calculations and atlas searches. No motion-tree initialization or server access occurs. The chart route captures one instant per mount; retries preserve it and display edits do not recalculate.
 
-The default location is Seattle's city reference point (47.6062, -122.3321), elevation 0 m as an explicit sea-level reference, timezone America/Los_Angeles for presentation. Calculations use tropical zodiac, Placidus houses, mean lunar nodes, and mean Lilith. Location-derived angles and lots come from Rust. The first slice supports dates from 1900 inclusive to 2100 exclusive; that is an intentional application bound inside the bundled contemporary data. No GPS permission is requested.
+The default location is Seattle's city reference point (47.6062, -122.3321), elevation 0 m as an explicit sea-level reference, timezone America/Los_Angeles for presentation. The chart settings sheet persists the selected atlas location and house system on the device; Seattle and Placidus remain the initial defaults. Changes recalculate the captured instant. Calculations use tropical zodiac, mean lunar nodes, and mean Lilith. Location-derived angles and lots come from Rust. The first slice supports dates from 1900 inclusive to 2100 exclusive; that is an intentional application bound inside the bundled contemporary data. No GPS permission is requested.
 
 Native results use `KairosResult` and are copied before `kairos_result_free` on both success and failure. Swift calls the C ABI directly; Kotlin calls a small C++ JNI adapter. Top-level ios/android directories remain CNG artifacts. `plugins/with-kairos.js` preserves the iOS 17 deployment floor and supported Android architectures through prebuild.
 
@@ -19,9 +19,11 @@ PATH=/path/to/cargo-ndk/bin:$PATH KAIROS_ENGINE_PATH=/path/to/kairos-engine ANDR
 
 Install the relevant Rust targets first: aarch64-apple-ios, aarch64-apple-ios-sim, aarch64-linux-android, x86_64-linux-android. Android uses cargo-ndk and NDK r28 or newer; this integration was developed against r30. The Android native libraries cover arm64 devices/emulators and x86_64 emulators, with 16 KiB page alignment. The iOS libraries cover arm64 devices and Apple Silicon simulators. The build records the engine revision, tracked source diff, compiler version, features, and binary hashes. Release artifacts should record a clean committed source revision.
 
-The module's `include/kairos_bridge.h` mirrors the stable three-function C ABI in kairos-ffi. Changes to that ABI must update both native adapters and their header together. The pod is named KairosBridge so its library cannot shadow libkairos.a on a case-insensitive filesystem.
+The module's `include/kairos_bridge.h` mirrors the stable C ABI in kairos-ffi. Changes to that ABI must update both native adapters and their header together. The pod is named KairosBridge so its library cannot shadow libkairos.a on a case-insensitive filesystem.
 
 ## Data and verification
+
+`assets/Atlas/atlas.db` is the offline atlas copied from kairos-ios, with source revision and SHA-256 in `provenance.json`. Search uses the existing `kairos_search_locations` C ABI on the same serialized engine queue. iOS opens its bundled database read-only; Android extracts it to app-private storage and opens it read-only. Updating this data requires a native rebuild. `tests/atlas-smoke.c` exercises the real database (use a city outside the static fallback, such as Benatky).
 
 `assets/Ephemeris` is copied from kairos-ios's Ephemeris resources; `manifest.json` records SHA-256 for each file. Both native adapters verify those bundled files before initialization. Android extracts them to app-private storage because the C library needs filesystem paths. The manifest is immutable build input, not a downloaded catalog.
 
@@ -33,4 +35,4 @@ The Rust test is intentionally explicit about real data:
 SWEPH_PATH=/path/to/modules/kairos/assets/Ephemeris SQLX_OFFLINE=true cargo test --release -p kairos-ffi --test live_chart --no-default-features --features database-sqlite,tokio-minimal -- --ignored
 ```
 
-An inherited limitation outside the Seattle slice: the low-level house wrapper currently discards Swiss house-calculation status. Replacing the old FFI `expect` does not by itself make polar-latitude house failures observable. Do not treat this implementation as a location picker or general house-system validation pass.
+An inherited limitation outside the Seattle slice: the low-level house wrapper currently discards Swiss house-calculation status. Replacing the old FFI `expect` does not by itself make polar-latitude house failures observable. The settings picker exposes the existing engine systems without repairing that inherited limitation.

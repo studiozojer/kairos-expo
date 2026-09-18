@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ChartCalculationResponse } from '../config/engine-types';
+import type { ChartSettings } from '../settings/chartSettings';
 import { calculateChart } from './calculateChart';
 
 type LoadState =
@@ -7,7 +8,7 @@ type LoadState =
   | { status: 'ready'; chart: ChartCalculationResponse }
   | { status: 'error'; chart?: undefined };
 
-export function useLoadTimeChart() {
+export function useLoadTimeChart(settings?: ChartSettings, enabled = true) {
   const [datetime] = useState(() => new Date().toISOString());
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<LoadState>({ status: 'loading' });
@@ -16,7 +17,9 @@ export function useLoadTimeChart() {
   useEffect(() => {
     let active = true;
     setState({ status: 'loading' });
-    calculateChart(datetime).then(
+    if (!enabled) return;
+    const calculation = settings ? calculateChart(datetime, settings) : calculateChart(datetime);
+    calculation.then(
       chart => { if (active) setState({ status: 'ready', chart }); },
       error => {
         if (active) {
@@ -26,7 +29,7 @@ export function useLoadTimeChart() {
       },
     );
     return () => { active = false; };
-  }, [datetime, attempt]);
+  }, [datetime, attempt, settings, enabled]);
 
   return { ...state, datetime, retry };
 }

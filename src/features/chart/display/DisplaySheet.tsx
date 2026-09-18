@@ -1,12 +1,13 @@
+import { ChartSheet, SheetBackRow } from '../components/ChartSheet';
 import { PlanetPicker } from './PlanetPicker';
 import { SegmentedControl } from '@expo/ui/community/segmented-control';
 import { DisplayHeader } from './DisplayHeader';
 import { previewGesture } from './previewGesture';
 import { PatternIcon } from './PatternIcon';
 import { useEffect, useMemo, useState } from 'react';
-import { Animated, Modal, ScrollView, Text, View, useWindowDimensions } from 'react-native';
-import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Animated, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { GestureDetector } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
 import type { Preset, SelectionStyleOverride } from '../schema/preset';
 import { ASPECT_TYPES, ZODIAC_SIGNS } from '../schema/enums.gen';
@@ -14,7 +15,7 @@ import { ChartWheel } from '../render/ChartWheel';
 import type { ChartRenderingConfiguration } from '../config/ChartRenderingConfiguration';
 import { isBodyEnabled, toggleBody } from './displayPreset';
 import { LABEL_CONTROLS, planetStyles, updateOrientation, updatePlanetStyles } from './sharedControls';
-import { Action, Choices, LinkRow, Note, NumberRow, Section, Toggle } from './controls';
+import { Choices, LinkRow, Note, NumberRow, Section, Toggle } from './controls';
 import { resolveAspectType } from '../geometry/AspectFilter';
 import { PATTERN_NAMES } from '../geometry/AspectPatterns';
 export interface DisplaySheetProps {
@@ -49,9 +50,9 @@ export function DisplaySheet(props: DisplaySheetProps) {
     // This component stays mounted when the native modal releases its contents.
     // Keep the preview preference here, outside both the modal and preset data.
     const [previewPosition, setPreviewPosition] = useState<number | null>(null);
-    return <Modal visible={props.visible} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={props.onClose}>
-    <GestureHandlerRootView style={{ flex: 1 }}><SafeAreaProvider><DisplayEditor {...props} previewPosition={previewPosition} onChangePreviewPosition={setPreviewPosition}/></SafeAreaProvider></GestureHandlerRootView>
-  </Modal>;
+    return <ChartSheet visible={props.visible} onClose={props.onClose}>
+    <DisplayEditor {...props} previewPosition={previewPosition} onChangePreviewPosition={setPreviewPosition}/>
+  </ChartSheet>;
 }
 interface DisplayEditorProps extends DisplaySheetProps {
     previewPosition: number | null;
@@ -136,7 +137,7 @@ function DisplayEditor({ preset, presetName, bodyNames, config, onChangePreset: 
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: t.color.txTertiary }}/>
           </View>
         </GestureDetector>
-        {page ? <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 12 }}><Action label="‹ Back" onPress={() => setPage(null)}/><Text style={[t.type.whyteSm, { color: t.color.txPrimary, flex: 1 }]}>{TITLES[page]}</Text></View> : <View style={{ paddingHorizontal: t.space.lg, paddingBottom: t.space.sm }}>
+        {page ? <SheetBackRow title={TITLES[page]} onBack={() => setPage(null)} /> : <View style={{ paddingHorizontal: t.space.lg, paddingBottom: t.space.sm }}>
           <SegmentedControl testID="display-tabs" values={DISPLAY_TABS} selectedIndex={DISPLAY_TABS.indexOf(tab)}
             onValueChange={setTab} appearance={t.scheme} style={{ width: '100%' }} />
         </View>}

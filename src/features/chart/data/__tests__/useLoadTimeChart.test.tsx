@@ -1,4 +1,5 @@
 import React from 'react';
+import type { ChartSettings } from '../../settings/chartSettings';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { useLoadTimeChart } from '../useLoadTimeChart';
 import { calculateChart } from '../calculateChart';
@@ -48,6 +49,22 @@ test('a result from an unmounted instance cannot replace the next instance', asy
   expect(latest.status).toBe('loading');
   act(() => view.unmount());
   await act(async () => { view = create(<Probe />); });
+  await act(async () => { finishOld({ ...fixture, celestial: { nodes: [], edges: [] } }); });
+  expect(latest.chart).toEqual(fixture);
+});
+
+test('changing defaults keeps the instant and ignores an older calculation finishing last', async () => {
+  const original = { location: { name: 'Seattle', latitude: 47.6062, longitude: -122.3321, elevation: 0, timezone: 'America/Los_Angeles' }, houseSystem: 'Placidus' as const };
+  const changed = { ...original, houseSystem: 'Whole Sign' as const };
+  function SettingsProbe({ settings = original, enabled = true }: { settings?: ChartSettings; enabled?: boolean }) { latest = useLoadTimeChart(settings, enabled); return null; }
+  let finishOld!: (value: typeof fixture) => void;
+  calculate.mockImplementationOnce(() => new Promise(resolve => { finishOld = resolve; })).mockResolvedValue(fixture);
+  await act(async () => { view = create(<SettingsProbe enabled={false} />); });
+  expect(calculate).not.toHaveBeenCalled();
+  await act(async () => { view.update(<SettingsProbe />); });
+  jest.setSystemTime(new Date('2026-09-14T19:00:00Z'));
+  await act(async () => { view.update(<SettingsProbe settings={changed} />); });
+  expect(calculate).toHaveBeenLastCalledWith('2026-09-13T19:00:00.000Z', changed);
   await act(async () => { finishOld({ ...fixture, celestial: { nodes: [], edges: [] } }); });
   expect(latest.chart).toEqual(fixture);
 });
