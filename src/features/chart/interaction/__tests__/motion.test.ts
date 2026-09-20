@@ -65,3 +65,14 @@ test('grabbing an overscrolled wheel or changing pointers does not apply resista
   expect(moved.transform.x).toBeGreaterThan(current.x);
   expect(moved.transform.x - current.x).toBeLessThan(1);
 });
+
+test.each([30, 60, 120])('edge return settles within 350 ms without crossing the boundary at %i Hz', hz => {
+  let state = { transform: { scale: 2, x: 300, y: -300 }, velocity: { x: 1200, y: -1200 }, active: true };
+  for (let frame = 0; frame < Math.ceil(hz * .35); frame++) {
+    state = momentumStep(state.transform, state.velocity, 1 / hz, size);
+    expect(state.transform.x).toBeGreaterThanOrEqual(200);
+    expect(state.transform.y).toBeLessThanOrEqual(-200);
+  }
+  expect(state.active).toBe(false);
+  expect(state.transform).toEqual({ scale: 2, x: 200, y: -200 });
+});

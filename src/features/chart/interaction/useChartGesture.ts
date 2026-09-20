@@ -7,7 +7,7 @@ import { AccessibilityInfo, AppState } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Gesture } from 'react-native-gesture-handler';
 import { cancelAnimation, runOnJS, runOnUI, useDerivedValue, useFrameCallback, useSharedValue, withSpring } from 'react-native-reanimated';
-import { beginDrag, clamp, constrain, IDENTITY, momentumStep, moveDrag, releaseVelocity, zoomAt, type Drag, type Point, type WheelTransform } from './motion';
+import { beginDrag, clamp, constrain, IDENTITY, MOTION, momentumStep, moveDrag, releaseVelocity, zoomAt, type Drag, type Point, type WheelTransform } from './motion';
 import { hitTarget, type ChartTarget } from './selection';
 
 export function useChartGesture(size: number, targets: ChartTarget[], enabled: boolean,
@@ -38,7 +38,7 @@ export function useChartGesture(size: number, targets: ChartTarget[], enabled: b
   const settle = useCallback((value: WheelTransform) => {
     'worklet'; stop(); const next = constrain(value, size);
     if (reduced.value) { assign(next); return; }
-    const spring = { stiffness: 200, damping: 30, mass: 1, overshootClamping: true };
+    const spring = { stiffness: MOTION.stiffness, damping: MOTION.damping, mass: 1, overshootClamping: true };
     scale.value = withSpring(next.scale, spring); x.value = withSpring(next.x, spring); y.value = withSpring(next.y, spring);
   }, [stop, size, reduced, assign, scale, x, y]);
   const suspend = useCallback(() => {
@@ -78,7 +78,7 @@ export function useChartGesture(size: number, targets: ChartTarget[], enabled: b
         if (!allowed.value || !drag.value || !event.allTouches.length) { manager.fail(); return; }
         if (!active.value) {
           const point = localPoint(event.allTouches[0]);
-          if (Math.hypot(point.x - drag.value.anchor.x, point.y - drag.value.anchor.y) < 8) return;
+          if (Math.hypot(point.x - drag.value.anchor.x, point.y - drag.value.anchor.y) < 4) return;
           if (scale.value <= 1.001 && event.numberOfTouches === 1) return;
           active.value = true; lastTap.value = null; manager.activate();
         }
