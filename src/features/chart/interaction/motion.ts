@@ -6,7 +6,7 @@ export interface Point { x: number; y: number }
 export interface WheelTransform { scale: number; x: number; y: number }
 export interface Touch extends Point { id: number }
 export const IDENTITY: WheelTransform = { scale: 1, x: 0, y: 0 };
-export const MOTION = { min: 1, max: 3, friction: .95, stiffness: 200, damping: 30,
+export const MOTION = { min: 1, max: 3, friction: .95, stiffness: 900, damping: 60,
   rubberLimit: 240, rubberCoefficient: .55, minimumVelocity: 50, maxVelocity: 2500 };
 
 export function clamp(value: number, min: number, max: number) {
@@ -86,22 +86,27 @@ export function releaseVelocity(drag: Drag, now: number): Point {
   if (intent < .3) return { x: 0, y: 0 };
   return { x: drag.velocity.x * intent, y: drag.velocity.y * intent };
 }
-export function momentumStep(transform: WheelTransform, velocity: Point, seconds: number, size: number) {
-  'worklet'; const dt = Math.min(seconds, 1 / 30), target = constrain(transform, size);
-  const dx = transform.x - target.x, dy = transform.y - target.y;
-  let vx = velocity.x, vy = velocity.y, x = transform.x, y = transform.y;
-  if (Math.hypot(dx, dy) > .001) {
-    vx += (-MOTION.stiffness * dx - MOTION.damping * vx) * dt;
-    vy += (-MOTION.stiffness * dy - MOTION.damping * vy) * dt;
-    x += vx * dt; y += vy * dt;
-    const limit = panLimit(size, transform.scale);
-    const outside = Math.hypot(x - clamp(x, -limit, limit), y - clamp(y, -limit, limit));
-    if (outside < .5 && Math.hypot(vx, vy) < 1) return { transform: constrain({ ...transform, x, y }, size), velocity: { x: 0, y: 0 }, active: false };
-  } else {
-    x += vx * dt; y += vy * dt;
-    const friction = Math.pow(MOTION.friction, dt * 60); vx *= friction; vy *= friction;
-    if (Math.hypot(vx, vy) < MOTION.minimumVelocity) { vx = 0; vy = 0; }
+// Exact critically damped spring integration stays stable even on a slow frame.
+// k=900, c=60, mass=1 gives a quick return without oscillation.
+function advanceAxis(position: number, velocity: number, limit: number, dt: number) {
+  'worklet'; const target = clamp(position, -limit, limit), displacement = position - target;
+  if (Math.abs(displacement) > .001) {
+    const omega = Math.sqrt(MOTION.stiffness), decay = Math.exp(-omega * dt);
+    const coefficient = velocity + omega * displacement;
+    const next = (displacement + coefficient * dt) * decay;
+    const speed = (velocity - omega * coefficient * dt) * decay;
+    if (next * displacement <= 0 || (Math.abs(next) < .5 && Math.abs(speed) < 5)) return { position: target, velocity: 0 };
+    return { position: target + next, velocity: speed };
   }
-  const next = { ...transform, x, y }, bound = constrain(next, size);
-  return { transform: next, velocity: { x: vx, y: vy }, active: vx !== 0 || vy !== 0 || Math.hypot(x - bound.x, y - bound.y) > .001 };
+  if (displacement !== 0) return { position: target, velocity: 0 };
+  const friction = Math.pow(MOTION.friction, dt * 60);
+  const speed = velocity * friction;
+  return { position: position + velocity * dt, velocity: Math.abs(speed) < MOTION.minimumVelocity ? 0 : speed };
+}
+export function momentumStep(transform: WheelTransform, velocity: Point, seconds: number, size: number) {
+  'worklet'; const dt = clamp(seconds, 0, 1 / 15), limit = panLimit(size, transform.scale);
+  const x = advanceAxis(transform.x, velocity.x, limit, dt);
+  const y = advanceAxis(transform.y, velocity.y, limit, dt);
+  return { transform: { ...transform, x: x.position, y: y.position }, velocity: { x: x.velocity, y: y.velocity },
+    active: x.velocity !== 0 || y.velocity !== 0 || Math.abs(x.position) > limit || Math.abs(y.position) > limit };
 }

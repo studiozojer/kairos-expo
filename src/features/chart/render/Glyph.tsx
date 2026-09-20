@@ -92,6 +92,9 @@ export const Glyph = React.memo(function Glyph({ name, size, color, x, y }: Glyp
   const dst = rect(x - size / 2, y - size / 2, size, size);
 
   return (
+    // Clip BEFORE saving the tint layer: its allocation should be glyph-sized,
+    // not screen-sized. Padding preserves antialiasing at the SVG viewport edge.
+    <Group clip={rect(dst.x - 1, dst.y - 1, dst.width + 2, dst.height + 2)}>
     <Group
       transform={fitbox("contain", src, dst)}
       layer={
@@ -100,6 +103,7 @@ export const Glyph = React.memo(function Glyph({ name, size, color, x, y }: Glyp
         </Paint>
       }>
       <ImageSVG svg={svg} x={0} y={0} width={dims.width} height={dims.height} />
+    </Group>
     </Group>
   );
 });
