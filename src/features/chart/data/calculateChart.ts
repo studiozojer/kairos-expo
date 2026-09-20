@@ -4,11 +4,8 @@ import type { ChartCalculationResponse } from '../config/engine-types';
 import { DEFAULT_SETTINGS, type ChartSettings } from '../settings/chartSettings';
 export { DEFAULT_LOCATION } from '../settings/chartSettings';
 
-// Calculate independently of display visibility: toggles only change rendering.
-export const SKY_BODIES = [
-  'Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn',
-  'Uranus', 'Neptune', 'Pluto', 'MeanNode', 'MeanApogee', 'Chiron',
-] as const;
+import { SKY_BODIES } from './skyBodies';
+export { SKY_BODIES } from './skyBodies';
 
 export function chartRequest(datetime: string, settings: ChartSettings = DEFAULT_SETTINGS) {
   const time = Date.parse(datetime);

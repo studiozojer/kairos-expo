@@ -13,7 +13,7 @@ int main(int argc, char **argv) {
     "{\"datetime\":\"2026-09-13T19:00:00Z\",\"latitude\":47.6062,\"longitude\":-122.3321,"
     "\"chart_kind\":\"Transit\",\"house_system\":\"Placidus\",\"zodiac_system\":\"Tropical\","
     "\"enabled_bodies\":[\"Sun\",\"Moon\",\"Mercury\",\"Venus\",\"Mars\",\"Jupiter\",\"Saturn\","
-    "\"Uranus\",\"Neptune\",\"Pluto\",\"MeanNode\",\"MeanApogee\",\"Chiron\"]}");
+    "\"Uranus\",\"Neptune\",\"Pluto\",\"MeanNode\",\"MeanApogee\",\"Chiron\",\"Ceres\",\"Pallas\",\"Juno\",\"Vesta\",\"Eros\",\"Pholus\"]}");
   int success = result.success && result.data;
   if (success) puts(result.data);
   else fprintf(stderr, "%s\n", result.error ? result.error : "Calculation failed");

@@ -39,3 +39,30 @@ test('propagates native errors and rejects dates outside bundled scope', async (
   expect(() => chartRequest('invalid')).toThrow();
   expect(() => chartRequest('2100-01-01T00:00:00Z')).toThrow();
 });
+
+// Cross the request → real engine fixture → display preset → glyph seams.
+import { SKY_ASTEROIDS } from '../skyBodies';
+import { buildConfiguration } from '../../config/buildConfiguration';
+import { bundledPreset } from '../../display/presets';
+import { toggleBody } from '../../display/displayPreset';
+import { GLYPH_ASSETS } from '../../render/glyph-map.gen';
+
+test.each(SKY_ASTEROIDS)('%s is requested and can be displayed with a bundled glyph', body => {
+  expect(chartRequest(datetime).enabled_bodies).toContain(body);
+  const preset = toggleBody(bundledPreset('classic')!.preset, body, true);
+  const config = buildConfiguration(fixture, preset);
+  const placements = config.rings.flatMap(ring => ring.type.kind === 'planets' ? ring.type.placements : []);
+  const placement = placements.find(p => p.bodyName === body);
+  expect(placement).toBeDefined();
+  expect(GLYPH_ASSETS).toHaveProperty(`celestials/${placement!.glyphAsset}`);
+  const hidden = buildConfiguration(fixture, toggleBody(preset, body, false));
+  expect(hidden.rings.flatMap(ring => ring.type.kind === 'planets' ? ring.type.placements : [])
+    .some(p => p.bodyName === body)).toBe(false);
+});
+
+test.each(SKY_ASTEROIDS)('rejects native output silently omitting %s', async body => {
+  native.mockResolvedValue(JSON.stringify({ ...fixture, celestial: { ...fixture.celestial,
+    nodes: fixture.celestial.nodes.filter(n => n.body !== body),
+  } }));
+  await expect(calculateChart(datetime)).rejects.toThrow('Incomplete chart');
+});

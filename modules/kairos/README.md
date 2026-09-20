@@ -36,3 +36,9 @@ SWEPH_PATH=/path/to/modules/kairos/assets/Ephemeris SQLX_OFFLINE=true cargo test
 ```
 
 An inherited limitation outside the Seattle slice: the low-level house wrapper currently discards Swiss house-calculation status. Replacing the old FFI `expect` does not by itself make polar-latitude house failures observable. The settings picker exposes the existing engine systems without repairing that inherited limitation.
+
+### Asteroid coverage
+
+The stepped sky requests Chiron, Ceres, Pallas, Juno, Vesta, Eros and Pholus independently of display visibility. Display uses the same list; all seven have bundled glyphs. `seas_18.se1` supplies the main asteroids and centaurs; Eros additionally needs `se00433s.se1`, copied from kairos-ios commit `8f7f82dd4ba0f5a12fa748eefd1419849d9138aa` and checksum-pinned in `assets/Ephemeris/manifest.json`. Both native adapters consume that manifest. Existing installed builds need rebuilding to pick up the added Eros asset; a JavaScript-only update is insufficient.
+
+Run `python3 modules/kairos/tests/asteroids-smoke.py /path/to/libkairos.dylib` with a host build supporting transit charts. The repaired fixture was generated with the existing host build from engine revision `764bc05e71ce8f70cc217240f9f379936cacfa30`, matching the packaged native provenance. It checks all requested bodies at 23 dates spanning the application bounds and verifies that all seven asteroids move over a day step. `--write-fixture` regenerates the Seattle fixture with the expanded body set. This is host C ABI evidence, not a simulator/device rendering check. The larger celestial catalog and its missing glyphs remain outside this repair.

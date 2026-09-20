@@ -1,3 +1,4 @@
+import { SKY_ASTEROIDS } from '../data/skyBodies';
 import { ChartSheet, SheetBackRow } from '../components/ChartSheet';
 import { PlanetPicker } from './PlanetPicker';
 import { SegmentedControl } from '@expo/ui/community/segmented-control';
@@ -31,7 +32,7 @@ export interface DisplaySheetProps {
 const DISPLAY_TABS = ['Bodies', 'Details', 'Style'];
 const LOTS = ['Part of Fortune', 'Lot of Spirit', 'Lot of Eros'];
 const POINTS = ['Ascendant', 'Midheaven', 'Descendant', 'Imum Coeli', 'North Node', 'South Node', 'Vertex', 'Black Moon Lilith'];
-const ASTEROIDS = ['Chiron', 'Ceres', 'Pallas', 'Juno', 'Vesta', 'Eros', 'Pholus'];
+const ASTEROIDS = [...SKY_ASTEROIDS];
 const TITLES: Record<string, string> = { asteroids: 'Asteroids', lots: 'Lots', aspects: 'Aspect types & orbs', patterns: 'Aspect patterns', filters: 'Aspect filtering', lines: 'Aspect line styling', selection: 'Selection', orientation: 'Static orientation' };
 const FILTERS = [['showSeparatingAspects', 'Separating aspects'], ['showFalseAspects', 'False aspects'], ['mutualAspectsOnly', 'Mutual aspects only'], ['interAspectsOnly', 'Inter aspects only'], ['filterBySelection', 'Filter by selection']] as const;
 const SELECTION = [
