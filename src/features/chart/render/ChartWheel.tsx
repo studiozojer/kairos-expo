@@ -19,6 +19,9 @@ import { PatternOverlay } from './PatternOverlay';
 
 import React, { useMemo } from "react";
 
+import type { SharedValue } from "react-native-reanimated";
+import type { Transforms3d } from "@shopify/react-native-skia";
+import type { SelectionPaint } from "../interaction/selection";
 import { Canvas, Group } from "@shopify/react-native-skia";
 
 import { useTheme } from "@/theme";
@@ -45,6 +48,7 @@ export interface RingRendererProps {
   layout: WheelLayout;
   /** The preset's raw ChartColors (resolve via colors.ts against the theme). */
   colors: ChartColors;
+  selection?: SelectionPaint;
 }
 
 export type RingRendererComponent = (props: RingRendererProps) => React.ReactElement | null;
@@ -81,15 +85,21 @@ export interface ChartWheelProps {
   /** Square canvas size in points. */
   size: number;
   transform?: ChartWheelTransform;
+  animatedTransform?: SharedValue<Transforms3d>;
+  selection?: SelectionPaint;
 }
 
-export function ChartWheel({ config, size, transform = IDENTITY_TRANSFORM }: ChartWheelProps) {
+export function ChartWheel(props: ChartWheelProps) {
+  const layout = useWheelLayout(props.config, props.size);
+  return <ChartWheelCanvas {...props} layout={layout} />;
+}
+
+export function ChartWheelCanvas({ config, size, transform = IDENTITY_TRANSFORM, animatedTransform, selection, layout }: ChartWheelProps & { layout: WheelLayout }) {
   const liveTheme = useTheme();
   // themeFor() builds a fresh object per useTheme() call; the color tables
   // are static per scheme, so pin the value to the scheme — otherwise every
   // render churns ChartPaintContext and defeats the layout/ring memos.
   const theme = useMemo(() => liveTheme, [liveTheme.scheme]);
-  const layout = useWheelLayout(config, size);
 
   return (
     <Canvas style={{ width: size, height: size }}>
@@ -100,7 +110,7 @@ export function ChartWheel({ config, size, transform = IDENTITY_TRANSFORM }: Cha
          * origin, then offsets (the offset itself is NOT scaled).
          */}
         <Group
-          transform={[
+          transform={animatedTransform ?? [
             { translateX: transform.offsetX },
             { translateY: transform.offsetY },
             { scale: transform.scale },
@@ -114,6 +124,7 @@ export function ChartWheel({ config, size, transform = IDENTITY_TRANSFORM }: Cha
                 ring={ring}
                 ringIndex={ringIndex}
                 layout={layout}
+                selection={selection}
                 colors={config.colors}
               />
             );
@@ -121,7 +132,7 @@ export function ChartWheel({ config, size, transform = IDENTITY_TRANSFORM }: Cha
           {/* Overlays draw last, on top of every ring (Swift
               ChartWheelRenderer.swift: rings, then overlays). */}
           <PatternOverlay config={config} layout={layout} />
-          <AspectOverlay config={config} layout={layout} />
+          <AspectOverlay config={config} layout={layout} selectedIdentifiers={selection?.selected} />
         </Group>
       </ChartPaintProvider>
     </Canvas>

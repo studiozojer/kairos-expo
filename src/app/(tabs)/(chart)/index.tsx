@@ -8,9 +8,9 @@ import { useChartTime } from '@/features/chart/time/ChartTimeContext';
 import { hasNativeTimeAccessory, TimeStepper } from '@/features/chart/time/TimeStepper';
 import { SettingsSheet } from '@/features/chart/settings/SettingsSheet';
 import { DisplaySheet } from '@/features/chart/display/DisplaySheet';
-import { bodyChoices } from '@/features/chart/display/displayPreset';
+import { toggleBody, bodyChoices } from '@/features/chart/display/displayPreset';
 import { bundledPreset, bundledPresetSource } from '@/features/chart/display/presets';
-import { ChartWheel } from '@/features/chart/render/ChartWheel';
+import { InteractiveChartWheel } from '@/features/chart/interaction/InteractiveChartWheel';
 import { presetDocument, editPresetDocument } from '@/features/chart/display/presetDocument';
 
 /** A locally calculated, stepped chart with an in-memory display editor. The source
@@ -21,6 +21,8 @@ export default function ChartHome() {
   const chart = result?.chart;
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { width } = useWindowDimensions();
+  const [chartHeight, setChartHeight] = useState(0);
+  const wheelSize = Math.min(width, Math.max(120, chartHeight - (status === 'error' ? 180 : 120)));
   const insets = useSafeAreaInsets();
 
   const [document, setDocument] = useState(() => presetDocument(bundledPresetSource('classic')));
@@ -68,8 +70,9 @@ export default function ChartHome() {
         </Pressable>
       </View>
 
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        {config ? <ChartWheel config={config} size={width} /> : status === 'error' ? (
+      <View onLayout={event => setChartHeight(event.nativeEvent.layout.height)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        {config ? <InteractiveChartWheel config={config} size={wheelSize} selectionStyle={preset.selection} enabled={!sheetOpen && !settingsOpen}
+          onHideBody={name => setDocument(current => editPresetDocument(current, toggleBody(current.preset, name, false)))} /> : status === 'error' ? (
           <View style={{ alignItems: 'center', gap: theme.space.md }}>
             <Text accessibilityRole="alert" style={[theme.type.whyteSm, { color: theme.color.txAccent }]}>
               Couldn’t load the chart.

@@ -26,11 +26,11 @@
  * turns up zero references to `showDegreeMarks`). Mirrored verbatim, not
  * "fixed" — this is a dead style knob, not a wrong computed value.
  *
- * SELECTION: not ported here, same precedent as ZodiacSignsRing (Task 8) —
- * every placement always draws at "default" appearance (full opacity, no
- * dimming, no press/selection background or shadow).
+ * Selection opacity follows the preset flags; selected bodies can draw a
+ * background highlight. Static previews have no selection.
  */
 
+import { selectionOpacity } from "../../interaction/selection";
 import React, { useMemo } from "react";
 
 import {
@@ -260,7 +260,7 @@ function StackElementView({
   }
 }
 
-export function PlanetsRing({ ring, ringIndex, layout, colors }: RingRendererProps) {
+export function PlanetsRing({ ring, ringIndex, layout, colors, selection }: RingRendererProps) {
   const theme = useChartPaintTheme();
   const style: PlanetsRingStyle =
     ring.style.$type === PLANETS_STYLE_TYPE ? ring.style : PLANETS_RING_STYLE_DEFAULT;
@@ -316,6 +316,7 @@ export function PlanetsRing({ ring, ringIndex, layout, colors }: RingRendererPro
           };
           return (
             <Path
+              opacity={selectionOpacity(selection, `house:${index + 1}`, "affectsCuspLines")}
               key={`cusp-${index}`}
               path={linePath(outerPoint, innerPoint)}
               style="stroke"
@@ -333,6 +334,10 @@ export function PlanetsRing({ ring, ringIndex, layout, colors }: RingRendererPro
 
         return (
           <React.Fragment key={placement.id}>
+            {selection?.selected.has(placement.id) && selection.style.showBackgroundCircle && <Circle
+              cx={pos.adjustedPosition.x} cy={pos.adjustedPosition.y} r={Math.max(style.glyphSize / 2 + 5, style.circleRadius + 4)}
+              color={resolveColorValue(selection.style.selectedColor, theme)} opacity={.18} />}
+            <Group opacity={selectionOpacity(selection, placement.id, "affectsGlyphs")}>
             {/* Connection line drawn BEFORE the glyph so it sits behind it
                 (Swift PlanetsRing.swift:137-156). */}
             {pos.needsConnectionLine && (
@@ -370,6 +375,8 @@ export function PlanetsRing({ ring, ringIndex, layout, colors }: RingRendererPro
               <Circle cx={pos.adjustedPosition.x} cy={pos.adjustedPosition.y} r={style.circleRadius} color={color} />
             )}
 
+            </Group>
+            <Group opacity={selectionOpacity(selection, placement.id, "affectsDegreeText")}>
             {dir &&
               elements.map((element, i) => (
                 <StackElementView
@@ -387,6 +394,7 @@ export function PlanetsRing({ ring, ringIndex, layout, colors }: RingRendererPro
                   minutesFont={minutesFont}
                 />
               ))}
+            </Group>
           </React.Fragment>
         );
       })}
@@ -411,6 +419,7 @@ export function PlanetsRing({ ring, ringIndex, layout, colors }: RingRendererPro
             };
             return (
               <Path
+                opacity={selectionOpacity(selection, placement.id, "affectsDegreeMarks")}
                 key={`${placement.id}-tick-${i}`}
                 path={linePath(start, end)}
                 style="stroke"
