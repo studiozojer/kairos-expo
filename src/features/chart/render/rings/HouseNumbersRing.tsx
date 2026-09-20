@@ -32,7 +32,7 @@
  * cusp-line draw has no such gate (its defaults are never 0).
  */
 
-import { selectionOpacity } from "../../interaction/selection";
+import { selectionOpacity, selectionColor, cuspSelectionOpacity } from "../../interaction/selection";
 import React from "react";
 
 import { Group, Path, Skia, Text, useFont, type SkFont, type SkPath } from "@shopify/react-native-skia";
@@ -169,7 +169,7 @@ export function HouseNumbersRing({ ring, ringIndex, layout, selection }: RingRen
           : 0;
 
         const numberNode = (
-          <Group opacity={selectionOpacity(selection, `house:${houseNumber}`, "affectsHouseNumbers")}><CenteredText text={text} center={numberPosition} font={font} color={numberColor} /></Group>
+          <Group opacity={selectionOpacity(selection, `house:${houseNumber}`, "affectsHouseNumbers")}><CenteredText text={text} center={numberPosition} font={font} color={selectionColor(selection, `house:${houseNumber}`, "affectsHouseNumbers", numberColor, theme)} /></Group>
         );
 
         return (
@@ -181,7 +181,7 @@ export function HouseNumbersRing({ ring, ringIndex, layout, selection }: RingRen
                   coordinates.pointForDegree(cuspDegree, innerR),
                 )}
                 style="stroke"
-                opacity={selectionOpacity(selection, `house:${houseNumber}`, "affectsCuspLines")}
+                opacity={cuspSelectionOpacity(selection, index)}
                 strokeWidth={lineWidth}
                 color={cuspLineColor(angular, style, theme)}
               />

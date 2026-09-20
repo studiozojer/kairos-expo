@@ -21,7 +21,7 @@
  * scale is applied explicitly with `fitbox("contain", …)` from the SVG's
  * intrinsic size into the size×size box centered at (x, y).
  *
- * Memoized (default shallow compare = by name/size/color/x/y). In jest,
+ * Memoized by glyph, position, color, size, and selection. In jest,
  * Skia's mock returns null from useSVG — Glyph renders null there.
  *
  * LOAD-FAILURE HARDENING (fix round 1, 2026-08-15): a Metro asset URL that
@@ -47,7 +47,7 @@
 
 import React, { useEffect, useState } from "react";
 
-import { BlendColor, Group, ImageSVG, Paint, fitbox, rect, useSVG } from "@shopify/react-native-skia";
+import { BlendColor, Shadow, Group, ImageSVG, Paint, fitbox, rect, useSVG } from "@shopify/react-native-skia";
 
 import { GLYPH_ASSETS, type GlyphName } from "./glyph-map.gen";
 
@@ -58,12 +58,14 @@ export interface GlyphProps {
   size: number;
   /** Resolved hex color (#RRGGBBAA) — resolve ColorValues via colors.ts. */
   color: string;
+  /** Add the subtle shadow used for selected planets in Swift. */
+  selected?: boolean;
   /** Center x/y in canvas coordinates. */
   x: number;
   y: number;
 }
 
-export const Glyph = React.memo(function Glyph({ name, size, color, x, y }: GlyphProps) {
+export const Glyph = React.memo(function Glyph({ name, size, color, x, y, selected = false }: GlyphProps) {
   const [broken, setBroken] = useState(false);
   const svg = useSVG(GLYPH_ASSETS[name], () => setBroken(true));
   const [dims, setDims] = useState<{ width: number; height: number } | null>(null);
@@ -91,15 +93,17 @@ export const Glyph = React.memo(function Glyph({ name, size, color, x, y }: Glyp
   const src = rect(0, 0, dims.width, dims.height);
   const dst = rect(x - size / 2, y - size / 2, size, size);
 
+  const padding = selected ? 7 : 1;
   return (
     // Clip BEFORE saving the tint layer: its allocation should be glyph-sized,
     // not screen-sized. Padding preserves antialiasing at the SVG viewport edge.
-    <Group clip={rect(dst.x - 1, dst.y - 1, dst.width + 2, dst.height + 2)}>
+    <Group clip={rect(dst.x - padding, dst.y - padding, dst.width + padding * 2, dst.height + padding * 2)}>
     <Group
       transform={fitbox("contain", src, dst)}
       layer={
         <Paint>
           <BlendColor color={color} mode="srcIn" />
+          {selected && <Shadow dx={0} dy={1} blur={2} color="rgba(0,0,0,0.1)" />}
         </Paint>
       }>
       <ImageSVG svg={svg} x={0} y={0} width={dims.width} height={dims.height} />

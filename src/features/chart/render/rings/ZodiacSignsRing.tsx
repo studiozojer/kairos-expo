@@ -27,7 +27,7 @@
  * glyph fallback remains unported.
  */
 
-import { selectionOpacity } from "../../interaction/selection";
+import { selectionOpacity, selectionColor } from "../../interaction/selection";
 import React, { useMemo } from "react";
 
 import { Group, Path, Skia } from "@shopify/react-native-skia";
@@ -131,8 +131,8 @@ export function ZodiacSignsRing({ ring, ringIndex, layout, colors, selection }: 
     const fills: { key: string; path: SkPath; color: string }[] = [];
     const borders: { key: string; path: SkPath; width: number; color: string }[] = [];
     const radialLines = Skia.PathBuilder.Make();
-    const majorMarks = Skia.PathBuilder.Make();
-    const minorMarks = Skia.PathBuilder.Make();
+    const majorMarks = ZODIAC_SIGNS.map(() => Skia.PathBuilder.Make());
+    const minorMarks = ZODIAC_SIGNS.map(() => Skia.PathBuilder.Make());
 
     const borderWidth = style.segmentBorderWidth;
     const halfBorder = borderWidth / 2;
@@ -209,7 +209,7 @@ export function ZodiacSignsRing({ ring, ringIndex, layout, colors, selection }: 
           const length = isMajor ? style.majorMarkLength : style.minorMarkLength;
           const inner = coordinates.pointForDegree(d, innerR);
           const outer = coordinates.pointForDegree(d, innerR + length);
-          const marks = isMajor ? majorMarks : minorMarks;
+          const marks = isMajor ? majorMarks[signIndex] : minorMarks[signIndex];
           marks.moveTo(inner.x, inner.y);
           marks.lineTo(outer.x, outer.y);
         }
@@ -220,8 +220,8 @@ export function ZodiacSignsRing({ ring, ringIndex, layout, colors, selection }: 
       fills,
       borders,
       radialLines: radialLines.build(),
-      majorMarks: majorMarks.build(),
-      minorMarks: minorMarks.build(),
+      majorMarks: majorMarks.map(path => path.build()),
+      minorMarks: minorMarks.map(path => path.build()),
     };
   }, [style, colors, theme, coordinates, geometry, outerR, innerR, cx, cy]);
 
@@ -250,22 +250,12 @@ export function ZodiacSignsRing({ ring, ringIndex, layout, colors, selection }: 
         />
       )}
       {/* Pass 4 — degree markers (opt-in via style.showDegreeMarkers) */}
-      {style.showDegreeMarkers && (
-        <>
-          <Path
-            path={paths.majorMarks}
-            style="stroke"
-            strokeWidth={style.majorMarkWidth}
-            color={theme.color.bdPrimary}
-          />
-          <Path
-            path={paths.minorMarks}
-            style="stroke"
-            strokeWidth={style.minorMarkWidth}
-            color={theme.color.bdPrimary}
-          />
-        </>
-      )}
+      {style.showDegreeMarkers && ZODIAC_SIGNS.map((sign, i) => (
+        <Group key={`marks-${sign}`} opacity={selectionOpacity(selection, `sign:${sign}`, "affectsGlyphs", true)}>
+          <Path path={paths.majorMarks[i]} style="stroke" strokeWidth={style.majorMarkWidth} color={theme.color.bdPrimary} />
+          <Path path={paths.minorMarks[i]} style="stroke" strokeWidth={style.minorMarkWidth} color={theme.color.bdPrimary} />
+        </Group>
+      ))}
       {/* Pass 4 — sign glyphs at segment midpoints */}
       {ZODIAC_SIGNS.map((sign, signIndex) => {
         const glyphDeg = signIndex * SEGMENT_DEGREES + SEGMENT_DEGREES / 2;
@@ -278,7 +268,7 @@ export function ZodiacSignsRing({ ring, ringIndex, layout, colors, selection }: 
           <Group opacity={selectionOpacity(selection, `sign:${sign}`, "affectsGlyphs", true)}><Glyph
             name={`signs/${sign}` as GlyphName}
             size={style.glyphSize}
-            color={glyphColor}
+            color={selectionColor(selection, `sign:${sign}`, "affectsGlyphs", glyphColor, theme, true)}
             x={pos.x}
             y={pos.y}
           /></Group>

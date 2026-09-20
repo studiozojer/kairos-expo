@@ -1,3 +1,5 @@
+import type { Theme } from '@/theme';
+import { resolveColorValue } from '../render/colors';
 import type { ChartRenderingConfiguration } from '../config/ChartRenderingConfiguration';
 import type { Placement } from '../config/engine-types';
 import type { SelectionStyleOverride } from '../schema/preset';
@@ -48,7 +50,7 @@ export function toggleSelection(ids: string[], id: string | null): string[] {
   return ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id];
 }
 export interface SelectionPaint {
-  selected: ReadonlySet<string>; related: ReadonlySet<string>; style: SelectionStyleOverride;
+  selected: ReadonlySet<string>; selectedBodies: ReadonlySet<string>; related: ReadonlySet<string>; style: SelectionStyleOverride;
 }
 export function selectionPaint(ids: string[], targets: ChartTarget[], config: ChartRenderingConfiguration, style: SelectionStyleOverride): SelectionPaint {
   const selected = new Set(ids.filter(id => targets.some(t => t.id === id))), related = new Set<string>();
@@ -67,11 +69,26 @@ export function selectionPaint(ids: string[], targets: ChartTarget[], config: Ch
   }
   // Fixed-star and rulership-ring relationships remain inert until those rings
   // are rendered, matching iOS's presence-gated relationship computation.
-  return { selected, related, style };
+  return { selected, selectedBodies: new Set(targets.filter(t => t.kind === 'body' && selected.has(t.id)).map(t => t.id)), related, style };
 }
 export type SelectionElement = 'affectsGlyphs' | 'affectsDegreeText' | 'affectsDegreeMarks' | 'affectsHouseNumbers' | 'affectsCuspLines';
 export function selectionOpacity(paint: SelectionPaint | undefined, id: string, element: SelectionElement, zodiac = false) {
   if (!paint || !paint.selected.size || !paint.style[element] || (zodiac && paint.style.ignoreZodiacRingOpacity)) return 1;
   if (paint.selected.has(id)) return 1;
   return paint.related.has(id) ? paint.style.relatedOpacity : paint.style.unselectedOpacity;
+}
+
+/** Swift NodeAppearance keeps normal colors only for selected/related nodes. */
+export function selectionColor(paint: SelectionPaint | undefined, id: string, element: SelectionElement,
+  defaultColor: string, theme: Theme, zodiac = false) {
+  if (!paint || !paint.selected.size || !paint.style[element] || (zodiac && paint.style.ignoreZodiacRingOpacity)
+    || paint.selected.has(id) || paint.related.has(id)) return defaultColor;
+  return resolveColorValue(paint.style.unselectedColor, theme);
+}
+/** Cusp i borders houses i and i+1, wrapping house 12 to house 1. */
+export function cuspSelectionOpacity(paint: SelectionPaint | undefined, index: number) {
+  if (!paint || !paint.selected.size || !paint.style.affectsCuspLines) return 1;
+  const highlighted = [index === 0 ? 12 : index, index + 1]
+    .some(house => paint.selected.has(`house:${house}`) || paint.related.has(`house:${house}`));
+  return highlighted ? paint.style.relatedOpacity : paint.style.unselectedOpacity;
 }
