@@ -20,8 +20,12 @@ export default function ChartHome() {
   const { settings, loaded, update, saveError, result, status, retry } = useChartTime();
   const chart = result?.chart;
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const { width } = useWindowDimensions();
-  const [chartHeight, setChartHeight] = useState(0);
+  const window = useWindowDimensions();
+  const [viewport, setViewport] = useState({ width: window.width, height: window.height });
+  const { width } = viewport;
+  const [chartArea, setChartArea] = useState({ y: 0, height: 0 });
+  const chartHeight = chartArea.height;
+  const [wheelY, setWheelY] = useState(0);
   const wheelSize = Math.min(width, Math.max(120, chartHeight - (status === 'error' ? 136 : 76)));
   const insets = useSafeAreaInsets();
 
@@ -49,8 +53,15 @@ export default function ChartHome() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.color.bgSolidBase }}>
-      <View
+    <View onLayout={event => { const { width, height } = event.nativeEvent.layout; setViewport({ width, height }); }}
+      style={{ flex: 1, backgroundColor: theme.color.bgSolidBase }}>
+      {/* The canvas fills the screen; the measured slot below locates the wheel
+          without clipping it. Future active-chart UI can move that slot. */}
+      {config && chartHeight > 0 && <InteractiveChartWheel config={config} size={wheelSize} viewport={viewport}
+        baseCenter={{ x: width / 2, y: chartArea.y + wheelY + wheelSize / 2 }}
+        selectionStyle={preset.selection} enabled={!sheetOpen && !settingsOpen}
+        onHideBody={name => setDocument(current => editPresetDocument(current, toggleBody(current.preset, name, false)))} />}
+      <View pointerEvents="box-none"
         style={{
           flexDirection: 'row',
           alignItems: 'center',
@@ -70,9 +81,9 @@ export default function ChartHome() {
         </Pressable>
       </View>
 
-      <View onLayout={event => setChartHeight(event.nativeEvent.layout.height)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        {config ? <InteractiveChartWheel config={config} size={wheelSize} selectionStyle={preset.selection} enabled={!sheetOpen && !settingsOpen}
-          onHideBody={name => setDocument(current => editPresetDocument(current, toggleBody(current.preset, name, false)))} /> : status === 'error' ? (
+      <View pointerEvents="box-none" onLayout={event => { const { y, height } = event.nativeEvent.layout; setChartArea({ y, height }); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        {config ? <View pointerEvents="none" onLayout={event => setWheelY(event.nativeEvent.layout.y)}
+          style={{ width: wheelSize, height: wheelSize + 44 }} /> : status === 'error' ? (
           <View style={{ alignItems: 'center', gap: theme.space.md }}>
             <Text accessibilityRole="alert" style={[theme.type.whyteSm, { color: theme.color.txAccent }]}>
               Couldn’t load the chart.
@@ -82,7 +93,7 @@ export default function ChartHome() {
             </Pressable>
           </View>
         ) : <ActivityIndicator accessibilityLabel="Loading current transits" color={theme.color.txAccent} />}
-        {result && <Text style={[theme.type.fraktionXxs, { color: theme.color.txAccent }]}>
+        {result && <Text pointerEvents="none" style={[theme.type.fraktionXxs, { color: theme.color.txAccent }]}>
           {new Date(result.datetime).toLocaleString('en-US', { timeZone: result.settings.location.timezone, year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })}
         </Text>}
         {result && status === 'error' && <Pressable accessibilityRole="button" onPress={retry} style={{ padding: theme.space.md }}>

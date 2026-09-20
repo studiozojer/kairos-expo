@@ -20,9 +20,10 @@ jest.mock('react-native-reanimated', () => {
 let motion: ReturnType<typeof useChartGesture>;
 let view: ReactTestRenderer;
 const tap = jest.fn(), hold = jest.fn();
-const targets: ChartTarget[] = [{ id: 'sun', kind: 'body', label: 'Sun', detail: '', x: 120, y: 200, radius: 20 }];
-function Probe({ enabled = true }: { enabled?: boolean }) {
-  const result = useChartGesture(400, targets, enabled, tap, hold);
+const targets: ChartTarget[] = [{ id: 'sun', kind: 'body', label: 'Sun', detail: '', x: 120, y: 200, radius: 20 },
+  { id: 'moon', kind: 'body', label: 'Moon', detail: '', x: 200, y: 100, radius: 20 }];
+function Probe({ enabled = true, center = { x: 200, y: 200 } }: { enabled?: boolean; center?: { x: number; y: number } }) {
+  const result = useChartGesture(400, targets, enabled, tap, hold, center);
   React.useEffect(() => { motion = result; }); return null;
 }
 const manager = { handlerTag: 0, begin: jest.fn(), activate: jest.fn(), end: jest.fn(), fail: jest.fn() };
@@ -84,4 +85,26 @@ test('cancel returns overscroll inside bounds and disabling blocks tap actions',
   const end = (motion.gesture.toGestureArray()[2] as ReturnType<typeof Gesture.Tap>).handlers.onEnd!;
   act(() => end({ x: 200, y: 200 } as never, true));
   expect(tap).not.toHaveBeenCalled();
+});
+
+test('offset wheel uses viewport coordinates for taps, pinch anchors, and reset', async () => {
+  await act(async () => view.update(<Probe center={{ x: 250, y: 450 }} />));
+  const tapHandlers = (motion.gesture.toGestureArray()[2] as ReturnType<typeof Gesture.Tap>).handlers;
+  act(() => tapHandlers.onEnd!({ x: 170, y: 450 } as never, true));
+  expect(tap).toHaveBeenLastCalledWith('sun');
+  const h = (motion.gesture.toGestureArray()[0] as ReturnType<typeof Gesture.Manual>).handlers;
+  // Pinch centered on Sun: it must stay at (170, 450) on screen.
+  act(() => {
+    h.onTouchesDown!(touches([{ id: 1, x: 120, y: 450 }, { id: 2, x: 220, y: 450 }]), manager);
+    h.onTouchesMove!(touches([{ id: 1, x: 70, y: 450 }, { id: 2, x: 270, y: 450 }]), manager);
+  });
+  expect(transform()).toEqual({ scale: 2, x: 130, y: 250 });
+  act(() => tapHandlers.onEnd!({ x: 170, y: 450 } as never, true));
+  expect(tap).toHaveBeenLastCalledWith('sun');
+  act(() => motion.reset());
+  expect(transform()).toEqual({ scale: 1, x: 50, y: 250 });
+  act(() => { motion.zoom(1); motion.zoom(1); motion.zoom(1); motion.zoom(1); });
+  // Moon is now above the old square's top edge (y=250), but still hittable.
+  act(() => tapHandlers.onEnd!({ x: 250, y: 150 } as never, true));
+  expect(tap).toHaveBeenLastCalledWith('moon');
 });
