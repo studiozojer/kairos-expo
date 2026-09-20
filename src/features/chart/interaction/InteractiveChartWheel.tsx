@@ -57,21 +57,13 @@ export function InteractiveChartWheel({ config, size, selectionStyle, enabled = 
         </View>
       </GestureDetector>
     </GestureHandlerRootView>
-    <View style={{ flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap' }}>
-      {button('Chart objects', () => setObjectsOpen(true))}
-      {button('Zoom out', () => motion.zoom(-1))}
-      {button('Zoom in', () => motion.zoom(1))}
-      {button('Reset view', motion.reset)}
-    </View>
     <View style={{ minHeight: 44, paddingHorizontal: theme.space.md }}>
       {selectedTargets.length ? <Pressable accessibilityRole="button" accessibilityLabel={`Selection: ${selectedTargets.map(t => `${t.label}, ${t.detail}`).join('; ')}. Open chart objects.`}
         onPress={() => setObjectsOpen(true)} style={{ minHeight: 44, justifyContent: 'center' }}>
         <Text numberOfLines={2} style={[theme.type.fraktionXxs, { color: theme.color.txPrimary, textAlign: 'center' }]}>
           {selectedTargets.map(t => `${t.label} · ${t.detail}`).join('\n')}
         </Text>
-      </Pressable> : <Text style={[theme.type.fraktionXxs, { color: theme.color.txTertiary, textAlign: 'center' }]}>
-        Pinch to zoom · Tap to select
-      </Text>}
+      </Pressable> : null}
     </View>
     <ChartSheet visible={objectsOpen} onClose={() => setObjectsOpen(false)}>
       <SheetHeader title="Chart objects" closeLabel="Close chart objects" onClose={() => setObjectsOpen(false)}

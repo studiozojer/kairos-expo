@@ -22,7 +22,7 @@ export default function ChartHome() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { width } = useWindowDimensions();
   const [chartHeight, setChartHeight] = useState(0);
-  const wheelSize = Math.min(width, Math.max(120, chartHeight - (status === 'error' ? 180 : 120)));
+  const wheelSize = Math.min(width, Math.max(120, chartHeight - (status === 'error' ? 136 : 76)));
   const insets = useSafeAreaInsets();
 
   const [document, setDocument] = useState(() => presetDocument(bundledPresetSource('classic')));
