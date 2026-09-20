@@ -236,6 +236,114 @@
         "sign_placement": "Taurus"
       },
       {
+        "id": "ceres",
+        "body": "Ceres",
+        "body_id": 17,
+        "node_type": "asteroid",
+        "position": {
+          "longitude": 101.07373995086137,
+          "latitude": -0.021752816310643956,
+          "distance": 2.8603719966528236,
+          "speed_longitude": 0.31375261839011165,
+          "speed_latitude": 0.03894901671595485,
+          "speed_distance": -0.013226630360246917,
+          "right_ascension": 102.03972328788264,
+          "declination": 22.95477957441895
+        },
+        "house_placement": 8,
+        "sign_placement": "Cancer"
+      },
+      {
+        "id": "pallas",
+        "body": "Pallas",
+        "body_id": 18,
+        "node_type": "asteroid",
+        "position": {
+          "longitude": 19.634071763958186,
+          "latitude": -16.462270996974514,
+          "distance": 1.9609828055272347,
+          "speed_longitude": -0.19974178144991994,
+          "speed_latitude": -0.21563566023626868,
+          "speed_distance": -0.008030073509195644,
+          "right_ascension": 24.328239110620586,
+          "declination": -7.5753030213871915
+        },
+        "house_placement": 5,
+        "sign_placement": "Aries"
+      },
+      {
+        "id": "juno",
+        "body": "Juno",
+        "body_id": 19,
+        "node_type": "asteroid",
+        "position": {
+          "longitude": 295.70591287344297,
+          "latitude": 10.533669884395493,
+          "distance": 1.9753818400236818,
+          "speed_longitude": -0.02262959656999353,
+          "speed_latitude": -0.10904814890046,
+          "speed_distance": 0.008242532387532179,
+          "right_ascension": 295.7154127081875,
+          "declination": -10.639233165192183
+        },
+        "house_placement": 3,
+        "sign_placement": "Capricorn"
+      },
+      {
+        "id": "vesta",
+        "body": "Vesta",
+        "body_id": 20,
+        "node_type": "asteroid",
+        "position": {
+          "longitude": 26.43057685654625,
+          "latitude": -11.206896014344728,
+          "distance": 1.5617198961315821,
+          "speed_longitude": -0.14370525807476095,
+          "speed_latitude": -0.04980080203945255,
+          "speed_distance": -0.006085626408772216,
+          "right_ascension": 28.549001103459418,
+          "declination": -0.26612358140155146
+        },
+        "house_placement": 5,
+        "sign_placement": "Aries"
+      },
+      {
+        "id": "eros",
+        "body": "Eros",
+        "body_id": 10433,
+        "node_type": "asteroid",
+        "position": {
+          "longitude": 229.18918163061466,
+          "latitude": -6.446254607206031,
+          "distance": 1.9410739349313035,
+          "speed_longitude": 0.6199383024150049,
+          "speed_latitude": 0.07306174688933802,
+          "speed_distance": 0.009926118843126167,
+          "right_ascension": 224.8204986622889,
+          "declination": -23.71307196181006
+        },
+        "house_placement": 1,
+        "sign_placement": "Scorpio"
+      },
+      {
+        "id": "pholus",
+        "body": "Pholus",
+        "body_id": 16,
+        "node_type": "asteroid",
+        "position": {
+          "longitude": 279.92366297062307,
+          "latitude": 8.174855917688696,
+          "distance": 30.31024493410182,
+          "speed_longitude": -0.00651390824436331,
+          "speed_latitude": -0.005902109213255975,
+          "speed_distance": 0.016691190665762818,
+          "right_ascension": 280.16778465535566,
+          "declination": -14.913725670709425
+        },
+        "house_placement": 2,
+        "sign_placement": "Capricorn"
+      },
+      {
         "id": "southnodemean",
         "body": "SouthNodeMean",
         "body_id": 23,
@@ -409,6 +517,30 @@
       },
       {
         "from": "sun",
+        "to": "pallas",
+        "aspect_type": "Quincunx",
+        "orb": 1.3747694927569114,
+        "strength": 5.417435024143629,
+        "is_applying": false
+      },
+      {
+        "from": "sun",
+        "to": "juno",
+        "aspect_type": "Trine",
+        "orb": 4.697071616727868,
+        "strength": 2.171547305453553,
+        "is_applying": true
+      },
+      {
+        "from": "sun",
+        "to": "eros",
+        "aspect_type": "Sextile",
+        "orb": -1.8196596261004458,
+        "strength": 5.450850934748885,
+        "is_applying": false
+      },
+      {
+        "from": "sun",
         "to": "ascendant",
         "aspect_type": "Sextile",
         "orb": -2.934500067771154,
@@ -453,6 +585,30 @@
         "aspect_type": "Opposition",
         "orb": -6.423999693037217,
         "strength": 1.9700003837034785,
+        "is_applying": true
+      },
+      {
+        "from": "moon",
+        "to": "pallas",
+        "aspect_type": "Opposition",
+        "orb": -4.090879541499959,
+        "strength": 4.8864005731250515,
+        "is_applying": false
+      },
+      {
+        "from": "moon",
+        "to": "juno",
+        "aspect_type": "Square",
+        "orb": 1.9809615679848207,
+        "strength": 6.6983973866919655,
+        "is_applying": true
+      },
+      {
+        "from": "moon",
+        "to": "vesta",
+        "aspect_type": "Opposition",
+        "orb": -2.7056255510881044,
+        "strength": 6.6179680611398695,
         "is_applying": true
       },
       {
@@ -510,6 +666,22 @@
         "orb": -5.274444190670721,
         "strength": 1.209259682215465,
         "is_applying": false
+      },
+      {
+        "from": "mercury",
+        "to": "ceres",
+        "aspect_type": "Square",
+        "orb": -5.9020569077587055,
+        "strength": 0.16323848706882416,
+        "is_applying": true
+      },
+      {
+        "from": "mercury",
+        "to": "pholus",
+        "aspect_type": "Square",
+        "orb": 4.751979927520409,
+        "strength": 2.0800334541326513,
+        "is_applying": true
       },
       {
         "from": "mercury",
@@ -577,6 +749,14 @@
       },
       {
         "from": "venus",
+        "to": "vesta",
+        "aspect_type": "Opposition",
+        "orb": -5.7219304613655595,
+        "strength": 2.8475869232930506,
+        "is_applying": false
+      },
+      {
+        "from": "venus",
         "to": "midheaven",
         "aspect_type": "Sextile",
         "orb": -1.3821370722789936,
@@ -598,6 +778,38 @@
         "orb": 3.2899628807914922,
         "strength": 4.51672853201418,
         "is_applying": false
+      },
+      {
+        "from": "mars",
+        "to": "pallas",
+        "aspect_type": "Square",
+        "orb": 1.748831139935774,
+        "strength": 7.085281433440377,
+        "is_applying": false
+      },
+      {
+        "from": "mars",
+        "to": "juno",
+        "aspect_type": "Opposition",
+        "orb": -4.323009969548991,
+        "strength": 4.596237538063761,
+        "is_applying": true
+      },
+      {
+        "from": "mars",
+        "to": "vesta",
+        "aspect_type": "Square",
+        "orb": -5.047673952652289,
+        "strength": 1.5872100789128516,
+        "is_applying": true
+      },
+      {
+        "from": "mars",
+        "to": "eros",
+        "aspect_type": "Trine",
+        "orb": -2.1937212732793085,
+        "strength": 6.34379787786782,
+        "is_applying": true
       },
       {
         "from": "mars",
@@ -633,6 +845,22 @@
       },
       {
         "from": "jupiter",
+        "to": "pallas",
+        "aspect_type": "Trine",
+        "orb": -3.310174004516142,
+        "strength": 4.48304332580643,
+        "is_applying": true
+      },
+      {
+        "from": "jupiter",
+        "to": "eros",
+        "aspect_type": "Square",
+        "orb": 2.8652838711726076,
+        "strength": 5.224526881378987,
+        "is_applying": false
+      },
+      {
+        "from": "jupiter",
         "to": "ascendant",
         "aspect_type": "Square",
         "orb": 1.7504434295018996,
@@ -662,6 +890,30 @@
         "orb": -0.9656666192411194,
         "strength": 7.5858334518972015,
         "is_applying": false
+      },
+      {
+        "from": "saturn",
+        "to": "ceres",
+        "aspect_type": "Square",
+        "orb": -1.7955966894334523,
+        "strength": 7.007338850944246,
+        "is_applying": true
+      },
+      {
+        "from": "saturn",
+        "to": "pallas",
+        "aspect_type": "Conjunction",
+        "orb": 6.7647351236633675,
+        "strength": 1.5440810954207906,
+        "is_applying": true
+      },
+      {
+        "from": "saturn",
+        "to": "pholus",
+        "aspect_type": "Square",
+        "orb": 2.9456736696717485,
+        "strength": 5.09054388388042,
+        "is_applying": true
       },
       {
         "from": "saturn",
@@ -769,6 +1021,14 @@
       },
       {
         "from": "pluto",
+        "to": "juno",
+        "aspect_type": "Conjunction",
+        "orb": 7.598982420747973,
+        "strength": 0.501271974065034,
+        "is_applying": false
+      },
+      {
+        "from": "pluto",
         "to": "midheaven",
         "aspect_type": "Quincunx",
         "orb": -0.22974909599986404,
@@ -809,6 +1069,14 @@
       },
       {
         "from": "meannode",
+        "to": "vesta",
+        "aspect_type": "Sextile",
+        "orb": -2.1959816114161868,
+        "strength": 4.510045971459533,
+        "is_applying": false
+      },
+      {
+        "from": "meannode",
         "to": "midheaven",
         "aspect_type": "Opposition",
         "orb": -4.908085922228395,
@@ -841,6 +1109,14 @@
       },
       {
         "from": "meanapogee",
+        "to": "vesta",
+        "aspect_type": "Trine",
+        "orb": -3.466661995885687,
+        "strength": 4.222230006857188,
+        "is_applying": false
+      },
+      {
+        "from": "meanapogee",
         "to": "midheaven",
         "aspect_type": "Trine",
         "orb": -3.637405537758866,
@@ -861,6 +1137,22 @@
         "aspect_type": "Opposition",
         "orb": -1.0346944153116056,
         "strength": 8.706631980860493,
+        "is_applying": false
+      },
+      {
+        "from": "chiron",
+        "to": "juno",
+        "aspect_type": "Square",
+        "orb": 4.4430381250523965,
+        "strength": 2.594936458246006,
+        "is_applying": true
+      },
+      {
+        "from": "chiron",
+        "to": "vesta",
+        "aspect_type": "Conjunction",
+        "orb": 3.718374141949102,
+        "strength": 5.352032322563622,
         "is_applying": false
       },
       {
@@ -886,6 +1178,126 @@
         "orb": -1.2864065613750313,
         "strength": 6.783983596562422,
         "is_applying": true
+      },
+      {
+        "from": "ceres",
+        "to": "pholus",
+        "aspect_type": "Opposition",
+        "orb": -1.150076980238282,
+        "strength": 8.562403774702148,
+        "is_applying": false
+      },
+      {
+        "from": "ceres",
+        "to": "lot_of_spirit",
+        "aspect_type": "Square",
+        "orb": 4.284491189339562,
+        "strength": 2.8591813511007302,
+        "is_applying": true
+      },
+      {
+        "from": "pallas",
+        "to": "vesta",
+        "aspect_type": "Conjunction",
+        "orb": 6.796505092588063,
+        "strength": 1.504368634264921,
+        "is_applying": false
+      },
+      {
+        "from": "pallas",
+        "to": "eros",
+        "aspect_type": "Quincunx",
+        "orb": 0.44489013334353444,
+        "strength": 8.517032888854885,
+        "is_applying": true
+      },
+      {
+        "from": "pallas",
+        "to": "ascendant",
+        "aspect_type": "Quincunx",
+        "orb": 1.5597305750142425,
+        "strength": 4.800898083285858,
+        "is_applying": true
+      },
+      {
+        "from": "pallas",
+        "to": "descendant",
+        "aspect_type": "Semisextile",
+        "orb": -1.559730575014239,
+        "strength": 2.2013471249288052,
+        "is_applying": true
+      },
+      {
+        "from": "pallas",
+        "to": "part_of_fortune",
+        "aspect_type": "Trine",
+        "orb": -1.1563794737287765,
+        "strength": 8.072700877118706,
+        "is_applying": false
+      },
+      {
+        "from": "pallas",
+        "to": "lot_of_spirit",
+        "aspect_type": "Opposition",
+        "orb": -4.2758406237572615,
+        "strength": 4.655199220303423,
+        "is_applying": true
+      },
+      {
+        "from": "juno",
+        "to": "vesta",
+        "aspect_type": "Square",
+        "orb": 0.7246639831032553,
+        "strength": 8.792226694827908,
+        "is_applying": true
+      },
+      {
+        "from": "vesta",
+        "to": "vertex",
+        "aspect_type": "Sextile",
+        "orb": 2.4319675805740673,
+        "strength": 3.920081048564832,
+        "is_applying": false
+      },
+      {
+        "from": "vesta",
+        "to": "part_of_fortune",
+        "aspect_type": "Trine",
+        "orb": 5.640125618859287,
+        "strength": 0.599790635234522,
+        "is_applying": true
+      },
+      {
+        "from": "eros",
+        "to": "ascendant",
+        "aspect_type": "Conjunction",
+        "orb": 1.114840441670708,
+        "strength": 8.606449447911615,
+        "is_applying": false
+      },
+      {
+        "from": "eros",
+        "to": "descendant",
+        "aspect_type": "Opposition",
+        "orb": -1.114840441670708,
+        "strength": 8.606449447911615,
+        "is_applying": false
+      },
+      {
+        "from": "eros",
+        "to": "part_of_fortune",
+        "aspect_type": "Semisextile",
+        "orb": 1.601269607072311,
+        "strength": 1.9936519646384454,
+        "is_applying": true
+      },
+      {
+        "from": "pholus",
+        "to": "lot_of_spirit",
+        "aspect_type": "Square",
+        "orb": -5.434568169577858,
+        "strength": 0.9423863840369033,
+        "is_applying": false
       },
       {
         "from": "midheaven",
@@ -1260,7 +1672,7 @@
     ]
   },
   "chart_metadata": {
-    "chart_id": "841ea35a-c133-40c2-bbb6-3def62907b9a",
+    "chart_id": "4db6c648-3d92-4e08-9a80-547614360102",
     "chart_type": "Transit",
     "datetime": "2026-09-13T19:00:00Z",
     "coordinates": {
