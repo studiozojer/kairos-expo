@@ -32,6 +32,7 @@
  * cusp-line draw has no such gate (its defaults are never 0).
  */
 
+import { selectionOpacity } from "../../interaction/selection";
 import React from "react";
 
 import { Group, Path, Skia, Text, useFont, type SkFont, type SkPath } from "@shopify/react-native-skia";
@@ -128,7 +129,7 @@ function CenteredText({
   return <Text text={text} x={origin.x} y={origin.y} font={font} color={color} />;
 }
 
-export function HouseNumbersRing({ ring, ringIndex, layout }: RingRendererProps) {
+export function HouseNumbersRing({ ring, ringIndex, layout, selection }: RingRendererProps) {
   const theme = useChartPaintTheme();
   const style: HousesRingStyle =
     ring.style.$type === HOUSES_STYLE_TYPE ? ring.style : HOUSES_RING_STYLE_DEFAULT;
@@ -168,7 +169,7 @@ export function HouseNumbersRing({ ring, ringIndex, layout }: RingRendererProps)
           : 0;
 
         const numberNode = (
-          <CenteredText text={text} center={numberPosition} font={font} color={numberColor} />
+          <Group opacity={selectionOpacity(selection, `house:${houseNumber}`, "affectsHouseNumbers")}><CenteredText text={text} center={numberPosition} font={font} color={numberColor} /></Group>
         );
 
         return (
@@ -180,6 +181,7 @@ export function HouseNumbersRing({ ring, ringIndex, layout }: RingRendererProps)
                   coordinates.pointForDegree(cuspDegree, innerR),
                 )}
                 style="stroke"
+                opacity={selectionOpacity(selection, `house:${houseNumber}`, "affectsCuspLines")}
                 strokeWidth={lineWidth}
                 color={cuspLineColor(angular, style, theme)}
               />

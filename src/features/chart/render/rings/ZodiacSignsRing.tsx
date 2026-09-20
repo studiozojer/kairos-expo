@@ -23,11 +23,11 @@
  * Skia `strokeWidth: 0` is a HAIRLINE (always 1px). Every stroke here is
  * gated `width > 0` before drawing.
  *
- * iOS machinery deliberately not ported in this shell: SignNode/selection
- * (SelectionStyleComputer), the hit-radius node list, and the emoji glyph
- * fallback (text is Task 9).
+ * Interactive selection and hit targets live in ../interaction. The emoji
+ * glyph fallback remains unported.
  */
 
+import { selectionOpacity } from "../../interaction/selection";
 import React, { useMemo } from "react";
 
 import { Group, Path, Skia } from "@shopify/react-native-skia";
@@ -113,7 +113,7 @@ function linePath(x1: number, y1: number, x2: number, y2: number): SkPath {
   return builder.build();
 }
 
-export function ZodiacSignsRing({ ring, ringIndex, layout, colors }: RingRendererProps) {
+export function ZodiacSignsRing({ ring, ringIndex, layout, colors, selection }: RingRendererProps) {
   const theme = useChartPaintTheme();
   // buildConfiguration pairs a zodiac ring with its ZodiacRingStyle; if a
   // hand-built config says otherwise, iOS's render-variant dispatch would do
@@ -275,13 +275,13 @@ export function ZodiacSignsRing({ ring, ringIndex, layout, colors }: RingRendere
           theme,
         );
         const glyph = (
-          <Glyph
+          <Group opacity={selectionOpacity(selection, `sign:${sign}`, "affectsGlyphs", true)}><Glyph
             name={`signs/${sign}` as GlyphName}
             size={style.glyphSize}
             color={glyphColor}
             x={pos.x}
             y={pos.y}
-          />
+          /></Group>
         );
         // iOS: rotate around the glyph center by the canvas angle of
         // (degree − 90) when rotateGlyphs is set (classic preset: true).

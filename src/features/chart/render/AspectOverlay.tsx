@@ -13,8 +13,8 @@
  * stay HERE (`selectAspectsToRender`), matching Swift's own split — the cap
  * is `AspectOverlay.swift:111-119`'s concern, not `AspectFilterResult`'s.
  *
- * SELECTION: this codebase has no selection system yet (plan's self-review:
- * out of scope by design), so `selectedIdentifiers` is always empty and
+ * Selection identifiers come from the interactive wheel; static previews use
+ * an empty selection. For the current solo wheel,
  * `ringCount`/`fromRing`/`toRing` are always `1` — the solo wheel has one
  * ring of placements. See AspectFilter.ts's module header for why this is a
  * safe simplification of the Swift signature, not a behavior change.
@@ -133,9 +133,10 @@ function bezierPath(from: Point, to: Point, control: Point): SkPath {
 export interface AspectOverlayProps {
   config: ChartRenderingConfiguration;
   layout: WheelLayout;
+  selectedIdentifiers?: ReadonlySet<string>;
 }
 
-export function AspectOverlay({ config, layout }: AspectOverlayProps) {
+export function AspectOverlay({ config, layout, selectedIdentifiers = EMPTY_SELECTION }: AspectOverlayProps) {
   const theme = useChartPaintTheme();
   const style = layout.aspectOverlayStyle;
 
@@ -163,7 +164,7 @@ export function AspectOverlay({ config, layout }: AspectOverlayProps) {
         style,
         fromVisibleBodies: visibleBodyIds,
         toVisibleBodies: visibleBodyIds,
-        selectedIdentifiers: EMPTY_SELECTION,
+        selectedIdentifiers,
         ringCount: 1,
         fromRing: 1,
         toRing: 1,
@@ -173,7 +174,7 @@ export function AspectOverlay({ config, layout }: AspectOverlayProps) {
       out.push({ edge, aspectType: result.aspectType, fromPlacement, toPlacement });
     }
     return out;
-  }, [config.aspects, config.aspectEdges, layout.rings, style]);
+  }, [config.aspects, config.aspectEdges, layout.rings, style, selectedIdentifiers]);
 
   const rendered = useMemo(
     () => selectAspectsToRender(validAspects, style.maximumAspectCount),
