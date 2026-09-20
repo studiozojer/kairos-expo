@@ -99,6 +99,8 @@ test('planet and zodiac renderers receive the unselected color while selected gl
   const moon = glyphs.find(g => g.props.name === 'celestials/moon')!;
   const sun = glyphs.find(g => g.props.name === 'celestials/sun')!;
   expect(moon.props.color).toBe('#123456');
+  expect(moon.props.opacity).toBeCloseTo(preset.selection.unselectedOpacity);
+  expect(sun.props.opacity).toBe(1);
   expect(sun.props.color).not.toBe('#123456');
   expect(sun.props.selected).toBe(true);
   const unrelatedSign = chartTargets(layout).find(t => t.kind === 'sign' && !paint.related.has(t.id))!;

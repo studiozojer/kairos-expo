@@ -90,3 +90,17 @@ test("a healthy SVG (width/height succeed) renders an ImageSVG-bearing tree", ()
   // both are exercised here since `act` flushes effects synchronously.
   expect(renderer.toJSON()).not.toBeNull();
 });
+
+test("glyph opacity lives on a native layer paint without standalone paint declarations", () => {
+  const svg = { width: () => 20, height: () => 20 };
+  useSVG.mockImplementation(() => svg);
+  let renderer!: TestRenderer.ReactTestRenderer;
+  act(() => { renderer = TestRenderer.create(<Glyph name="celestials/sun" size={20} color="#ff0000" opacity={.2} x={20} y={20} />); });
+  expect(renderer.root.findAll(node => (node.type as unknown) === 'skPaint')).toHaveLength(0);
+  const layers = renderer.root.findAll(node => (node.type as unknown) === 'skGroup' && node.props.layer);
+  expect(layers).toHaveLength(1);
+  expect(layers[0].props.layer.getAlphaf()).toBeCloseTo(.2);
+  act(() => renderer.update(<Glyph name="celestials/sun" size={20} color="#ff0000" opacity={1} x={20} y={20} />));
+  expect(renderer.root.findAll(node => (node.type as unknown) === 'skGroup' && node.props.layer)[0].props.layer.getAlphaf()).toBe(1);
+  act(() => renderer.unmount());
+});

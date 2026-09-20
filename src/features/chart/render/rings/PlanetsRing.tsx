@@ -251,6 +251,7 @@ function StackElementView({
           name={`signs/${ZODIAC_SIGNS[signIndex]}` as GlyphName}
           size={element.size}
           color={signColor}
+          opacity={selectionOpacity(selection, placement.id, "affectsDegreeText")}
           x={center.x}
           y={center.y}
         />
@@ -258,7 +259,7 @@ function StackElementView({
     }
     case "retrograde":
       return (
-        <Glyph name="rx" size={element.size} color={theme.color.txError} x={center.x} y={center.y} />
+        <Glyph opacity={selectionOpacity(selection, placement.id, "affectsDegreeText")} name="rx" size={element.size} color={theme.color.txError} x={center.x} y={center.y} />
       );
   }
 }
@@ -366,6 +367,7 @@ export function PlanetsRing({ ring, ringIndex, layout, colors, selection }: Ring
 
             {style.useGlyphs ? (
               <Glyph
+                opacity={selectionOpacity(selection, placement.id, "affectsGlyphs")}
                 selected={selection?.selected.has(placement.id)}
                 name={`celestials/${placement.glyphAsset}` as GlyphName}
                 size={style.glyphSize}

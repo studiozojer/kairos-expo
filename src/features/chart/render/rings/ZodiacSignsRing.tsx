@@ -265,13 +265,13 @@ export function ZodiacSignsRing({ ring, ringIndex, layout, colors, selection }: 
           theme,
         );
         const glyph = (
-          <Group opacity={selectionOpacity(selection, `sign:${sign}`, "affectsGlyphs", true)}><Glyph
+          <Glyph opacity={selectionOpacity(selection, `sign:${sign}`, "affectsGlyphs", true)}
             name={`signs/${sign}` as GlyphName}
             size={style.glyphSize}
             color={selectionColor(selection, `sign:${sign}`, "affectsGlyphs", glyphColor, theme, true)}
             x={pos.x}
             y={pos.y}
-          /></Group>
+          />
         );
         // iOS: rotate around the glyph center by the canvas angle of
         // (degree − 90) when rotateGlyphs is set (classic preset: true).
