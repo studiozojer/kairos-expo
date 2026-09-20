@@ -13,8 +13,9 @@ import { useChartGesture } from './useChartGesture';
 /** Native touch recognition feeds Mercurial-derived UI-thread transforms.
  * The native sheet and alert own presentation; chart-specific motion and
  * hit detection are custom because there is no platform chart interaction. */
-export function InteractiveChartWheel({ config, size, selectionStyle, enabled = true, onHideBody }: {
+export function InteractiveChartWheel({ config, size, selectionStyle, enabled = true, onHideBody, viewport, baseCenter }: {
   config: ChartRenderingConfiguration; size: number; selectionStyle: SelectionStyleOverride;
+  viewport: { width: number; height: number }; baseCenter: { x: number; y: number };
   enabled?: boolean; onHideBody: (name: string) => void;
 }) {
   const theme = useTheme();
@@ -42,24 +43,22 @@ export function InteractiveChartWheel({ config, size, selectionStyle, enabled = 
       { text: 'Hide from chart', onPress: () => onHideBody(target.label) },
     ]);
   }, [targets, tap, onHideBody]);
-  const motion = useChartGesture(size, targets, enabled && !objectsOpen, tap, hold);
+  const motion = useChartGesture(size, targets, enabled && !objectsOpen, tap, hold, baseCenter);
   const button = (label: string, action: () => void) => <Pressable key={label} accessibilityRole="button"
     accessibilityLabel={label} onPress={action} disabled={!enabled}
     style={{ minHeight: 44, minWidth: 44, justifyContent: 'center', paddingHorizontal: 8 }}>
     <Text style={[theme.type.whyteXs, { color: theme.color.txAccent }]}>{label}</Text>
   </Pressable>;
 
-  return <View style={{ width: '100%', alignItems: 'center' }}>
-    {/* Override the root's default flex: 1: this content-sized parent must
-        reserve the full canvas height instead of letting it overflow. */}
-    <GestureHandlerRootView style={{ width: size, height: size, flexShrink: 0 }}>
+  return <View style={{ position: 'absolute', top: 0, left: 0, width: viewport.width, height: viewport.height }}>
+    <GestureHandlerRootView style={{ width: viewport.width, height: viewport.height }}>
       <GestureDetector gesture={motion.gesture}>
-        <View testID="interactive-chart" accessible={false} collapsable={false} style={{ width: size, height: size }}>
-          <ChartWheelCanvas config={config} size={size} layout={layout} selection={paint} animatedTransform={motion.animatedTransform} />
+        <View testID="interactive-chart" accessible={false} collapsable={false} style={{ width: viewport.width, height: viewport.height }}>
+          <ChartWheelCanvas config={config} size={size} layout={layout} viewport={viewport} selection={paint} animatedTransform={motion.animatedTransform} />
         </View>
       </GestureDetector>
     </GestureHandlerRootView>
-    <View style={{ minHeight: 44, paddingHorizontal: theme.space.md }}>
+    <View pointerEvents="box-none" style={{ position: 'absolute', top: baseCenter.y + size / 2, left: 0, right: 0, minHeight: 44, paddingHorizontal: theme.space.md }}>
       {selectedTargets.length ? <Pressable accessibilityRole="button" accessibilityLabel={`Selection: ${selectedTargets.map(t => `${t.label}, ${t.detail}`).join('; ')}. Open chart objects.`}
         onPress={() => setObjectsOpen(true)} style={{ minHeight: 44, justifyContent: 'center' }}>
         <Text numberOfLines={2} style={[theme.type.fraktionXxs, { color: theme.color.txPrimary, textAlign: 'center' }]}>

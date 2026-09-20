@@ -11,7 +11,11 @@ import { beginDrag, clamp, constrain, IDENTITY, momentumStep, moveDrag, releaseV
 import { hitTarget, type ChartTarget } from './selection';
 
 export function useChartGesture(size: number, targets: ChartTarget[], enabled: boolean,
-  onTap: (id: string | null) => void, onLongPress: (id: string) => void) {
+  onTap: (id: string | null) => void, onLongPress: (id: string) => void, baseCenter: Point = { x: size / 2, y: size / 2 }) {
+  const originX = baseCenter.x - size / 2, originY = baseCenter.y - size / 2;
+  const localPoint = useCallback((point: Point) => {
+    'worklet'; return { x: point.x - originX, y: point.y - originY };
+  }, [originX, originY]);
   const scale = useSharedValue(1), x = useSharedValue(0), y = useSharedValue(0);
   const drag = useSharedValue<Drag | null>(null), active = useSharedValue(false);
   const velocity = useSharedValue<Point>({ x: 0, y: 0 }), momentum = useSharedValue(false);
@@ -42,7 +46,7 @@ export function useChartGesture(size: number, targets: ChartTarget[], enabled: b
   }, [size, drag, active, lastTap, stop, assign, read]);
   useEffect(() => { allowed.value = enabled; if (!enabled) suspend(); }, [enabled, allowed, suspend]);
   useEffect(() => { reduced.value = reduceMotion; if (reduceMotion) suspend(); }, [reduceMotion, reduced, suspend]);
-  useEffect(() => { suspend(); }, [size, suspend]);
+  useEffect(() => { suspend(); }, [size, originX, originY, suspend]);
   useEffect(() => {
     const subscription = AppState.addEventListener('change', state => { if (state !== 'active') suspend(); });
     return () => { subscription.remove(); suspend(); };
@@ -55,7 +59,7 @@ export function useChartGesture(size: number, targets: ChartTarget[], enabled: b
     assign(next.transform); velocity.value = next.velocity; momentum.value = next.active;
   });
   const animatedTransform = useDerivedValue<Transforms3d>(() => [
-    { translateX: size / 2 + x.value }, { translateY: size / 2 + y.value },
+    { translateX: originX + size / 2 + x.value }, { translateY: originY + size / 2 + y.value },
     { scale: scale.value }, { translateX: -size / 2 }, { translateY: -size / 2 },
   ]);
 
@@ -67,25 +71,25 @@ export function useChartGesture(size: number, targets: ChartTarget[], enabled: b
         if (!allowed.value) { manager.fail(); return; }
         stop();
         if (!drag.value) { active.value = false; manager.begin(); }
-        drag.value = beginDrag(event.allTouches, read(), Date.now());
+        drag.value = beginDrag(event.allTouches.map(t => ({ ...t, ...localPoint(t) })), read(), Date.now());
         if (event.numberOfTouches >= 2) { active.value = true; lastTap.value = null; manager.activate(); }
       })
       .onTouchesMove((event, manager) => {
         if (!allowed.value || !drag.value || !event.allTouches.length) { manager.fail(); return; }
         if (!active.value) {
-          const point = event.allTouches[0];
+          const point = localPoint(event.allTouches[0]);
           if (Math.hypot(point.x - drag.value.anchor.x, point.y - drag.value.anchor.y) < 8) return;
           if (scale.value <= 1.001 && event.numberOfTouches === 1) return;
           active.value = true; lastTap.value = null; manager.activate();
         }
-        const next = moveDrag(drag.value, event.allTouches, read(), Date.now(), size);
+        const next = moveDrag(drag.value, event.allTouches.map(t => ({ ...t, ...localPoint(t) })), read(), Date.now(), size);
         drag.value = next.drag; assign(next.transform);
       })
       .onTouchesUp((event, manager) => {
         // Exclude changed IDs on both platforms: their allTouches conventions
         // need not agree on whether lifted pointers have already been removed.
         const touches = event.allTouches.filter(t => !event.changedTouches.some(up => up.id === t.id));
-        if (touches.length) { drag.value = beginDrag(touches, read(), Date.now()); return; }
+        if (touches.length) { drag.value = beginDrag(touches.map(t => ({ ...t, ...localPoint(t) })), read(), Date.now()); return; }
         if (active.value) {
           if (scale.value <= 1.01) settle(IDENTITY);
           else if (reduced.value) assign(constrain(read(), size));
@@ -98,7 +102,7 @@ export function useChartGesture(size: number, targets: ChartTarget[], enabled: b
       .onFinalize(() => { drag.value = null; active.value = false; });
     const tap = Gesture.Tap().enabled(enabled).maxDistance(8).onEnd((event, success) => {
       if (!success || !allowed.value) return;
-      const point = { x: event.x, y: event.y }, now = Date.now();
+      const point = localPoint(event), now = Date.now();
       const hit = hitTarget(targets, point, read(), size), previous = lastTap.value;
       runOnJS(onTap)(hit);
       if (previous && now - previous.time < 350 && Math.hypot(point.x - previous.point.x, point.y - previous.point.y) < 30 && !previous.hit && !hit) {
@@ -109,11 +113,11 @@ export function useChartGesture(size: number, targets: ChartTarget[], enabled: b
     const hold = Gesture.LongPress().enabled(enabled).minDuration(500).maxDistance(8).onStart(event => {
       if (!allowed.value) return;
       lastTap.value = null;
-      const id = hitTarget(targets, { x: event.x, y: event.y }, read(), size);
+      const id = hitTarget(targets, localPoint(event), read(), size);
       if (id) runOnJS(onLongPress)(id);
     });
     return Gesture.Race(motion, hold, tap);
-  }, [size, targets, enabled, onTap, onLongPress, active, allowed, assign, drag, lastTap, momentum, read, reduced, scale, settle, stop, velocity]);
+  }, [localPoint, size, targets, enabled, onTap, onLongPress, active, allowed, assign, drag, lastTap, momentum, read, reduced, scale, settle, stop, velocity]);
 
   const reset = () => runOnUI(() => { 'worklet'; settle(IDENTITY); })();
   const zoom = (direction: number) => runOnUI(() => {

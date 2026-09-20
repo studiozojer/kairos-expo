@@ -1,6 +1,7 @@
 import { PatternOverlay } from './PatternOverlay';
 /**
- * ChartWheel — the wheel shell. A Skia Canvas of `size`×`size`; every ring
+ * ChartWheel — the wheel shell. A Skia Canvas uses the viewport dimensions
+ * (defaulting to `size`×`size` for static previews); every ring
  * draws inside one Group carrying the `transform` prop (the one-renderer
  * parameterization per the design doc: thumbnails/embeds scale + offset this
  * shell rather than rendering their own wheel).
@@ -82,8 +83,9 @@ const IDENTITY_TRANSFORM: ChartWheelTransform = { scale: 1, offsetX: 0, offsetY:
 
 export interface ChartWheelProps {
   config: ChartRenderingConfiguration;
-  /** Square canvas size in points. */
+  /** Wheel layout size in points; independent of the clipping viewport. */
   size: number;
+  viewport?: { width: number; height: number };
   transform?: ChartWheelTransform;
   animatedTransform?: SharedValue<Transforms3d>;
   selection?: SelectionPaint;
@@ -94,7 +96,7 @@ export function ChartWheel(props: ChartWheelProps) {
   return <ChartWheelCanvas {...props} layout={layout} />;
 }
 
-export function ChartWheelCanvas({ config, size, transform = IDENTITY_TRANSFORM, animatedTransform, selection, layout }: ChartWheelProps & { layout: WheelLayout }) {
+export function ChartWheelCanvas({ config, size, transform = IDENTITY_TRANSFORM, animatedTransform, selection, layout, viewport }: ChartWheelProps & { layout: WheelLayout }) {
   const liveTheme = useTheme();
   // themeFor() builds a fresh object per useTheme() call; the color tables
   // are static per scheme, so pin the value to the scheme — otherwise every
@@ -102,7 +104,7 @@ export function ChartWheelCanvas({ config, size, transform = IDENTITY_TRANSFORM,
   const theme = useMemo(() => liveTheme, [liveTheme.scheme]);
 
   return (
-    <Canvas style={{ width: size, height: size }}>
+    <Canvas style={{ width: viewport?.width ?? size, height: viewport?.height ?? size }}>
       <ChartPaintProvider value={theme}>
         {/*
          * Transform order: Skia multiplies the array in order, so a point p
