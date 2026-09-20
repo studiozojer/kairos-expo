@@ -50,7 +50,9 @@ export function InteractiveChartWheel({ config, size, selectionStyle, enabled = 
   </Pressable>;
 
   return <View style={{ width: '100%', alignItems: 'center' }}>
-    <GestureHandlerRootView>
+    {/* Override the root's default flex: 1: this content-sized parent must
+        reserve the full canvas height instead of letting it overflow. */}
+    <GestureHandlerRootView style={{ width: size, height: size, flexShrink: 0 }}>
       <GestureDetector gesture={motion.gesture}>
         <View testID="interactive-chart" accessible={false} collapsable={false} style={{ width: size, height: size }}>
           <ChartWheelCanvas config={config} size={size} layout={layout} selection={paint} animatedTransform={motion.animatedTransform} />
