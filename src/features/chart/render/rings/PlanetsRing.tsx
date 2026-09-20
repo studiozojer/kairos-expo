@@ -30,11 +30,12 @@
  * background highlight. Static previews have no selection.
  */
 
-import { selectionOpacity } from "../../interaction/selection";
+import { selectionOpacity, selectionColor, cuspSelectionOpacity, type SelectionPaint } from "../../interaction/selection";
 import React, { useMemo } from "react";
 
 import {
   Circle,
+  Shadow,
   DashPathEffect,
   Group,
   Path,
@@ -197,6 +198,7 @@ function StackElementView({
   theme,
   degreesFont,
   minutesFont,
+  selection,
 }: {
   element: StackElement;
   center: Point;
@@ -206,6 +208,7 @@ function StackElementView({
   theme: Theme;
   degreesFont: SkFont | null;
   minutesFont: SkFont | null;
+  selection?: SelectionPaint;
 }) {
   switch (element.kind) {
     case "degrees":
@@ -214,7 +217,7 @@ function StackElementView({
           text={`${degreesInSign(placement.longitude)}°`}
           center={center}
           font={degreesFont}
-          color={degreeTextColor(placement, style, theme)}
+          color={selectionColor(selection, placement.id, "affectsDegreeText", degreeTextColor(placement, style, theme), theme)}
         />
       );
     case "minutes":
@@ -223,7 +226,7 @@ function StackElementView({
           text={`${String(minutesInSign(placement.longitude)).padStart(2, "0")}'`}
           center={center}
           font={minutesFont}
-          color={degreeTextColor(placement, style, theme)}
+          color={selectionColor(selection, placement.id, "affectsDegreeText", degreeTextColor(placement, style, theme), theme)}
         />
       );
     case "sign": {
@@ -298,9 +301,7 @@ export function PlanetsRing({ ring, ringIndex, layout, colors, selection }: Ring
         />
       )}
 
-      {/* Cusp lines (Swift :41-74, :426-475). Selection isn't ported in this
-          shell (ZodiacSignsRing precedent) — every cusp draws at full
-          opacity, equivalent to Swift's un-highlighted/no-selection case. */}
+      {/* Both boundaries of each selected/related house stay prominent. */}
       {style.showCuspLines &&
         layout.houseCusps.map((cuspDegree, index) => {
           const isAngular = [1, 4, 7, 10].includes(index + 1);
@@ -316,7 +317,7 @@ export function PlanetsRing({ ring, ringIndex, layout, colors, selection }: Ring
           };
           return (
             <Path
-              opacity={selectionOpacity(selection, `house:${index + 1}`, "affectsCuspLines")}
+              opacity={cuspSelectionOpacity(selection, index)}
               key={`cusp-${index}`}
               path={linePath(outerPoint, innerPoint)}
               style="stroke"
@@ -328,15 +329,15 @@ export function PlanetsRing({ ring, ringIndex, layout, colors, selection }: Ring
 
       {positions.map((pos) => {
         const placement = pos.placement;
-        const color = defaultGlyphColor(placement, style, colors, theme);
+        const color = selectionColor(selection, placement.id, "affectsGlyphs", defaultGlyphColor(placement, style, colors, theme), theme);
         const dir = stackDirection(pos.adjustedPosition, center, style);
         const elements = DegreeTextStack.stackElements(style, placement.isRetrograde);
 
         return (
           <React.Fragment key={placement.id}>
             {selection?.selected.has(placement.id) && selection.style.showBackgroundCircle && <Circle
-              cx={pos.adjustedPosition.x} cy={pos.adjustedPosition.y} r={Math.max(style.glyphSize / 2 + 5, style.circleRadius + 4)}
-              color={resolveColorValue(selection.style.selectedColor, theme)} opacity={.18} />}
+              cx={pos.adjustedPosition.x} cy={pos.adjustedPosition.y} r={style.useGlyphs ? style.glyphSize * .9 : style.circleRadius * 1.8}
+              color={theme.color.bgSecondary} opacity={.5} />}
             <Group opacity={selectionOpacity(selection, placement.id, "affectsGlyphs")}>
             {/* Connection line drawn BEFORE the glyph so it sits behind it
                 (Swift PlanetsRing.swift:137-156). */}
@@ -365,6 +366,7 @@ export function PlanetsRing({ ring, ringIndex, layout, colors, selection }: Ring
 
             {style.useGlyphs ? (
               <Glyph
+                selected={selection?.selected.has(placement.id)}
                 name={`celestials/${placement.glyphAsset}` as GlyphName}
                 size={style.glyphSize}
                 color={color}
@@ -372,7 +374,9 @@ export function PlanetsRing({ ring, ringIndex, layout, colors, selection }: Ring
                 y={pos.adjustedPosition.y}
               />
             ) : (
-              <Circle cx={pos.adjustedPosition.x} cy={pos.adjustedPosition.y} r={style.circleRadius} color={color} />
+              <Circle cx={pos.adjustedPosition.x} cy={pos.adjustedPosition.y} r={style.circleRadius} color={color}>
+                {selection?.selected.has(placement.id) && <Shadow dx={0} dy={1} blur={2} color="rgba(0,0,0,0.1)" />}
+              </Circle>
             )}
 
             </Group>
@@ -390,6 +394,7 @@ export function PlanetsRing({ ring, ringIndex, layout, colors, selection }: Ring
                   style={style}
                   colors={colors}
                   theme={theme}
+                  selection={selection}
                   degreesFont={degreesFont}
                   minutesFont={minutesFont}
                 />
@@ -405,7 +410,7 @@ export function PlanetsRing({ ring, ringIndex, layout, colors, selection }: Ring
       {style.degreeMarkLength > 0 &&
         positions.map((pos) => {
           const placement = pos.placement;
-          const color = celestialBodyColor(placement.body, colors, theme);
+          const color = selectionColor(selection, placement.id, "affectsDegreeMarks", celestialBodyColor(placement.body, colors, theme), theme);
           const angle = coordinates.zodiacToCanvasAngle(placement.longitude);
           const rad = (angle * Math.PI) / 180;
           return tickBounds.map((bounds, i) => {

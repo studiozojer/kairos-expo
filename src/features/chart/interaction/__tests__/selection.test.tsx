@@ -5,8 +5,9 @@ import fixture from '../../fixtures/engine/seattle-2026.json';
 import { bundledPreset } from '../../display/presets';
 import { toggleBody } from '../../display/displayPreset';
 import { useWheelLayout, type WheelLayout } from '../../render/useWheelLayout';
-import { chartTargets, hitTarget, selectionOpacity, selectionPaint, toggleSelection } from '../selection';
+import { chartTargets, selectionColor, cuspSelectionOpacity, hitTarget, selectionOpacity, selectionPaint, toggleSelection } from '../selection';
 import { ChartWheelCanvas } from '../../render/ChartWheel';
+import { themeFor } from '@/theme';
 import { AspectOverlay } from '../../render/AspectOverlay';
 const preset = bundledPreset('classic')!.preset;
 const config = buildConfiguration(fixture, preset);
@@ -59,5 +60,48 @@ test('selected IDs reach the aspect renderer instead of the previous empty place
   let view: ReturnType<typeof create>;
   act(() => { view = create(<ChartWheelCanvas size={400} config={config} layout={layout} selection={paint} />); });
   expect(view!.root.findByType(AspectOverlay).props.selectedIdentifiers).toEqual(new Set(['sun']));
+  act(() => view!.unmount());
+});
+
+test('unrelated colors respect element switches and zodiac exclusion', () => {
+  const targets = chartTargets(layout);
+  const paint = selectionPaint(['sun'], targets, config, { ...preset.selection,
+    unselectedColor: { source: 'hex', value: '#123456', layer: 'ic' } });
+  const theme = themeFor('dark');
+  expect(selectionColor(paint, 'moon', 'affectsGlyphs', '#ffffff', theme)).toBe('#123456');
+  expect(selectionColor(paint, 'sun', 'affectsGlyphs', '#ffffff', theme)).toBe('#ffffff');
+  const related = [...paint.related][0];
+  expect(selectionColor(paint, related, 'affectsGlyphs', '#ffffff', theme)).toBe('#ffffff');
+  expect(selectionColor({ ...paint, style: { ...paint.style, affectsDegreeText: false } }, 'moon', 'affectsDegreeText', '#ffffff', theme)).toBe('#ffffff');
+  expect(selectionColor({ ...paint, style: { ...paint.style, ignoreZodiacRingOpacity: true } }, 'sign:aries', 'affectsGlyphs', '#ffffff', theme, true)).toBe('#ffffff');
+});
+test('both house boundaries are related, including the 12/1 wrap', () => {
+  const paint = selectionPaint(['house:12'], chartTargets(layout), config, { ...preset.selection, relatedOpacity: .7, unselectedOpacity: .2 });
+  expect(cuspSelectionOpacity(paint, 11)).toBe(.7);
+  expect(cuspSelectionOpacity(paint, 0)).toBe(.7);
+  expect(cuspSelectionOpacity(paint, 1)).toBe(.2);
+  expect(cuspSelectionOpacity({ ...paint, style: { ...paint.style, affectsCuspLines: false } }, 1)).toBe(1);
+});
+test.each([['sign:aries'], ['house:1'], ['sun', 'house:1'], ['sun', 'moon', 'sign:aries']])('only celestial selections reach aspect filtering: %j', (...ids) => {
+  const paint = selectionPaint(ids, chartTargets(layout), config, preset.selection);
+  let view: ReturnType<typeof create>;
+  act(() => { view = create(<ChartWheelCanvas size={400} config={config} layout={layout} selection={paint} />); });
+  expect(view!.root.findByType(AspectOverlay).props.selectedIdentifiers).toEqual(new Set(ids.filter(id => id === 'sun' || id === 'moon')));
+  act(() => view!.unmount());
+});
+
+test('planet and zodiac renderers receive the unselected color while selected glyphs retain theirs', () => {
+  const paint = selectionPaint(['sun'], chartTargets(layout), config, { ...preset.selection,
+    unselectedColor: { source: 'hex', value: '#123456', layer: 'ic' } });
+  let view: ReturnType<typeof create>;
+  act(() => { view = create(<ChartWheelCanvas size={400} config={config} layout={layout} selection={paint} />); });
+  const glyphs = view!.root.findAll(node => typeof node.props.name === 'string' && typeof node.props.size === 'number' && typeof node.props.color === 'string');
+  const moon = glyphs.find(g => g.props.name === 'celestials/moon')!;
+  const sun = glyphs.find(g => g.props.name === 'celestials/sun')!;
+  expect(moon.props.color).toBe('#123456');
+  expect(sun.props.color).not.toBe('#123456');
+  expect(sun.props.selected).toBe(true);
+  const unrelatedSign = chartTargets(layout).find(t => t.kind === 'sign' && !paint.related.has(t.id))!;
+  expect(glyphs.find(g => g.props.name === `signs/${unrelatedSign.id.slice(5)}`)!.props.color).toBe('#123456');
   act(() => view!.unmount());
 });
