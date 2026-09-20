@@ -33,6 +33,7 @@ test('rapid steps queue only the latest target and never overlap native work', a
   expect(calculate.mock.calls.map(call => call[0])).toEqual([first, last]);
   expect(latest.result?.datetime).toBe(last);
   expect(latest.status).toBe('ready');
+  expect(latest.error).toBeUndefined();
 });
 
 test('keeps the old chart, date and location together through pending work and failure; retry recovers', async () => {
@@ -46,10 +47,12 @@ test('keeps the old chart, date and location together through pending work and f
   expect(latest.result).toMatchObject({ datetime: first, settings: DEFAULT_SETTINGS, chart: fixture });
   await act(async () => { fail(new Error('native failure')); });
   expect(latest.status).toBe('error');
+  expect(latest.error).toBe('native failure');
   expect(latest.result?.datetime).toBe(first);
   await act(async () => { latest.retry(); });
   expect(calculate).toHaveBeenLastCalledWith(second, changed);
   expect(latest.result?.datetime).toBe(second);
+  expect(latest.error).toBeUndefined();
 });
 
 test('leaving the chart discards queued requests; resuming uses the latest time and settings', async () => {
@@ -72,5 +75,6 @@ test('an obsolete failure does not overwrite a newer successful request', async 
   await act(async () => { view.update(<Probe time={last} />); });
   await act(async () => { rejectFirst(new Error('old failure')); });
   expect(latest.status).toBe('ready');
+  expect(latest.error).toBeUndefined();
   expect(latest.result?.datetime).toBe(last);
 });

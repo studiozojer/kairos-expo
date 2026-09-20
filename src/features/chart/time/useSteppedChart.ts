@@ -10,7 +10,7 @@ type Result = Request & { chart: ChartCalculationResponse };
  * Keep the last rendered chart/time together while the newest target computes. */
 export function useSteppedChart(datetime: string, settings: ChartSettings, enabled: boolean) {
   const [result, setResult] = useState<Result>();
-  const [settled, setSettled] = useState<{ request: Request; status: 'ready' | 'error' }>();
+  const [settled, setSettled] = useState<{ request: Request; status: 'ready' | 'error'; error?: string }>();
   const [attempt, setAttempt] = useState(0);
   const queue = useRef<{ pending?: Request; latest?: Request; running: boolean }>({ running: false });
   const retry = useCallback(() => setAttempt(value => value + 1), []);
@@ -37,7 +37,8 @@ export function useSteppedChart(datetime: string, settings: ChartSettings, enabl
           } catch (error) {
             if (state.latest === next) {
               console.warn('Could not update the chart', error);
-              setSettled({ request: next, status: 'error' });
+              const message = error instanceof Error ? error.message : String(error);
+              setSettled({ request: next, status: 'error', error: message });
             }
           }
         }
@@ -55,5 +56,5 @@ export function useSteppedChart(datetime: string, settings: ChartSettings, enabl
 
   const status = settled?.request.datetime === datetime && settled.request.settings === settings && settled.request.attempt === attempt
     ? settled.status : 'loading';
-  return { result, status, retry };
+  return { result, status, retry, error: status === 'error' ? settled?.error : undefined };
 }

@@ -28,7 +28,11 @@ public class KairosModule: Module {
               let manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: manifestURL)) as? [String: String]
         else { throw KairosException("Bundled ephemeris is missing. Rebuild the app.") }
         for (name, expected) in manifest {
-            let data = try Data(contentsOf: url.appendingPathComponent(name))
+            let fileURL = url.appendingPathComponent(name)
+            guard FileManager.default.fileExists(atPath: fileURL.path) else {
+                throw KairosException("Bundled ephemeris file missing: \(name). Refresh CocoaPods resources and rebuild the app.")
+            }
+            let data = try Data(contentsOf: fileURL)
             let actual = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
             guard actual == expected else { throw KairosException("Ephemeris checksum failed: \(name)") }
         }

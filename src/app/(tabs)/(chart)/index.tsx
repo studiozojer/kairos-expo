@@ -17,7 +17,7 @@ import { presetDocument, editPresetDocument } from '@/features/chart/display/pre
  * document retains fields owned by other consumers; its projection feeds rendering. */
 export default function ChartHome() {
   const theme = useTheme();
-  const { settings, loaded, update, saveError, result, status, retry } = useChartTime();
+  const { settings, loaded, update, saveError, result, status, retry, error } = useChartTime();
   const chart = result?.chart;
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { width } = useWindowDimensions();
@@ -72,7 +72,7 @@ export default function ChartHome() {
         {config ? <ChartWheel config={config} size={width} /> : status === 'error' ? (
           <View style={{ alignItems: 'center', gap: theme.space.md }}>
             <Text accessibilityRole="alert" style={[theme.type.whyteSm, { color: theme.color.txAccent }]}>
-              Couldn’t load the chart.
+              Couldn’t load the chart.{error ? `\n${error}` : ''}
             </Text>
             <Pressable accessibilityRole="button" onPress={retry} hitSlop={12}>
               <Text style={[theme.type.whyteSm, { color: theme.color.txAccent }]}>Retry</Text>
@@ -83,7 +83,7 @@ export default function ChartHome() {
           {new Date(result.datetime).toLocaleString('en-US', { timeZone: result.settings.location.timezone, year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })}
         </Text>}
         {result && status === 'error' && <Pressable accessibilityRole="button" onPress={retry} style={{ padding: theme.space.md }}>
-          <Text accessibilityRole="alert" style={[theme.type.whyteSm, { color: theme.color.txAccent }]}>Couldn’t update the chart. Retry</Text>
+          <Text accessibilityRole="alert" style={[theme.type.whyteSm, { color: theme.color.txAccent }]}>Couldn’t update the chart.{error ? `\n${error}` : ''} Retry</Text>
         </Pressable>}
       </View>
 
