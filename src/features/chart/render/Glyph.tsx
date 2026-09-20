@@ -10,8 +10,8 @@
  * Tint: iOS renders these as template images — the catalog imagesets carry
  * `"template-rendering-intent": "template"` — then floods the glyph's alpha
  * mask with the paint color via a sourceAtop fill (SVGRenderer.swift:23-55).
- * The Skia equivalent: draw the SVG on a layer whose Paint carries a
- * BlendColor srcIn filter — the tint survives only where the glyph has alpha,
+ * The Skia equivalent: draw the SVG on a layer whose SkPaint carries a
+ * srcIn color filter — the tint survives only where the glyph has alpha,
  * and the SVG's own per-stroke opacities (the assets use stroke-opacity 0.9)
  * are preserved.
  *
@@ -45,9 +45,11 @@
  * broken glyph reference.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
-import { BlendColor, Shadow, Group, ImageSVG, Paint, fitbox, rect, useSVG } from "@shopify/react-native-skia";
+import { Group, ImageSVG, fitbox, rect, useSVG } from "@shopify/react-native-skia";
+
+import { makeGlyphPaint } from "./glyphPaint";
 
 import { GLYPH_ASSETS, type GlyphName } from "./glyph-map.gen";
 
@@ -60,12 +62,14 @@ export interface GlyphProps {
   color: string;
   /** Add the subtle shadow used for selected planets in Swift. */
   selected?: boolean;
+  /** SVG ignores inherited paint opacity; apply it to its compositing layer. */
+  opacity?: number;
   /** Center x/y in canvas coordinates. */
   x: number;
   y: number;
 }
 
-export const Glyph = React.memo(function Glyph({ name, size, color, x, y, selected = false }: GlyphProps) {
+export const Glyph = React.memo(function Glyph({ name, size, color, x, y, selected = false, opacity = 1 }: GlyphProps) {
   const [broken, setBroken] = useState(false);
   const svg = useSVG(GLYPH_ASSETS[name], () => setBroken(true));
   const [dims, setDims] = useState<{ width: number; height: number } | null>(null);
@@ -84,6 +88,8 @@ export const Glyph = React.memo(function Glyph({ name, size, color, x, y, select
     }
   }, [svg, name]);
 
+  const paint = useMemo(() => makeGlyphPaint(color, opacity, selected), [color, opacity, selected]);
+
   // Not-yet-loaded (async asset read), the jest mock (useSVG returns null
   // there), a reported load error, or dimensions not yet validated. iOS
   // draws an emoji fallback here (SVGRenderer fallbackText); text rendering
@@ -100,12 +106,7 @@ export const Glyph = React.memo(function Glyph({ name, size, color, x, y, select
     <Group clip={rect(dst.x - padding, dst.y - padding, dst.width + padding * 2, dst.height + padding * 2)}>
     <Group
       transform={fitbox("contain", src, dst)}
-      layer={
-        <Paint>
-          <BlendColor color={color} mode="srcIn" />
-          {selected && <Shadow dx={0} dy={1} blur={2} color="rgba(0,0,0,0.1)" />}
-        </Paint>
-      }>
+      layer={paint}>
       <ImageSVG svg={svg} x={0} y={0} width={dims.width} height={dims.height} />
     </Group>
     </Group>
