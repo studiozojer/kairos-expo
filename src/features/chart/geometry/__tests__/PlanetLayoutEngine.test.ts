@@ -490,3 +490,40 @@ test("crowding across neighboring windows retains each body's bound and order", 
     if (i) expect(value - y[i - 1]).toBeGreaterThan(0);
   });
 });
+
+test.each([0, 80, 180, 325, 345, 355])(
+  "unequal house layout is unchanged by rotating the zodiac by %s degrees",
+  (rotation) => {
+    // A crowded 40° house next to a narrower 20° house, plus isolated bodies.
+    // Rotations exercise a house crossing Aries with members on either side,
+    // as well as the solver's independent largest-gap sort seam.
+    const placements = [
+      ...[5, 14, 20, 28, 29, 30].map((longitude, i) => ({
+        id: `cluster-${i}`, longitude, windowLo: 0, windowHi: 40,
+      })),
+      { id: "neighbor", longitude: 43, windowLo: 40, windowHi: 60 },
+      { id: "isolated", longitude: 150, windowLo: 140, windowHi: 170 },
+      { id: "far", longitude: 240, windowLo: 230, windowHi: 260 },
+    ];
+    const baseline = PlanetLayoutEngine.calculateNonOverlappingLayout(placements, windowedConfig());
+    const rotated = placements.map((p) => {
+      const windowLo = (p.windowLo + rotation) % 360;
+      return {
+        ...p,
+        longitude: (p.longitude + rotation) % 360,
+        windowLo,
+        windowHi: windowLo + p.windowHi - p.windowLo,
+      };
+    });
+    const layout = PlanetLayoutEngine.calculateNonOverlappingLayout(rotated, windowedConfig());
+    layout.forEach((p, i) => {
+      const restored = (p.adjustedLongitude - rotation + 360) % 360;
+      expect(restored).toBeCloseTo(baseline[i].adjustedLongitude, 6);
+      const inWindow = (p.adjustedLongitude - rotated[i].windowLo + 360) % 360;
+      expect(inWindow).toBeLessThanOrEqual(rotated[i].windowHi - rotated[i].windowLo + 1e-6);
+      expect(p.trueLongitude).toBe(rotated[i].longitude);
+    });
+    expect(minCircularGapDegrees(layout.map((p) => p.adjustedLongitude)))
+      .toBeGreaterThanOrEqual(minSepForCircleRadius(CIRCLE_RADIUS) - 1e-6);
+  },
+);

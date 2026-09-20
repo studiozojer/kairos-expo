@@ -360,7 +360,9 @@ function sortIndicesAtLargestGap(
   }
 
   // Unroll starting just after the largest gap, adding 360 so the sequence
-  // is monotonically increasing — windows shift in lockstep with the value.
+  // is monotonically increasing. Align each window to its unrolled member:
+  // a wrapping house [350, 390] already contains 5° as 365°, so adding the
+  // longitude's +360 shift to that window would incorrectly make it [710, 750].
   const startIdx = (bestIdx + 1) % n;
   const unrolledLongitudes = new Array<number>(n);
   const sortedIndices = new Array<number>(n);
@@ -369,15 +371,17 @@ function sortIndicesAtLargestGap(
   for (let k = 0; k < n; k++) {
     const srcIdx = (startIdx + k) % n;
     let value = sorted[srcIdx];
-    let shift = 0;
     if (k > 0 && value < unrolledLongitudes[k - 1]) {
-      shift = 360;
       value += 360;
     }
     unrolledLongitudes[k] = value;
     sortedIndices[k] = order[srcIdx];
-    if (unrolledLo) unrolledLo[k] = windowLos![order[srcIdx]] + shift;
-    if (unrolledHi) unrolledHi[k] = windowHis![order[srcIdx]] + shift;
+    if (unrolledLo && unrolledHi) {
+      const lo = windowLos![order[srcIdx]];
+      const shift = 360 * Math.floor((value - lo) / 360);
+      unrolledLo[k] = lo + shift;
+      unrolledHi[k] = windowHis![order[srcIdx]] + shift;
+    }
   }
 
   return { sortedIndices, unrolledLongitudes, unrolledLo, unrolledHi };
