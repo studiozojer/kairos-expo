@@ -1,5 +1,6 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Modal, TextInput } from 'react-native';
+import { MenuView } from '@react-native-menu/menu';
 import ChartEditorScreen from '@/app/chart-editor';
 import SavedChartsScreen from '@/app/charts';
 import { ActiveChartCards } from '../ActiveChartCards';
@@ -11,12 +12,26 @@ const mockRouter = { push: jest.fn(), dismissTo: jest.fn() };
 const mockState = {
   loaded: true, loadError: false, saveError: false, saving: false,
   saved: [] as any[], active: [] as any[], targetId: 'a', calculations: {},
-  saveChart: jest.fn(), openSaved: jest.fn(), addNow: jest.fn(), remove: jest.fn(), move: jest.fn(),
+  saveChart: jest.fn(), openSaved: jest.fn(), addNow: jest.fn(), remove: jest.fn(), move: jest.fn(), moveTo: jest.fn(),
   selectTarget: jest.fn(), reset: jest.fn(), retryLoad: jest.fn(), retryPersistence: jest.fn(),
 };
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter, useLocalSearchParams: () => mockParams, Stack: { Screen: () => null } }));
 jest.mock('../ActiveChartsContext', () => ({ useActiveCharts: () => mockState }));
 jest.mock('../../settings/atlas', () => ({ searchAtlas: jest.fn().mockResolvedValue([]) }));
+jest.mock('react-native-gesture-handler', () => ({
+  ...jest.requireActual('react-native-gesture-handler'),
+  // This file checks UI actions; cardSlots.test drives the real gesture callbacks.
+  GestureDetector: ({ children }: { children: unknown }) => children,
+}));
+jest.mock('react-native-reanimated', () => {
+  const React = jest.requireActual<typeof import('react')>('react');
+  return {
+    default: { View: jest.requireActual('react-native').View, createAnimatedComponent: (component: unknown) => component }, __esModule: true,
+    useSharedValue: (initial: unknown) => React.useRef({ value: initial }).current,
+    useAnimatedStyle: (calculate: () => unknown) => calculate(),
+    runOnJS: (fn: unknown) => fn, cancelAnimation: () => {}, withSpring: (value: number) => value,
+  };
+});
 let view: ReactTestRenderer;
 const action = (label: string) => view.root.findAllByType(Action).find(node => node.props.label === label)!;
 const field = (label: string, value: string) => act(() => view.root.findAllByType(TextInput).find(node => node.props.accessibilityLabel === label)!.props.onChangeText(value));
@@ -64,10 +79,11 @@ test('cards target stable identities and reordering only invokes move', () => {
   act(() => button('Step Natal, ring 2').props.onPress());
   expect(mockState.selectTarget).toHaveBeenCalledWith('b');
   mockState.selectTarget.mockClear();
-  act(() => action('Move outward').props.onPress());
+  const menu = view.root.findByType(MenuView);
+  act(() => menu.props.onPressAction({ nativeEvent: { event: 'outward' } }));
   expect(mockState.move).toHaveBeenCalledWith('a', 1);
   expect(mockState.selectTarget).not.toHaveBeenCalled();
-  act(() => action('Reset time').props.onPress()); expect(mockState.reset).toHaveBeenCalledTimes(1);
+  act(() => menu.props.onPressAction({ nativeEvent: { event: 'reset' } })); expect(mockState.reset).toHaveBeenCalledTimes(1);
 });
 
 test('failed hydration exposes retry instead of an indefinite loading state', () => {
