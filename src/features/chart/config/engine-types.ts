@@ -276,7 +276,11 @@ export function bodyKeyFromNode(node: CelestialNodeDTO): CelestialBodyId | undef
  * sentinel here (houses are 1-indexed, 0 never collides).
  */
 export interface Placement {
+  /** Stable instance-qualified identity on an active wheel; raw wire id in previews. */
   id: string;
+  chartInstanceId?: string;
+  chartName?: string;
+  rawNodeId?: string;
   bodyName: string;
   bodyId: string;
   longitude: number;

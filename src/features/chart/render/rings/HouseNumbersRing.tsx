@@ -1,3 +1,4 @@
+import { houseIdentifier } from '../../config/identifiers';
 /**
  * HouseNumbersRing — cusp lines + house numbers at wraparound-aware
  * midpoints. Port of kairos-ios
@@ -137,7 +138,8 @@ export function HouseNumbersRing({ ring, ringIndex, layout, selection }: RingRen
   const fraktion = fontMap[families.fraktion.book];
   const font = useFont(fraktion, style.numberFontSize);
 
-  const { geometry, coordinates, houseCusps } = layout;
+  const { geometry, coordinates } = layout;
+  const houseCusps = ring.houseCusps ?? layout.houseCusps;
   const outerR = geometry.radiusForRing(ringIndex);
   const innerR = geometry.innerRadiusForRing(ringIndex);
   const midR = geometry.midRadiusForRing(ringIndex);
@@ -169,7 +171,7 @@ export function HouseNumbersRing({ ring, ringIndex, layout, selection }: RingRen
           : 0;
 
         const numberNode = (
-          <Group opacity={selectionOpacity(selection, `house:${houseNumber}`, "affectsHouseNumbers")}><CenteredText text={text} center={numberPosition} font={font} color={selectionColor(selection, `house:${houseNumber}`, "affectsHouseNumbers", numberColor, theme)} /></Group>
+          <Group opacity={selectionOpacity(selection, houseIdentifier(ring.chartInstanceId, houseNumber), "affectsHouseNumbers")}><CenteredText text={text} center={numberPosition} font={font} color={selectionColor(selection, houseIdentifier(ring.chartInstanceId, houseNumber), "affectsHouseNumbers", numberColor, theme)} /></Group>
         );
 
         return (

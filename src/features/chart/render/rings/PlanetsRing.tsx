@@ -304,7 +304,7 @@ export function PlanetsRing({ ring, ringIndex, layout, colors, selection }: Ring
 
       {/* Both boundaries of each selected/related house stay prominent. */}
       {style.showCuspLines &&
-        layout.houseCusps.map((cuspDegree, index) => {
+        (ring.houseCusps ?? layout.houseCusps).map((cuspDegree, index) => {
           const isAngular = [1, 4, 7, 10].includes(index + 1);
           const angle = coordinates.zodiacToCanvasAngle(cuspDegree);
           const rad = (angle * Math.PI) / 180;
@@ -318,7 +318,7 @@ export function PlanetsRing({ ring, ringIndex, layout, colors, selection }: Ring
           };
           return (
             <Path
-              opacity={cuspSelectionOpacity(selection, index)}
+              opacity={cuspSelectionOpacity(selection, index, ring.chartInstanceId)}
               key={`cusp-${index}`}
               path={linePath(outerPoint, innerPoint)}
               style="stroke"
