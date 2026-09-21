@@ -4,6 +4,7 @@ import { Stack } from 'expo-router/stack';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, type ReactNode } from 'react';
 
+import { ActiveChartsProvider } from '@/features/chart/active/ActiveChartsContext';
 import { AuthProvider } from '@/auth/auth-context';
 import { navThemeFor, useTheme } from '@/theme';
 import { fontMap } from '@/theme/fonts.gen';
@@ -62,12 +63,16 @@ export default function RootLayout() {
     <ThemeModeProvider>
       <NavigationChrome>
         <AuthProvider>
+          <ActiveChartsProvider>
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             {/* Account is a modal on the ROOT stack: an occasional act that
                 leaves the tabs behind, reachable from the journal home. */}
+            <Stack.Screen name="charts" options={{ title: 'Saved charts', headerBackTitle: 'Chart' }} />
+            <Stack.Screen name="chart-editor" options={{ title: 'Chart' }} />
             <Stack.Screen name="account" options={{ title: 'Account', presentation: 'modal' }} />
           </Stack>
+          </ActiveChartsProvider>
         </AuthProvider>
       </NavigationChrome>
     </ThemeModeProvider>

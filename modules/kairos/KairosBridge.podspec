@@ -15,5 +15,7 @@ Pod::Spec.new do |s|
   s.vendored_frameworks = 'ios/KairosEngine.xcframework'
   s.resource_bundles = { 'KairosEphemeris' => ['assets/Ephemeris/*', 'assets/Atlas/*'] }
   s.libraries = 'c++', 'sqlite3'
-  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
+  # Match the committed arm64-only simulator slice; the app config plugin
+  # makes the same restriction for its consuming target. Device builds are unchanged.
+  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'x86_64' }
 end

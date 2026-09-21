@@ -1,6 +1,7 @@
 /**
- * buildConfiguration — build a solo-wheel ChartRenderingConfiguration from an
- * engine chart response + a parsed preset.
+ * Build render-ready configurations from engine snapshots and a parsed preset.
+ * buildConfiguration preserves the raw-ID solo preview API;
+ * buildMultiConfiguration qualifies all identities by stable active instance.
  *
  * Faithful port of kairos-ios `PresetConfigurationBuilder.buildConfiguration`
  * (Features/Presets/Utilities/PresetConfigurationBuilder.swift, single-chart
@@ -43,6 +44,8 @@
  *    render-time concerns, not builder concerns.
  */
 
+import { calculateCrossChartAspects } from "../geometry/CrossChartAspects";
+import { placementIdentifier } from "./identifiers";
 import { CELESTIAL_BODIES, type CelestialBodyId } from "../schema/enums.gen";
 import type { Preset } from "../schema/preset";
 import type { RingModule } from "../schema/ring-module";
@@ -87,7 +90,7 @@ function windowForPlacement(
   housesEnabled: boolean,
 ): { windowLo: number; windowHi: number } {
   const h = placement.housePlacement;
-  if (housesEnabled && h >= 1 && h <= 12) {
+  if (housesEnabled && houseCusps.length === 12 && h >= 1 && h <= 12) {
     const lo = houseCusps[h - 1];
     let hi = houseCusps[h % 12];
     if (hi <= lo) hi += 360;
@@ -105,7 +108,8 @@ function planetsStyleOf(ring: RingModule): PlanetsRingStyle {
 }
 
 /**
- * Solo slot only (`preset.soloChart`). Enabled rings in slot order,
+ * Preview API: solo slot (`preset.soloChart`), with engine node identities.
+ * Enabled rings in slot order,
  * outermost-first. A planets ring whose visibility filters leave zero
  * placements is dropped entirely (Swift :160 `if !filteredPlacements.isEmpty`).
  */
@@ -113,19 +117,53 @@ export function buildConfiguration(
   chart: ChartCalculationResponse,
   preset: Preset,
 ): ChartRenderingConfiguration {
+  return buildCharts([{ instanceId: "", chart }], preset, false);
+}
+
+export interface RenderChart {
+  instanceId: string;
+  chart: ChartCalculationResponse;
+  name?: string;
+}
+
+/** Active inputs are innermost first. Identity never depends on ring position. */
+export function buildMultiConfiguration(charts: RenderChart[], preset: Preset): ChartRenderingConfiguration {
+  if (charts.length > 3) throw new Error("A wheel supports at most three charts");
+  if (charts.some(c => !c.instanceId) || new Set(charts.map(c => c.instanceId)).size !== charts.length) {
+    throw new Error("Active charts require unique instance identities");
+  }
+  return buildCharts(charts, preset, true);
+}
+
+function buildCharts(charts: RenderChart[], preset: Preset, qualified: boolean): ChartRenderingConfiguration {
+  const slot = charts.length === 3 ? preset.tripleChart : charts.length === 2 ? preset.dualChart : preset.soloChart;
+  const chart = charts[0]?.chart;
   // Houses: sort by house_number (the graph's node order is insertion order;
   // Swift sorts explicitly — PresetConfigurationBuilder :93).
-  const sortedHouses = [...chart.houses.nodes].sort((a, b) => a.house_number - b.house_number);
+  const sortedHouses = [...(chart?.houses.nodes ?? [])].sort((a, b) => a.house_number - b.house_number);
   const houseCusps = sortedHouses.map((h) => h.cusp_longitude);
   // Display orientation is a preset preference; house cusps remain astronomical data.
-  const orientation = preset.soloChart.globalSettings.staticOrientationDegree;
+  const orientation = slot.globalSettings.staticOrientationDegree;
 
   // Houses are "on" iff the preset has an enabled houses ring — the signal
   // the windowed displacement uses to choose house-bound vs sign-bound.
-  const housesEnabled = preset.soloChart.rings.some((r) => r.type === "houses" && r.enabled);
+  const housesEnabled = slot.rings.some((r) => r.type === "houses" && r.enabled);
 
   // Placements + North-Node dedup BEFORE any ring filter (Swift :109).
-  const placements = deduplicateNorthNode(chart.celestial.nodes.map(placementFromNode));
+  const sources = charts.map(source => {
+    const cusps = [...source.chart.houses.nodes].sort((a, b) => a.house_number - b.house_number).map(h => h.cusp_longitude);
+    const placements = deduplicateNorthNode(source.chart.celestial.nodes.map(placementFromNode)).map(p => qualified ? {
+      ...p, id: placementIdentifier(source.instanceId, p.id), rawNodeId: p.id,
+      chartInstanceId: source.instanceId, chartName: source.name,
+    } : p);
+    return { ...source, cusps, placements };
+  });
+  // Disabled modules retain their chart slot; hiding an inner ring must not
+  // transfer its chart into an outer slot.
+  const planetModules = slot.rings.filter(r => r.type === "planets");
+  const reference = qualified && charts[0] ? {
+    chartInstanceId: charts[0].instanceId, chartName: charts[0].name, houseCusps,
+  } : {};
 
   // Preset-wide visibility, normalized to id space once.
   const enabledBodies = new Set(
@@ -135,7 +173,7 @@ export function buildConfiguration(
   );
 
   const rings: RingConfiguration[] = [];
-  for (const ringModule of preset.soloChart.rings) {
+  for (const ringModule of slot.rings) {
     if (!ringModule.enabled) continue;
 
     switch (ringModule.type) {
@@ -148,8 +186,11 @@ export function buildConfiguration(
         break;
 
       case "planets": {
+        const ringNumber = qualified ? planetModules.length - planetModules.indexOf(ringModule) : 1;
+        const source = sources[ringNumber - 1];
+        if (!source) break;
         const style = planetsStyleOf(ringModule);
-        const filtered: Placement[] = placements.filter((p) => {
+        const filtered: Placement[] = source.placements.filter((p) => {
           if (!enabledBodies.has(p.bodyId)) return false;
           if (!style.showFrameDerivedPoints && FRAME_DERIVED_POINT_IDS.has(p.bodyId)) return false;
           return true;
@@ -161,11 +202,12 @@ export function buildConfiguration(
               // Displacement window per placement (house, else sign) — see
               // windowed PAV (PlanetLayoutEngine). Applied here so the solver
               // stays pure and the coordinator needs no cusp knowledge.
-              placements: filtered.map((p) => ({ ...p, ...windowForPlacement(p, houseCusps, housesEnabled) })),
-              ringNumber: 1,
-              maxRingNumber: 1,
-              drawInnerBoundary: false,
+              placements: filtered.map((p) => ({ ...p, ...windowForPlacement(p, source.cusps, housesEnabled) })),
+              ringNumber,
+              maxRingNumber: charts.length,
+              drawInnerBoundary: qualified && charts.length > 1 && (ringNumber > 1 || ringModule === slot.rings.filter(r => r.enabled).at(-1)),
             },
+            ...(qualified ? { chartInstanceId: source.instanceId, chartName: source.name, houseCusps: source.cusps } : {}),
             style,
             thickness: ringModule.thickness,
           });
@@ -176,6 +218,7 @@ export function buildConfiguration(
       case "houses":
         rings.push({
           type: { kind: "houseNumbers" },
+          ...reference,
           // See the houseNumbers note in ChartRenderingConfiguration.ts: iOS
           // packs a ZodiacRingStyle here that its renderer never reads; we
           // carry the ring's own HousesRingStyle (rotateNumbers & co.) so the
@@ -188,6 +231,7 @@ export function buildConfiguration(
       case "cuspAnnotations":
         rings.push({
           type: { kind: "cuspAnnotations" },
+          ...reference,
           style: ringModule.style,
           thickness: ringModule.thickness,
         });
@@ -207,17 +251,27 @@ export function buildConfiguration(
     }
   }
 
+  const aspectEdges = qualified ? sources.flatMap(source => source.chart.celestial.edges.map(edge => ({
+    ...edge, from: placementIdentifier(source.instanceId, edge.from), to: placementIdentifier(source.instanceId, edge.to),
+  }))) : chart?.celestial.edges ?? [];
+  const planetRings = rings.flatMap(r => r.type.kind === "planets" ? [r.type] : []);
+  for (let i = 0; qualified && i < planetRings.length; i++) {
+    for (let j = i + 1; j < planetRings.length; j++) {
+      aspectEdges.push(...calculateCrossChartAspects(planetRings[i].placements, planetRings[j].placements, preset.aspects));
+    }
+  }
   return {
+    ...(qualified ? { chartCount: charts.length, referenceInstanceId: charts[0]?.instanceId } : {}),
     rings,
     houseCusps,
     orientation,
     aspects: preset.aspects,
-    aspectEdges: chart.celestial.edges,
+    aspectEdges,
     // Task 10: threaded through so the render-layer overlay has its style
     // (Task 7 carried aspects/aspectEdges but dropped this — see the field's
     // doc comment on ChartRenderingConfiguration).
     aspectOverlayStyle: preset.aspectOverlay,
     colors: preset.colors,
-    globalSettings: preset.soloChart.globalSettings,
+    globalSettings: slot.globalSettings,
   };
 }
