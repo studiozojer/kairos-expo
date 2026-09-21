@@ -106,7 +106,8 @@ export function CuspAnnotationRing({ ring, ringIndex, layout, colors }: RingRend
   const degreesFont = useFont(fraktion, style.degreesFontSize);
   const minutesFont = useFont(fraktion, style.minutesFontSize);
 
-  const { geometry, coordinates, houseCusps } = layout;
+  const { geometry, coordinates } = layout;
+  const houseCusps = ring.houseCusps ?? layout.houseCusps;
   const outerR = geometry.radiusForRing(ringIndex);
   const innerR = geometry.innerRadiusForRing(ringIndex);
   const midR = geometry.midRadiusForRing(ringIndex);

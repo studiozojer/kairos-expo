@@ -13,11 +13,9 @@
  * stay HERE (`selectAspectsToRender`), matching Swift's own split — the cap
  * is `AspectOverlay.swift:111-119`'s concern, not `AspectFilterResult`'s.
  *
- * Selection identifiers come from the interactive wheel; static previews use
- * an empty selection. For the current solo wheel,
- * `ringCount`/`fromRing`/`toRing` are always `1` — the solo wheel has one
- * ring of placements. See AspectFilter.ts's module header for why this is a
- * safe simplification of the Swift signature, not a behavior change.
+ * Active placement/selection identities are instance-qualified. Endpoint
+ * ring membership and visibility come from the same rings that render the
+ * bodies, including when one chart hides its frame-derived points.
  */
 
 import React, { useMemo } from "react";
@@ -145,7 +143,13 @@ export function AspectOverlay({ config, layout, selectedIdentifiers = EMPTY_SELE
 
     const placements = collectPlanetPlacements(layout.rings);
     const placementMap = new Map(placements.map((p) => [p.id, p]));
-    const visibleBodyIds = new Set(placements.map((p) => p.bodyId));
+    const ringByPlacement = new Map<string, number>();
+    const visibleByRing = new Map<number, Set<string>>();
+    for (const ring of layout.rings) {
+      if (ring.type.kind !== "planets") continue;
+      visibleByRing.set(ring.type.ringNumber, new Set(ring.type.placements.map(p => p.bodyId)));
+      for (const placement of ring.type.placements) ringByPlacement.set(placement.id, ring.type.ringNumber);
+    }
 
     const out: ValidAspect[] = [];
     for (const edge of config.aspectEdges) {
@@ -156,25 +160,27 @@ export function AspectOverlay({ config, layout, selectedIdentifiers = EMPTY_SELE
       const toPlacement = placementMap.get(edge.to);
       if (!fromPlacement || !toPlacement) continue;
 
+      const fromRing = ringByPlacement.get(edge.from)!;
+      const toRing = ringByPlacement.get(edge.to)!;
       const result = evaluateAspectFilter({
         aspect: edge,
         fromPlacement,
         toPlacement,
         aspects: config.aspects,
         style,
-        fromVisibleBodies: visibleBodyIds,
-        toVisibleBodies: visibleBodyIds,
+        fromVisibleBodies: visibleByRing.get(fromRing)!,
+        toVisibleBodies: visibleByRing.get(toRing)!,
         selectedIdentifiers,
-        ringCount: 1,
-        fromRing: 1,
-        toRing: 1,
+        ringCount: config.chartCount ?? visibleByRing.size,
+        fromRing,
+        toRing,
       });
       if (!result.shouldRender || !result.aspectType) continue;
 
       out.push({ edge, aspectType: result.aspectType, fromPlacement, toPlacement });
     }
     return out;
-  }, [config.aspects, config.aspectEdges, layout.rings, style, selectedIdentifiers]);
+  }, [config.aspects, config.aspectEdges, config.chartCount, layout.rings, style, selectedIdentifiers]);
 
   const rendered = useMemo(
     () => selectAspectsToRender(validAspects, style.maximumAspectCount),

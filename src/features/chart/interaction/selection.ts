@@ -1,3 +1,4 @@
+import { houseIdentifier } from '../config/identifiers';
 import type { Theme } from '@/theme';
 import { resolveColorValue } from '../render/colors';
 import type { ChartRenderingConfiguration } from '../config/ChartRenderingConfiguration';
@@ -22,16 +23,17 @@ export function chartTargets(layout: WheelLayout): ChartTarget[] {
         const p = pos.placement;
         const degrees = ((p.longitude % 30) + 30) % 30;
         out.push({ id: p.id, kind: 'body', label: p.bodyName, placement: p, ...pos.adjustedPosition, radius,
-          detail: `${Math.floor(degrees)}° ${String(Math.floor((degrees % 1) * 60)).padStart(2, '0')}′ ${p.signPlacement}${p.housePlacement ? ` · House ${p.housePlacement}` : ''}${p.isRetrograde ? ' · Retrograde' : ''}` });
+          detail: `${p.chartInstanceId ? `${p.chartName ?? "Chart"} · Ring ${ring.type.ringNumber} · ` : ""}${Math.floor(degrees)}° ${String(Math.floor((degrees % 1) * 60)).padStart(2, '0')}′ ${p.signPlacement}${p.housePlacement ? ` · House ${p.housePlacement}` : ''}${p.isRetrograde ? ' · Retrograde' : ''}` });
       }
     } else if (ring.type.kind === 'zodiacSigns') {
       ZODIAC_SIGNS.forEach((sign, i) => out.push({ id: `sign:${sign}`, kind: 'sign', label: sign[0].toUpperCase() + sign.slice(1),
         detail: `${i * 30}°–${(i + 1) * 30}°`, radius,
         ...layout.coordinates.pointForDegree(i * 30 + 15, layout.geometry.midRadiusForRing(index)) }));
     } else if (ring.type.kind === 'houseNumbers') {
-      layout.houseCusps.forEach((cusp, i) => out.push({ id: `house:${i + 1}`, kind: 'house', label: `House ${i + 1}`,
-        detail: `Cusp ${cusp.toFixed(2)}°`, radius,
-        ...layout.coordinates.pointForDegree(layout.coordinates.calculateMidpoint(cusp, layout.houseCusps[(i + 1) % 12]), layout.geometry.midRadiusForRing(index)) }));
+      const cusps = ring.houseCusps ?? layout.houseCusps;
+      cusps.forEach((cusp, i) => out.push({ id: houseIdentifier(ring.chartInstanceId, i + 1), kind: 'house', label: `House ${i + 1}`,
+        detail: `${ring.chartName ? `${ring.chartName} · ` : ""}Cusp ${cusp.toFixed(2)}°`, radius,
+        ...layout.coordinates.pointForDegree(layout.coordinates.calculateMidpoint(cusp, cusps[(i + 1) % 12]), layout.geometry.midRadiusForRing(index)) }));
     }
   });
   return out;
@@ -58,7 +60,7 @@ export function selectionPaint(ids: string[], targets: ChartTarget[], config: Ch
     if (!selected.has(target.id) || !target.placement) continue;
     const p = target.placement;
     related.add(`sign:${p.signPlacement.toLowerCase()}`);
-    if (p.housePlacement) related.add(`house:${p.housePlacement}`);
+    if (p.housePlacement) related.add(houseIdentifier(p.chartInstanceId, p.housePlacement));
     if (style.includeAspectedPlanets) {
       // iOS RelationshipComputer uses the chart's aspect edges for this tier.
       for (const edge of config.aspectEdges) {
@@ -86,9 +88,9 @@ export function selectionColor(paint: SelectionPaint | undefined, id: string, el
   return resolveColorValue(paint.style.unselectedColor, theme);
 }
 /** Cusp i borders houses i and i+1, wrapping house 12 to house 1. */
-export function cuspSelectionOpacity(paint: SelectionPaint | undefined, index: number) {
+export function cuspSelectionOpacity(paint: SelectionPaint | undefined, index: number, chartInstanceId?: string) {
   if (!paint || !paint.selected.size || !paint.style.affectsCuspLines) return 1;
   const highlighted = [index === 0 ? 12 : index, index + 1]
-    .some(house => paint.selected.has(`house:${house}`) || paint.related.has(`house:${house}`));
+    .some(house => paint.selected.has(houseIdentifier(chartInstanceId, house)) || paint.related.has(houseIdentifier(chartInstanceId, house)));
   return highlighted ? paint.style.relatedOpacity : paint.style.unselectedOpacity;
 }

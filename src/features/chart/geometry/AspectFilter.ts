@@ -12,27 +12,9 @@
  * `AspectOverlay.tsx` for the same reason — so the Swift source stays
  * greppable file-for-file. See that file's `selectAspectsToRender`.
  *
- * SIMPLIFICATIONS vs the Swift signature (both deliberate — this codebase's
- * chart wheel is solo-only, single-ring, with no selection system yet; see
- * the plan's self-review: "Deferred items (selection, ..., gestures) are out
- * of scope by design"):
- *  - Swift's `selectedIdentifiers: Set<CelestialBodyIdentifier>` parses a
- *    ring-suffixed display id ("sun_ring2") into (bodyId, ringNumber) and
- *    matches structurally. This TS port has no ring-suffix namespace at all
- *    (buildConfiguration never appends one — every id is the engine's raw
- *    wire id, e.g. "sun"), so a plain `ReadonlySet<string>` of ids and exact
- *    string membership is semantically identical for every case this port
- *    can construct (verified against the ported test fixtures, which use
- *    literal "sun_ring1"/"moon_ring1" ids and plain string equality — the
- *    Swift parse-then-compare and this port's direct compare agree because
- *    both sides of every comparison go through the same normalization, or
- *    none).
- *  - `fromRing`/`toRing`/`ringCount` are kept in the signature for parity
- *    (and so a future multi-ring caller doesn't need a signature change) but
- *    every current caller passes `ringCount: 1` — the solo wheel has exactly
- *    one ring of placements, so FILTER 1 (`interAspectsOnly`) can never fire
- *    (`ringCount > 1` guards it), matching Swift's actual behavior on a
- *    single-ring chart.
+ * Active-wheel endpoint and selection IDs are qualified by stable chart instance;
+ * previews use raw engine IDs. Exact membership works for both. Ring numbers
+ * are layout positions used only by interAspectsOnly, never selection identity.
  *
  * `AspectSkipReason.placementsNotFound` is carried in the union for grep
  * parity with the Swift enum, but — as in Swift — this function never
