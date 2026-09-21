@@ -133,7 +133,7 @@ export function ChartWheelCanvas({ config, size, transform = IDENTITY_TRANSFORM,
           })}
           {/* Overlays draw last, on top of every ring (Swift
               ChartWheelRenderer.swift: rings, then overlays). */}
-          <PatternOverlay config={config} layout={layout} hasSelection={!!selection?.selected.size} />
+          <PatternOverlay config={config} layout={layout} selectedIdentifiers={selection?.selected} />
           <AspectOverlay config={config} layout={layout} selectedIdentifiers={selection?.selectedBodies} />
         </Group>
       </ChartPaintProvider>

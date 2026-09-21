@@ -10,7 +10,7 @@ import { Animated, ScrollView, Text, View, useWindowDimensions } from 'react-nat
 import { GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
-import type { Preset, SelectionStyleOverride } from '../schema/preset';
+import { DEFAULT_PATTERN_ORB, type Preset, type SelectionStyleOverride } from '../schema/preset';
 import { ASPECT_TYPES, ZODIAC_SIGNS } from '../schema/enums.gen';
 import { ChartWheel } from '../render/ChartWheel';
 import type { ChartRenderingConfiguration } from '../config/ChartRenderingConfiguration';
@@ -80,7 +80,7 @@ function DisplayEditor({ preset, presetName, bodyNames, config, onChangePreset: 
     );
     const styles = planetStyles(preset);
     const aspects = preset.aspects;
-    const patterns = aspects.patterns ?? { enabledTypes: [...PATTERN_NAMES], orb: 5 };
+    const patterns = aspects.patterns ?? { enabledTypes: [...PATTERN_NAMES], orb: DEFAULT_PATTERN_ORB };
     const aspect = (patch: Partial<Preset['aspects']>) => change({ ...preset, aspects: { ...aspects, ...patch } });
     const line = (patch: Partial<Preset['aspectOverlay']>) => change({ ...preset, aspectOverlay: { ...preset.aspectOverlay, ...patch } });
     const selection = (patch: Partial<Preset['selection']>) => change({ ...preset, selection: { ...preset.selection, ...patch } });

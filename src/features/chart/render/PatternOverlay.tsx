@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { DEFAULT_PATTERN_ORB } from '../schema/preset';
 import { Group, Path, Skia } from '@shopify/react-native-skia';
 import type { ChartRenderingConfiguration } from '../config/ChartRenderingConfiguration';
 import type { WheelLayout } from './useWheelLayout';
@@ -6,6 +7,8 @@ import type { Theme } from '@/theme';
 import type { AspectOverlayStyle } from '../schema/ring-styles';
 import { findAspectPatterns, PATTERN_NAMES, type PatternName } from '../geometry/AspectPatterns';
 import { resolveColorValue, useChartPaintTheme, withAlphaFactor } from './colors';
+
+const EMPTY_SELECTION: ReadonlySet<string> = new Set();
 
 // Swift AspectOverlay+Patterns: fill only, using the defining aspect color.
 const DEFINING_ASPECT = { 'Grand Trine': 'trine', 'T-square': 'square', 'Grand Cross': 'square',
@@ -17,17 +20,17 @@ export function patternFillColor(name: PatternName, style: AspectOverlayStyle, t
         : resolveColorValue({ source: 'hue', value: style.aspectHues[DEFINING_ASPECT[name]], layer: 'primitive' }, theme);
     return withAlphaFactor(base, .08);
 }
-export function PatternOverlay({ config, layout, hasSelection = false }: {
+export function PatternOverlay({ config, layout, selectedIdentifiers = EMPTY_SELECTION }: {
     config: ChartRenderingConfiguration;
     layout: WheelLayout;
-    hasSelection?: boolean;
+    selectedIdentifiers?: ReadonlySet<string>;
 }) {
     const theme = useChartPaintTheme();
     const paths = useMemo(() => {
-        if (!config.aspects.enabled || !config.aspects.showPatterns || hasSelection)
+        if (!config.aspects.enabled || !config.aspects.showPatterns)
             return [];
         const points = config.rings.flatMap(r => r.type.kind === 'planets' ? r.type.placements : []);
-        const options = config.aspects.patterns ?? { enabledTypes: [...PATTERN_NAMES], orb: 5 };
+        const options = config.aspects.patterns ?? { enabledTypes: [...PATTERN_NAMES], orb: DEFAULT_PATTERN_ORB };
         const radius = layout.geometry.innerRadiusForRing(layout.ringThicknesses.length - 1);
         if (radius <= 0)
             return [];
@@ -41,10 +44,10 @@ export function PatternOverlay({ config, layout, hasSelection = false }: {
                     builder.lineTo(point.x, point.y);
             });
             builder.close();
-            return { name: pattern.name, key: `${pattern.name}:${pattern.points.map(p => p.id).sort().join(':')}`, path: builder.build() };
+            return { bodyIDs: pattern.points.map(p => p.id), name: pattern.name, key: `${pattern.name}:${pattern.points.map(p => p.id).sort().join(':')}`, path: builder.build() };
         });
-    }, [config.rings, config.aspects, layout, hasSelection]);
-    return <Group>{paths.map(({ key, path, name }) =>
+    }, [config.rings, config.aspects, layout]);
+    return <Group>{paths.filter(pattern => selectedIdentifiers.size === 0 || pattern.bodyIDs.every(id => selectedIdentifiers.has(id))).map(({ key, path, name }) =>
         <Path key={key} path={path} style="fill" color={patternFillColor(name, layout.aspectOverlayStyle, theme)} />
     )}</Group>;
 }

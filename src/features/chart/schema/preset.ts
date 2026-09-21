@@ -128,6 +128,8 @@ export const ASPECT_CONFIGURATION_DEFAULT: AspectConfiguration = {
   filterBySelection: false,
 };
 
+export const DEFAULT_PATTERN_ORB = 3;
+
 export function parseAspectConfiguration(v: unknown): AspectConfiguration {
   const o = obj(v);
   const d = ASPECT_CONFIGURATION_DEFAULT;
@@ -137,7 +139,7 @@ export function parseAspectConfiguration(v: unknown): AspectConfiguration {
     ...(typeof o.showPatterns === 'boolean' ? { showPatterns: o.showPatterns } : {}),
     ...(o.patterns && typeof o.patterns === 'object' ? { patterns: {
       enabledTypes: strArr(obj(o.patterns).enabledTypes, []),
-      orb: Math.max(0, Math.min(15, num(obj(o.patterns).orb, 5))),
+      orb: Math.max(0, Math.min(15, num(obj(o.patterns).orb, DEFAULT_PATTERN_ORB))),
     } } : {}),
     // Swift: decodeIfPresent(Bool) ?? !enabledTypes.isEmpty (legacy semantic).
     enabled: bool(o.enabled, enabledTypes.length > 0),
