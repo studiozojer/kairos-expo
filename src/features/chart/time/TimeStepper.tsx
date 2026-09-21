@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, AppState, PanResponder, Platform, Pressable, Text, View } from 'react-native';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import { AppState, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { useTheme } from '@/theme';
 import { useChartTime } from './ChartTimeContext';
@@ -48,83 +48,105 @@ export function RepeatButton({ label, glyph, disabled, onStep }: {
     }}
     style={({ pressed: down }) => ({ width: 44, height: 44, borderRadius: 22,
       alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.3 : down ? 0.55 : 1 })}>
-    <Text accessible={false} style={[theme.type.whyteLg, { color: theme.color.icPrimary }]}>{glyph}</Text>
+    <Text accessible={false} style={[theme.type.whyteSm, { color: theme.color.icPrimary }]}>{glyph}</Text>
   </Pressable>;
+}
+
+const DIAL_ROW_HEIGHT = 24;
+
+/** A full-height system wheel does not fit the 44pt tab accessory. Native
+ * ScrollView owns scrolling/deceleration/snapping; we supply compact rows. */
+export function IntervalDial({ unit, onChange, onTap, onReset, onScrollStart }: {
+  unit: number; onChange: (unit: number) => void; onTap: () => void; onReset: () => void; onScrollStart: () => void;
+}) {
+  const theme = useTheme();
+  const scroll = useRef<ScrollView>(null);
+  const scrolling = useRef(false);
+  const dragging = useRef(false);
+  const initialOffset = useRef({ x: 0, y: unit * DIAL_ROW_HEIGHT });
+  const idle = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => {
+    // UIKit mounts two accessory copies. The idle copy follows shared state;
+    // the copy under the finger keeps its native scroll animation.
+    if (!scrolling.current) scroll.current?.scrollTo({ y: unit * DIAL_ROW_HEIGHT, animated: false });
+  }, [unit]);
+  useEffect(() => () => clearTimeout(idle.current), []);
+  const finish = () => { clearTimeout(idle.current); scrolling.current = false; };
+  return <View style={{ width: 104, height: 44 }}>
+    <View pointerEvents="none" style={{ position: 'absolute', top: 10, left: 4, right: 4, height: 24,
+      borderRadius: 6, backgroundColor: theme.color.bgSecondary }} />
+    <ScrollView ref={scroll} testID="time-interval-dial" showsVerticalScrollIndicator={false}
+      contentOffset={initialOffset.current}
+      contentContainerStyle={{ paddingVertical: 10 }}
+      snapToInterval={DIAL_ROW_HEIGHT} decelerationRate="fast" bounces={false}
+      scrollEventThrottle={16} accessible accessibilityRole="adjustable" accessibilityLabel="Time step size"
+      accessibilityValue={{ text: TIME_STEPS[unit].label }}
+      accessibilityHint="Swipe up or down to change the interval. Double-tap the stepper to return to now."
+      accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }, { name: 'reset', label: 'Return to now' }]}
+      onAccessibilityAction={({ nativeEvent }) => {
+        if (nativeEvent.actionName === 'increment') onChange(Math.min(TIME_STEPS.length - 1, unit + 1));
+        if (nativeEvent.actionName === 'decrement') onChange(Math.max(0, unit - 1));
+        if (nativeEvent.actionName === 'reset') onReset();
+      }}
+      onScrollBeginDrag={() => { dragging.current = scrolling.current = true; clearTimeout(idle.current); onScrollStart(); }}
+      onScroll={event => {
+        if (!scrolling.current) return;
+        const next = Math.max(0, Math.min(TIME_STEPS.length - 1, Math.round(event.nativeEvent.contentOffset.y / DIAL_ROW_HEIGHT)));
+        onChange(next);
+        clearTimeout(idle.current);
+        if (!dragging.current) idle.current = setTimeout(finish, 200);
+      }}
+      onScrollEndDrag={() => { dragging.current = false; clearTimeout(idle.current); idle.current = setTimeout(finish, 200); }}
+      onMomentumScrollBegin={() => { scrolling.current = true; clearTimeout(idle.current); }}
+      onMomentumScrollEnd={finish}>
+      {TIME_STEPS.map((entry, index) => <Pressable key={entry.label} accessible={false}
+        onPress={() => { if (index === unit) onTap(); else onChange(index); }}
+        style={{ height: DIAL_ROW_HEIGHT, justifyContent: 'center', alignItems: 'center' }}>
+        <Text accessible={false} style={[theme.type.fraktionXs, {
+          color: index === unit ? theme.color.txPrimary : theme.color.txTertiary,
+        }]}>{entry.label}</Text>
+      </Pressable>)}
+    </ScrollView>
+  </View>;
 }
 
 /** The shell/material is UIKit's on iOS 26. Only the controls live here. */
 export function TimeStepper({ compact = false }: { compact?: boolean }) {
   const theme = useTheme();
   const clock = useChartTime();
-  const { unit, selectUnit, reset } = clock;
-  const [drag] = useState(() => new Animated.Value(0));
-  const [reduceMotion, setReduceMotion] = useState(false);
-  useEffect(() => {
-    let active = true;
-    void AccessibilityInfo.isReduceMotionEnabled().then(value => { if (active) setReduceMotion(value); });
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
-    return () => { active = false; subscription.remove(); };
-  }, []);
-  const lastTap = useRef(0);
-  const responder = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 8 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
-    onPanResponderMove: (_, gesture) => drag.setValue(Math.max(-80, Math.min(80, gesture.dx))),
-    onPanResponderRelease: (_, gesture) => {
-      if (Math.abs(gesture.dx) > 25 || Math.abs(gesture.vx) > 0.3) {
-        const direction = (Math.abs(gesture.dx) > 25 ? gesture.dx : gesture.vx) < 0 ? 1 : -1;
-        selectUnit(unit + direction);
-      }
-      if (reduceMotion) drag.setValue(0);
-      else Animated.spring(drag, { toValue: 0, useNativeDriver: true }).start();
-    },
-    onPanResponderTerminate: () => drag.setValue(0),
-  }), [drag, unit, selectUnit, reduceMotion]);
-
+  const lastTap = useRef<number | null>(null);
+  const reset = () => { lastTap.current = null; clock.reset(); };
+  const tap = () => {
+    const now = Date.now();
+    if (lastTap.current !== null && now - lastTap.current < 350) reset();
+    else lastTap.current = now;
+  };
   const offset = timeOffset(clock.time, clock.origin);
-  const progress = clock.status === 'loading' ? ' · Updating' : clock.status === 'error' ? ' · Retry' : '';
-  return <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6,
+  const status = clock.status === 'loading' ? 'Updating' : clock.status === 'error' ? 'Retry' : '';
+  return <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 8, paddingRight: 2,
     height: 44, width: '100%' }}>
-    <RepeatButton label={`Step backward ${TIME_STEPS[unit].label.toLowerCase()}`} glyph="‹"
-      disabled={!clock.canStepBackward} onStep={() => clock.step(-1)} />
-    <View {...responder.panHandlers} style={{ flex: 1, minWidth: 0, alignItems: 'center' }}>
-      <Pressable accessibilityRole="adjustable"
-        accessibilityLabel="Time step size" accessibilityValue={{ text: `${TIME_STEPS[unit].label}, ${offset}${progress}` }}
-        accessibilityHint="Adjust to change the interval. Use the Return to now action to reset."
-        accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }, { name: 'reset', label: 'Return to now' },
-          ...(clock.status === 'error' ? [{ name: 'retry', label: 'Retry chart calculation' }] : [])]}
-        onAccessibilityAction={({ nativeEvent }) => {
-          if (nativeEvent.actionName === 'increment') selectUnit(unit + 1);
-          if (nativeEvent.actionName === 'decrement') selectUnit(unit - 1);
-          if (nativeEvent.actionName === 'reset') reset();
-          if (nativeEvent.actionName === 'retry') clock.retry();
-        }}
-        onPress={() => {
-          if (clock.status === 'error') { clock.retry(); return; }
-          const now = Date.now();
-          if (lastTap.current && now - lastTap.current < 350) { reset(); lastTap.current = 0; }
-          else lastTap.current = now;
-        }}
-        style={{ width: '100%', height: 44, overflow: 'hidden', justifyContent: 'center' }}>
-        <Animated.View accessible={false} importantForAccessibility="no-hide-descendants"
-          style={{ height: 24, transform: [{ translateX: drag }] }}>
-          {[-1, 0, 1].map(offset => {
-            const entry = TIME_STEPS[unit + offset];
-            if (!entry || (compact && offset !== 0)) return null;
-            return <Text key={offset} numberOfLines={1} style={[theme.type.fraktionXs, {
-              color: offset === 0 ? theme.color.txPrimary : theme.color.txTertiary,
-              opacity: offset === 0 ? 1 : 0.45, position: 'absolute', width: 90, left: '50%',
-              marginLeft: -45 + offset * 90, textAlign: 'center',
-            }]}>{entry.label}</Text>;
-          })}
-        </Animated.View>
-        {!compact && <Text accessible={false} numberOfLines={1}
-          style={[theme.type.fraktionXxs, { color: theme.color.txAccent, textAlign: 'center' }]}>
-          {offset}{progress}
-        </Text>}
-      </Pressable>
-    </View>
-    <RepeatButton label={`Step forward ${TIME_STEPS[unit].label.toLowerCase()}`} glyph="›"
-      disabled={!clock.canStepForward} onStep={() => clock.step(1)} />
+    <IntervalDial unit={clock.unit} onChange={unit => { lastTap.current = null; clock.selectUnit(unit); }} onTap={tap} onReset={reset}
+      onScrollStart={() => { lastTap.current = null; }} />
+    <Pressable accessibilityRole="button" accessibilityLabel={`Chart time: ${offset}${status ? `, ${status}` : ''}`}
+      accessibilityHint="Double-tap to return to now" onPress={tap}
+      accessibilityActions={[{ name: 'reset', label: 'Return to now' },
+        ...(clock.status === 'error' ? [{ name: 'retry', label: 'Retry chart calculation' }] : [])]}
+      onAccessibilityAction={({ nativeEvent }) => {
+        if (nativeEvent.actionName === 'reset') reset();
+        if (nativeEvent.actionName === 'retry') clock.retry();
+      }}
+      style={{ flex: 1, minWidth: 0, height: 44, paddingHorizontal: 8, justifyContent: 'center' }}>
+      <Text numberOfLines={1} style={[theme.type.fraktionXxs, { color: theme.color.txAccent }]}>{offset}</Text>
+      {!compact && status !== '' && <Text numberOfLines={1} style={[theme.type.fraktionXxs, { color: theme.color.txSecondary }]}>{status}</Text>}
+    </Pressable>
+    {clock.status === 'error' && <Pressable accessibilityRole="button" accessibilityLabel="Retry chart calculation"
+      onPress={clock.retry} style={{ minWidth: 44, height: 44, justifyContent: 'center', alignItems: 'center' }}>
+      <Text style={[theme.type.whyteSm, { color: theme.color.txAccent }]}>↻</Text>
+    </Pressable>}
+    <RepeatButton label={`Step backward ${TIME_STEPS[clock.unit].label.toLowerCase()}`} glyph="‹"
+      disabled={!clock.canStepBackward} onStep={() => { lastTap.current = null; clock.step(-1); }} />
+    <RepeatButton label={`Step forward ${TIME_STEPS[clock.unit].label.toLowerCase()}`} glyph="›"
+      disabled={!clock.canStepForward} onStep={() => { lastTap.current = null; clock.step(1); }} />
   </View>;
 }
 
