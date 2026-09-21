@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
 import { buildConfiguration } from '@/features/chart/config/buildConfiguration';
 import { useChartTime } from '@/features/chart/time/ChartTimeContext';
-import { hasNativeTimeAccessory, TimeStepper } from '@/features/chart/time/TimeStepper';
+import { TimeStepper } from '@/features/chart/time/TimeStepper';
 import { SettingsSheet } from '@/features/chart/settings/SettingsSheet';
 import { DisplaySheet } from '@/features/chart/display/DisplaySheet';
 import { toggleBody, bodyChoices } from '@/features/chart/display/displayPreset';
@@ -101,9 +101,10 @@ export default function ChartHome() {
         </Pressable>}
       </View>
 
-      {!hasNativeTimeAccessory && <View style={{ marginHorizontal: theme.space.lg, marginBottom: insets.bottom + theme.space.sm,
+      {/* A fixed capsule avoids the native accessory’s elastic press effect. */}
+      <View style={{ marginHorizontal: theme.space.lg, marginBottom: insets.bottom + theme.space.sm,
         borderRadius: theme.radius.full, backgroundColor: theme.color.bgSolidBase, borderWidth: theme.border.hairline,
-        borderColor: theme.color.txTertiary }}><TimeStepper /></View>}
+        borderColor: theme.color.txTertiary }}><TimeStepper /></View>
 
       <SettingsSheet visible={settingsOpen} settings={settings} saveError={saveError} onChange={update} onClose={() => setSettingsOpen(false)} />
       {config && <DisplaySheet
