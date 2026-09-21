@@ -10,12 +10,27 @@ import { isPutAwayPoint, putAwayCenter, resolveCardDrop } from '../cardDrop';
 
 jest.mock('../cardHaptics', () => ({ cardHaptic: jest.fn() }));
 let mockQueue: (() => void)[] | null = null;
+const mockUIReactions = new Set<() => void>();
+function flushUIReactions() { for (const reaction of mockUIReactions) reaction(); }
 jest.mock('react-native-reanimated', () => {
   const React = jest.requireActual<typeof import('react')>('react');
   return {
     useReducedMotion: () => false, ReduceMotion: { Always: 'always', Never: 'never' },
     useSharedValue: (initial: unknown) => React.useRef({ value: initial }).current,
-    useAnimatedReaction: () => {},
+    useAnimatedReaction: (prepare: () => unknown, react: (current: unknown, previous: unknown) => void) => {
+      React.useLayoutEffect(() => {
+        let previous: unknown = null;
+        const flush = () => {
+          const current = prepare();
+          if (JSON.stringify(current) !== JSON.stringify(previous)) {
+            react(current, previous);
+            previous = current;
+          }
+        };
+        mockUIReactions.add(flush);
+        return () => { mockUIReactions.delete(flush); };
+      }, [prepare, react]);
+    },
     runOnJS: (fn: (...args: any[]) => void) => (...args: any[]) => mockQueue ? mockQueue.push(() => fn(...args)) : fn(...args), cancelAnimation: () => {}, withSpring: (value: number) => value,
   };
 });
@@ -42,6 +57,7 @@ function begin() {
 beforeEach(() => {
   jest.clearAllMocks(); mockQueue = null;
   act(() => { view = create(<Probe />); });
+  act(flushUIReactions);
 });
 afterEach(() => { act(() => view.unmount()); jest.restoreAllMocks(); });
 
@@ -176,6 +192,38 @@ test('a delayed release cannot commit after another drag starts', () => {
   const pending = mockQueue; mockQueue = null;
   act(() => pending.forEach(fn => fn()));
   expect(onDrop).not.toHaveBeenCalled();
+  expect(cardHaptic).not.toHaveBeenCalledWith('removed');
+});
+
+test('a second card supersedes a queued removal and restores the first card after cancellation', () => {
+  let first!: ReturnType<typeof useCardDrag>, second!: ReturnType<typeof useCardDrag>;
+  function TwoCards() {
+    const ids = ['a', 'b'];
+    const controller = useCardDragSession({ ids, viewport: { x: 10, y: 20, width: 380, height: 760 }, enabled: true, onDrop });
+    const a = useCardDrag({ id: 'a', index: 0, ids, width: 320, height: 100, gap: 8, session: controller });
+    const b = useCardDrag({ id: 'b', index: 1, ids, width: 320, height: 100, gap: 8, session: controller });
+    useLayoutEffect(() => { first = a; second = b; });
+    return null;
+  }
+  act(() => view.update(<TwoCards />));
+  act(flushUIReactions);
+  const a = first.gesture.handlers, b = second.gesture.handlers;
+  act(() => { a.onBegin!(event(40)); a.onStart!(event(40)); flushUIReactions(); });
+  mockQueue = [];
+  act(() => {
+    a.onUpdate!(event(140, 550));
+    a.onEnd!(event(140, 550), true); a.onFinalize!(event(140, 550), true);
+    flushUIReactions();
+  });
+  expect(first.dismissed.value).toBe(true);
+  expect(first.x.value).toBe(100); expect(first.y.value).toBe(400);
+  act(() => { b.onBegin!(event(204)); b.onStart!(event(204)); flushUIReactions(); });
+  act(() => { b.onEnd!(event(204), false); b.onFinalize!(event(204), false); flushUIReactions(); });
+  const pending = mockQueue; mockQueue = null;
+  act(() => pending.forEach(fn => fn()));
+  expect(onDrop).not.toHaveBeenCalled();
+  expect(first.dismissed.value).toBe(false);
+  expect(first.x.value).toBe(0); expect(first.y.value).toBe(0);
   expect(cardHaptic).not.toHaveBeenCalledWith('removed');
 });
 

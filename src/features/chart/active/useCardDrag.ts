@@ -15,7 +15,8 @@ export function useCardDrag({ id, index, ids, width, height, gap, session }: {
   const x = useSharedValue(0), y = useSharedValue(0), left = useSharedValue(0), top = useSharedValue(0);
   const valid = useSharedValue(false), dismissed = useSharedValue(false);
   const version = useSharedValue(-1), serial = useSharedValue(0);
-  useAnimatedReaction(() => epoch.value, () => {
+  useAnimatedReaction(() => ({ epoch: epoch.value, sequence: sequence.value }), (current, previous) => {
+    if (previous && current.epoch === previous.epoch && !(dismissed.value && current.sequence > serial.value)) return;
     valid.value = false; dismissed.value = false;
     cancelAnimation(x); cancelAnimation(y); x.value = 0; y.value = 0;
   });
