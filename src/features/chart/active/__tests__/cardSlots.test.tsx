@@ -15,8 +15,8 @@ jest.mock('react-native-reanimated', () => {
 const dragging = { value: '' } as any, target = { value: -1 } as any;
 const onDrop = jest.fn();
 let drag: ReturnType<typeof useCardDrag>, view: ReactTestRenderer;
-function Probe({ width = 320, ids = ['a', 'b', 'c'] }: { width?: number; ids?: string[] }) {
-  const result = useCardDrag({ id: 'a', index: 0, ids, width, height: 100, gap: 8, dragging, target, onDrop });
+function Probe({ width = 320, ids = ['a', 'b', 'c'], index = 0 }: { width?: number; ids?: string[]; index?: number }) {
+  const result = useCardDrag({ id: ids[index], index, ids, width, height: 100, gap: 8, dragging, target, onDrop });
   useEffect(() => { drag = result; });
   return null;
 }
@@ -54,6 +54,15 @@ test('ending outside row or returning to the original slot never reorders', () =
   begin();
   act(() => { handlers().onUpdate!(event(300)); handlers().onEnd!(event(40), true); handlers().onFinalize!(event(40), true); });
   expect(onDrop).not.toHaveBeenCalled(); expect(drag.x.value).toBe(0);
+});
+test('third card resolves the first slot against the row origin, not its lifted frame', () => {
+  act(() => view.update(<Probe width={316} index={2} />));
+  // Row left=20, card width=100, gap=8: third card starts at x=236.
+  act(() => { handlers().onBegin!(event(256)); handlers().onStart!(event(256)); });
+  act(() => handlers().onUpdate!({ ...event(40) as any, translationX: -216 }));
+  expect(target.value).toBe(0);
+  act(() => { handlers().onEnd!(event(40), true); handlers().onFinalize!(event(40), true); });
+  expect(onDrop).toHaveBeenCalledWith('c', 'a');
 });
 test('cancelled native recognizer clears lift and marker without committing', () => {
   begin();

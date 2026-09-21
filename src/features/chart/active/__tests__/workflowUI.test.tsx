@@ -86,6 +86,18 @@ test('cards target stable identities and reordering only invokes move', () => {
   act(() => menu.props.onPressAction({ nativeEvent: { event: 'reset' } })); expect(mockState.reset).toHaveBeenCalledTimes(1);
 });
 
+test('removing the last chart while cards are hidden leaves an add-chart entry point', () => {
+  mockState.active = [instance('a')];
+  act(() => { view = create(<ActiveChartCards />); });
+  act(() => view.root.findByType(MenuView).props.onPressAction({ nativeEvent: { event: 'collapse' } }));
+  act(() => view.root.findByType(MenuView).props.onPressAction({ nativeEvent: { event: 'remove' } }));
+  expect(mockState.remove).toHaveBeenCalledWith('a');
+  mockState.active = [];
+  act(() => view.update(<ActiveChartCards />));
+  act(() => button('Add / saved charts').props.onPress());
+  expect(mockRouter.push).toHaveBeenCalledWith('/charts');
+});
+
 test('failed hydration exposes retry instead of an indefinite loading state', () => {
   mockState.loaded = false; mockState.loadError = true;
   act(() => { view = create(<ChartEditorScreen />); });

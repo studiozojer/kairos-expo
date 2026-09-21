@@ -106,7 +106,7 @@ export function ActiveChartCards() {
     accessible: true, accessibilityRole: 'button', accessibilityLabel: 'Chart actions',
   };
   return <GestureHandlerRootView style={{ zIndex: 10, paddingHorizontal: t.space.md, paddingTop: t.space.sm }}>
-    {!collapsed && <View style={{ flexDirection: 'row', alignItems: 'center', gap: GAP }}>
+    {(!collapsed || !ids.length) && <View style={{ flexDirection: 'row', alignItems: 'center', gap: GAP }}>
       {!!ids.length && <View testID="active-card-slots" onLayout={event => setWidth(event.nativeEvent.layout.width)} style={{ flex: 1, flexDirection: 'row', gap: GAP }}>
         {state.active.map((chart, index) => <CardSlot key={chart.id} chart={chart} index={index} ids={ids} width={width} height={height} dragging={dragging} target={target} />)}
       </View>}
