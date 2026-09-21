@@ -33,7 +33,7 @@ function Editor({ saved }: { saved?: SavedChart }) {
   const t = useTheme();
   const router = useRouter();
   const initialSettings = saved?.settings ?? DEFAULT_SETTINGS;
-  const initialFields = useMemo(() => localFields(saved ? Date.parse(saved.datetime) : Date.now(), initialSettings.location.timezone), []);
+  const [initialFields] = useState(() => localFields(saved ? Date.parse(saved.datetime) : Date.now(), initialSettings.location.timezone));
   const [name, setName] = useState(saved?.name ?? '');
   const [date, setDate] = useState(initialFields.date);
   const [clock, setClock] = useState(initialFields.clock);
@@ -55,33 +55,35 @@ function Editor({ saved }: { saved?: SavedChart }) {
   const [atlasAttempt, setAtlasAttempt] = useState(0);
   const [error, setError] = useState('');
   const [savedId, setSavedId] = useState(saved?.id);
-  const [savedMessage, setSavedMessage] = useState(false);
+  const [savedSignature, setSavedSignature] = useState<string | null>(null);
+  const draftSignature = JSON.stringify([name, date, clock, locationName, latitude, longitude, elevation, timezone, houseSystem, fold]);
+  const savedMessage = savedSignature === draftSignature;
   const [replacement, setReplacement] = useState<string | null>(null);
-  useEffect(() => { setSavedMessage(false); }, [name, date, clock, locationName, latitude, longitude, elevation, timezone, houseSystem, fold]);
   const wall = useMemo(() => {
     try { return { candidates: resolveWallTime(date, clock, timezone), error: '' }; }
     catch (cause) { return { candidates: [], error: (cause as Error).message }; }
   }, [date, clock, timezone]);
   useEffect(() => {
     let live = true;
-    setResults([]);
-    if (query.trim().length < 2) { setAtlasStatus('idle'); return; }
-    setAtlasStatus('loading');
+    if (query.trim().length < 2) return;
     const timer = setTimeout(() => { searchAtlas(query).then(locations => {
       if (live) { setResults(locations); setAtlasStatus('ready'); }
     }, () => { if (live) setAtlasStatus('error'); }); }, 250);
     return () => { live = false; clearTimeout(timer); };
   }, [query, atlasAttempt]);
+  const changeQuery = (value: string) => {
+    setQuery(value); setResults([]); setAtlasStatus(value.trim().length < 2 ? 'idle' : 'loading');
+  };
   const chooseLocation = (location: ChartLocation) => {
     setLocationName(location.name); setLatitude(String(location.latitude)); setLongitude(String(location.longitude));
-    setElevation(String(location.elevation)); setTimezone(location.timezone); setFold(null); setQuery('');
+    setElevation(String(location.elevation)); setTimezone(location.timezone); setFold(null); changeQuery('');
   };
   const open = (id: string, replaceId?: string) => {
     if (state.openSaved(id, replaceId)) { setReplacement(null); router.dismissTo('/(tabs)/(chart)'); }
     else setReplacement(id);
   };
   const save = (andOpen: boolean) => {
-    setError(''); setSavedMessage(false);
+    setError(''); setSavedSignature(null);
     if (!name.trim()) { setError('Give this chart a name.'); return; }
     if (wall.error) { setError(wall.error); return; }
     if (wall.candidates.length > 1 && fold === null) { setError('This time occurs twice. Choose its earlier or later occurrence.'); return; }
@@ -91,7 +93,7 @@ function Editor({ saved }: { saved?: SavedChart }) {
     }
     try {
       const chart = state.saveChart({ name: name.trim(), datetime: new Date(wall.candidates[fold ?? 0]).toISOString(), settings: { location, houseSystem } }, savedId);
-      setSavedId(chart.id); setSavedMessage(true);
+      setSavedId(chart.id); setSavedSignature(draftSignature);
       if (andOpen) open(chart.id);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Couldn’t save the chart.'); }
   };
@@ -107,9 +109,9 @@ function Editor({ saved }: { saved?: SavedChart }) {
         {wall.candidates.length === 1 && <Note>UTC: {new Date(wall.candidates[0]).toISOString()}</Note>}
       </Section>
       <Section title="Location">
-        <Field label="Search offline atlas" value={query} onChange={setQuery} />
+        <Field label="Search offline atlas" value={query} onChange={changeQuery} />
         {atlasStatus === 'loading' && <ActivityIndicator accessibilityLabel="Searching atlas" />}
-        {atlasStatus === 'error' && <><Note>Atlas search failed. Retry or enter coordinates and timezone below.</Note><Action label="Retry atlas search" onPress={() => setAtlasAttempt(v => v + 1)} /></>}
+        {atlasStatus === 'error' && <><Note>Atlas search failed. Retry or enter coordinates and timezone below.</Note><Action label="Retry atlas search" onPress={() => { setAtlasStatus('loading'); setAtlasAttempt(v => v + 1); }} /></>}
         {atlasStatus === 'ready' && !results.length && <Note>No matches. Try another city or enter the location manually.</Note>}
         {results.slice(0, 20).map((location, i) => <LinkRow key={`${location.name}:${i}`} label={location.name} detail={location.timezone} onPress={() => chooseLocation(location)} />)}
         <Field label="Location name" value={locationName} onChange={setLocationName} />
