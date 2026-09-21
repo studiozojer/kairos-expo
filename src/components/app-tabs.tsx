@@ -1,6 +1,4 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useSegments } from 'expo-router';
-import { hasNativeTimeAccessory, NativeTimeAccessory } from '@/features/chart/time/TimeStepper';
 
 import { families } from '@/theme/fonts.gen';
 import { useTheme } from '@/theme';
@@ -27,7 +25,6 @@ import { useTheme } from '@/theme';
  */
 export default function AppTabs() {
   const theme = useTheme();
-  const chartActive = useSegments().some(segment => segment === '(chart)');
   const label = { fontFamily: families.whyte.book };
 
   return (
@@ -37,9 +34,6 @@ export default function AppTabs() {
         default: { ...label, color: theme.color.txTertiary },
         selected: { ...label, color: theme.color.txPrimary },
       }}>
-      {hasNativeTimeAccessory && chartActive && <NativeTabs.BottomAccessory>
-        <NativeTimeAccessory />
-      </NativeTabs.BottomAccessory>}
       {/* Label is provisional: the journal tab's name is explicitly undecided
           (D1) and falls out of the glance's shape, not before it. */}
       <NativeTabs.Trigger name="(journal)">
