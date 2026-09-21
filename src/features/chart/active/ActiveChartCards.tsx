@@ -11,9 +11,14 @@ export function ActiveChartCards() {
   const t = useTheme();
   return <View>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: t.space.md, gap: t.space.sm }}>
-      {state.active.map((chart, index) => <View key={chart.id} style={{ width: 272, padding: t.space.md, borderRadius: t.radius.md,
+      {state.active.map((chart, index) => <View key={chart.id} style={{ width: 272, height: 180, borderRadius: t.radius.md, overflow: 'hidden',
         borderWidth: 1, borderColor: chart.id === state.targetId ? t.color.txAccent : t.color.bdSecondary, backgroundColor: t.color.bgSolidCardSecondary }}>
+        {/* Native vertical scrolling keeps long names, status and 44pt actions
+            reachable without taking space away from the wheel. */}
+        <ScrollView nestedScrollEnabled contentContainerStyle={{ padding: t.space.md }}
+          accessibilityLabel={`Details and actions for ring ${index + 1}: ${chart.name}`}>
         <Pressable accessibilityRole="radio" accessibilityLabel={`Step ${chart.name}, ring ${index + 1}`}
+          accessibilityHint="Scroll this card vertically for chart details and actions."
           accessibilityState={{ checked: chart.id === state.targetId }} onPress={() => state.selectTarget(chart.id)} style={{ minHeight: 44 }}>
           <Text style={[t.type.whyteSm, { color: t.color.txPrimary }]}>{chart.name}</Text>
           <Text style={[t.type.whyteXxs, { color: t.color.txAccent }]}>{index === 0 ? 'Inner ring' : `Ring ${index + 1}`} · {chart.id === state.targetId ? 'Stepper target ✓' : 'Tap to step this chart'}</Text>
@@ -31,6 +36,7 @@ export function ActiveChartCards() {
           {chart.id === state.targetId && <Action label={chart.kind === 'now' ? 'Reset to now' : 'Reset time'} onPress={state.reset} />}
           <Action label="Remove" onPress={() => state.remove(chart.id)} />
         </View>
+        </ScrollView>
       </View>)}
     </ScrollView>
     {!state.active.length && <Note>No charts open. Add a saved chart or a Now chart.</Note>}
