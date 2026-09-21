@@ -4,6 +4,7 @@ import { MenuView } from '@react-native-menu/menu';
 import ChartEditorScreen from '@/app/chart-editor';
 import SavedChartsScreen from '@/app/charts';
 import { ActiveChartCards } from '../ActiveChartCards';
+import { useCardDragSession } from '../useCardDragSession';
 import { Action } from '../../display/controls';
 import { DEFAULT_SETTINGS } from '../../settings/chartSettings';
 
@@ -23,15 +24,22 @@ jest.mock('react-native-gesture-handler', () => ({
   // This file checks UI actions; cardSlots.test drives the real gesture callbacks.
   GestureDetector: ({ children }: { children: unknown }) => children,
 }));
+jest.mock('../cardHaptics', () => ({ cardHaptic: jest.fn() }));
 jest.mock('react-native-reanimated', () => {
   const React = jest.requireActual<typeof import('react')>('react');
   return {
     default: { View: jest.requireActual('react-native').View, createAnimatedComponent: (component: unknown) => component }, __esModule: true,
+    useReducedMotion: () => false, ReduceMotion: { Always: 'always', Never: 'never' },
     useSharedValue: (initial: unknown) => React.useRef({ value: initial }).current,
+    useAnimatedReaction: () => {}, withTiming: (value: number) => value,
     useAnimatedStyle: (calculate: () => unknown) => calculate(),
     runOnJS: (fn: unknown) => fn, cancelAnimation: () => {}, withSpring: (value: number) => value,
   };
 });
+function Cards() {
+  const session = useCardDragSession({ ids: mockState.active.map(chart => chart.id), viewport: { x: 0, y: 0, width: 400, height: 800 }, enabled: true, onDrop: jest.fn() });
+  return <ActiveChartCards session={session} />;
+}
 let view: ReactTestRenderer;
 const action = (label: string) => view.root.findAllByType(Action).find(node => node.props.label === label)!;
 const field = (label: string, value: string) => act(() => view.root.findAllByType(TextInput).find(node => node.props.accessibilityLabel === label)!.props.onChangeText(value));
@@ -75,7 +83,7 @@ test('fourth chart cannot open until an explicit existing instance is chosen', (
 });
 test('cards target stable identities and reordering only invokes move', () => {
   mockState.active = ['a', 'b'].map(instance);
-  act(() => { view = create(<ActiveChartCards />); });
+  act(() => { view = create(<Cards />); });
   act(() => button('Step Natal, ring 2').props.onPress());
   expect(mockState.selectTarget).toHaveBeenCalledWith('b');
   mockState.selectTarget.mockClear();
@@ -88,12 +96,12 @@ test('cards target stable identities and reordering only invokes move', () => {
 
 test('removing the last chart while cards are hidden leaves an add-chart entry point', () => {
   mockState.active = [instance('a')];
-  act(() => { view = create(<ActiveChartCards />); });
+  act(() => { view = create(<Cards />); });
   act(() => view.root.findByType(MenuView).props.onPressAction({ nativeEvent: { event: 'collapse' } }));
   act(() => view.root.findByType(MenuView).props.onPressAction({ nativeEvent: { event: 'remove' } }));
   expect(mockState.remove).toHaveBeenCalledWith('a');
   mockState.active = [];
-  act(() => view.update(<ActiveChartCards />));
+  act(() => view.update(<Cards />));
   act(() => button('Add / saved charts').props.onPress());
   expect(mockRouter.push).toHaveBeenCalledWith('/charts');
 });
