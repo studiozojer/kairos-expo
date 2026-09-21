@@ -68,7 +68,7 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             {/* Account is a modal on the ROOT stack: an occasional act that
                 leaves the tabs behind, reachable from the journal home. */}
-            <Stack.Screen name="charts" options={{ title: 'Saved charts' }} />
+            <Stack.Screen name="charts" options={{ title: 'Saved charts', headerBackTitle: 'Chart' }} />
             <Stack.Screen name="chart-editor" options={{ title: 'Chart' }} />
             <Stack.Screen name="account" options={{ title: 'Account', presentation: 'modal' }} />
           </Stack>
