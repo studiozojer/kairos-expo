@@ -9,6 +9,8 @@ module.exports = config => {
     for (const entry of Object.values(mod.modResults.pbxXCBuildConfigurationSection())) {
       if (entry.buildSettings?.IPHONEOS_DEPLOYMENT_TARGET) {
         entry.buildSettings.IPHONEOS_DEPLOYMENT_TARGET = '17.0';
+        // The committed KairosEngine simulator slice is Apple Silicon only.
+        entry.buildSettings['"EXCLUDED_ARCHS[sdk=iphonesimulator*]"'] = 'x86_64';
       }
     }
     return mod;
