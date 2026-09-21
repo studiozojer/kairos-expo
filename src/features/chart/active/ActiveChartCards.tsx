@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ScrollView, Text, View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/theme';
@@ -9,8 +10,9 @@ export function ActiveChartCards() {
   const state = useActiveCharts();
   const router = useRouter();
   const t = useTheme();
+  const [collapsed, setCollapsed] = useState(false);
   return <View>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: t.space.md, gap: t.space.sm }}>
+    {!collapsed && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: t.space.md, gap: t.space.sm }}>
       {state.active.map((chart, index) => <View key={chart.id} style={{ width: 272, height: 180, borderRadius: t.radius.md, overflow: 'hidden',
         borderWidth: 1, borderColor: chart.id === state.targetId ? t.color.txAccent : t.color.bdSecondary, backgroundColor: t.color.bgSolidCardSecondary }}>
         {/* Native vertical scrolling keeps long names, status and 44pt actions
@@ -38,8 +40,11 @@ export function ActiveChartCards() {
         </View>
         </ScrollView>
       </View>)}
-    </ScrollView>
+    </ScrollView>}
     {!state.active.length && <Note>No charts open. Add a saved chart or a Now chart.</Note>}
-    <Action label="Add / saved charts" onPress={() => router.push('/charts')} />
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: t.space.md }}>
+      <Action label="Add / saved charts" onPress={() => router.push('/charts')} />
+      {!!state.active.length && <Action label={collapsed ? 'Show cards' : 'Hide cards'} onPress={() => setCollapsed(value => !value)} />}
+    </View>
   </View>;
 }

@@ -12,11 +12,11 @@ const button = (label: string) => view.root.findAll(node => node.props.accessibi
 beforeEach(() => { jest.useFakeTimers(); jest.mocked(searchAtlas).mockReset(); });
 afterEach(() => { act(() => view.unmount()); jest.useRealTimers(); });
 
-test('house selection updates the calculation defaults and exposes the selected value', () => {
+test('house selection updates the open chart settings and exposes the selected value', () => {
   const onChange = jest.fn();
   const props = { visible: true, settings: DEFAULT_SETTINGS, saveError: false, onChange, onClose: jest.fn() };
   act(() => { view = create(<SettingsSheet {...props} />); });
-  act(() => button('Default house system').props.onPress());
+  act(() => button('House system').props.onPress());
   expect(button('Placidus').props.accessibilityState.checked).toBe(true);
   act(() => button('Whole Sign').props.onPress());
   expect(onChange).toHaveBeenLastCalledWith({ ...DEFAULT_SETTINGS, houseSystem: 'Whole Sign' });
@@ -29,7 +29,7 @@ test('stale atlas results cannot replace a newer search or select the wrong city
   jest.mocked(searchAtlas).mockImplementationOnce(() => new Promise(resolve => { finishOld = resolve; })).mockResolvedValue([paris]);
   const onChange = jest.fn();
   act(() => { view = create(<SettingsSheet visible settings={DEFAULT_SETTINGS} saveError={false} onChange={onChange} onClose={jest.fn()} />); });
-  act(() => button('Default location').props.onPress());
+  act(() => button('Location').props.onPress());
   act(() => view.root.findByType(TextInput).props.onChangeText('London'));
   await act(async () => { jest.advanceTimersByTime(250); });
   act(() => view.root.findByType(TextInput).props.onChangeText('Paris'));
@@ -38,7 +38,7 @@ test('stale atlas results cannot replace a newer search or select the wrong city
   expect(button(london.name)).toBeUndefined();
   act(() => button(paris.name).props.onPress());
   expect(onChange).toHaveBeenLastCalledWith({ ...DEFAULT_SETTINGS, location: paris });
-  expect(button('Default location')).toBeDefined();
+  expect(button('Location')).toBeDefined();
 });
 
 // Modal retains its children during iOS dismissal even after visible becomes false.

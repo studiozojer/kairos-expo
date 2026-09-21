@@ -15,8 +15,7 @@
  * + both builders + the fixtures all say outermost-first.)
  */
 
-import type { RingThickness } from "../schema/core-types";
-import type { ChartColors, GlobalChartVariables } from "../schema/core-types";
+import type { RingThickness, ChartColors, GlobalChartVariables } from "../schema/core-types";
 import type { AspectConfiguration } from "../schema/preset";
 import type { AspectOverlayStyle, RingStyle } from "../schema/ring-styles";
 import type { AspectEdgeDTO, Placement } from "./engine-types";

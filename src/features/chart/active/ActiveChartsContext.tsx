@@ -41,7 +41,6 @@ function useActiveState() {
   }, []);
   useEffect(() => {
     let alive = true;
-    setLoadError(false);
     void (async () => {
       try {
         const [raw, preferences] = await Promise.all([
@@ -77,7 +76,7 @@ function useActiveState() {
     if (current.current.active.some(chart => chart.id === id)) setCalculations(previous => Object.fromEntries(current.current.active.flatMap(chart => {
       const calculation = chart.id === id ? value : previous[chart.id];
       return calculation ? [[chart.id, calculation]] : [];
-    }))); 
+    })));
   }, []);
   const saveChart = useCallback((draft: ChartDraft, id?: string): SavedChart => {
     if (!hydrated.current) throw new Error('Wait for charts to finish loading');
@@ -112,7 +111,7 @@ function useActiveState() {
     if (Number.isInteger(index)) commit(changeTarget(current.current, chart => ({ ...chart, unit: Math.max(0, Math.min(TIME_STEPS.length - 1, index)) })));
   }, [commit]);
   const retryPersistence = useCallback(() => { if (hydrated.current) persist(current.current); }, [persist]);
-  const retryLoad = useCallback(() => { if (!hydrated.current) setLoadAttempt(value => value + 1); }, []);
+  const retryLoad = useCallback(() => { if (!hydrated.current) { setLoadError(false); setLoadAttempt(value => value + 1); } }, []);
   // Worker effects publish after render; immediately mark changed requests loading.
   const visibleCalculations: Record<string, ActiveCalculation> = {};
   for (const chart of session.active) {

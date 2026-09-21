@@ -6,7 +6,7 @@ import { DisplayHeader } from './DisplayHeader';
 import { previewGesture } from './previewGesture';
 import { PatternIcon } from './PatternIcon';
 import { useEffect, useMemo, useState } from 'react';
-import { Animated, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, ScrollView, View, useWindowDimensions } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
@@ -100,7 +100,7 @@ function DisplayEditor({ preset, presetName, bodyNames, config, onChangePreset: 
     else if (page === 'patterns')
         content = <><Section title="Tolerance"><NumberRow label="Pattern orb ±" value={patterns.orb} onChange={v => aspect({ patterns: { ...patterns, orb: v } })}/><Note>Every defining aspect must be within this tolerance.</Note></Section><Section title="Shapes">{PATTERN_NAMES.map(name => <Toggle key={name} label={name} leading={<PatternIcon name={name} />} value={patterns.enabledTypes.includes(name)} onChange={v => aspect({ patterns: { ...patterns, enabledTypes: v ? [...patterns.enabledTypes, name] : patterns.enabledTypes.filter(n => n !== name) } })}/>)}</Section></>;
     else if (page === 'filters')
-        content = <Section title="Rendering">{FILTERS.map(([key, name]) => <Toggle key={key} label={name} value={aspects[key]} disabled={!aspects.enabled || key === 'interAspectsOnly'} detail={key === 'interAspectsOnly' ? 'Available with multiple charts' : key === 'filterBySelection' ? 'Used when a body is selected' : undefined} onChange={v => aspect({ [key]: v })}/>)}</Section>;
+        content = <Section title="Rendering">{FILTERS.map(([key, name]) => <Toggle key={key} label={name} value={aspects[key]} disabled={!aspects.enabled || (key === 'interAspectsOnly' && config.rings.filter(r => r.type.kind === 'planets').length < 2)} detail={key === 'interAspectsOnly' ? 'Available with multiple charts' : key === 'filterBySelection' ? 'Used when a body is selected' : undefined} onChange={v => aspect({ [key]: v })}/>)}</Section>;
     else if (page === 'orientation')
         content = <Section title="Sign at the left edge"><Choices label="Static orientation" value={currentOrientation} options={ZODIAC_SIGNS.map((name, i) => [i * 30, name.charAt(0).toUpperCase() + name.slice(1)] as const)} onChange={v => change(updateOrientation(preset, v))}/></Section>;
     else if (page === 'lines')

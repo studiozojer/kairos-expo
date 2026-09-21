@@ -1,35 +1,34 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
-import { useChartSettings } from '../settings/useChartSettings';
-import { MAX_TIME, MIN_TIME, stepTime, TIME_STEPS } from './timeSteps';
-import { useSteppedChart } from './useSteppedChart';
+import { createContext, useContext, type ReactNode } from 'react';
+import { useActiveCharts } from '../active/ActiveChartsContext';
+import { DEFAULT_SETTINGS } from '../settings/chartSettings';
+import { MAX_TIME, MIN_TIME } from './timeSteps';
 
-function useChartTimeState(enabled: boolean) {
-  const defaults = useChartSettings();
-  const [clock, setClock] = useState(() => { const now = Date.now(); return { time: now, origin: now }; });
-  const [unit, setUnit] = useState(2);
-  const datetime = new Date(clock.time).toISOString();
-  const calculation = useSteppedChart(datetime, defaults.settings, defaults.loaded && enabled);
-  const step = useCallback((direction: -1 | 1) => {
-    setClock(current => ({ ...current, time: stepTime(current.time, unit, direction) }));
-  }, [unit]);
-  const selectUnit = useCallback((index: number) => setUnit(Math.max(0, Math.min(TIME_STEPS.length - 1, index))), []);
-  const reset = useCallback(() => { const now = Date.now(); setClock({ time: now, origin: now }); }, []);
-  return { ...defaults, ...calculation, ...clock, datetime, unit, selectUnit, step, reset,
-    canStepBackward: defaults.loaded && enabled && clock.time > MIN_TIME,
-    canStepForward: defaults.loaded && enabled && clock.time < MAX_TIME };
-}
+const ChartTimeEnabled = createContext(true);
 
-const ChartTimeContext = createContext<ReturnType<typeof useChartTimeState> | null>(null);
-
-// Both native accessory placements and the chart share this owner. Never keep
-// selected time/unit in BottomAccessory: UIKit mounts two copies of its content.
+/** Navigation only gates the controls. The root active-session provider owns
+ * time and calculations, including while a saved-chart editor is pushed. */
 export function ChartTimeProvider({ enabled, children }: { enabled: boolean; children: ReactNode }) {
-  const state = useChartTimeState(enabled);
-  return <ChartTimeContext.Provider value={state}>{children}</ChartTimeContext.Provider>;
+  return <ChartTimeEnabled.Provider value={enabled}>{children}</ChartTimeEnabled.Provider>;
 }
 
+/** Compatibility surface for the existing glass stepper. No second clock. */
 export function useChartTime() {
-  const value = useContext(ChartTimeContext);
-  if (!value) throw new Error('Chart time requires ChartTimeProvider');
-  return value;
+  const session = useActiveCharts();
+  const enabled = useContext(ChartTimeEnabled);
+  const target = session.active.find(chart => chart.id === session.targetId);
+  const calculation = target ? session.calculations[target.id] : undefined;
+  const time = target?.time ?? MIN_TIME;
+  return {
+    targetId: target?.id, targetName: target?.name, kind: target?.kind,
+    settings: target?.settings ?? DEFAULT_SETTINGS,
+    loaded: session.loaded, saveError: session.saveError,
+    update: (settings: typeof DEFAULT_SETTINGS) => { if (target) session.updateInstanceSettings(target.id, settings); },
+    result: calculation?.result, status: calculation?.status ?? 'loading',
+    retry: calculation?.retry ?? (() => {}),
+    time, origin: target?.origin ?? time, datetime: new Date(time).toISOString(),
+    unit: target?.unit ?? 2, selectUnit: session.selectUnit,
+    step: session.step, reset: session.reset,
+    canStepBackward: session.loaded && enabled && !!target && time > MIN_TIME,
+    canStepForward: session.loaded && enabled && !!target && time < MAX_TIME,
+  };
 }
