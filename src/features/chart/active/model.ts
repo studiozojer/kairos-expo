@@ -64,6 +64,16 @@ export function moveInstance(state: ActiveSession, id: string, direction: -1 | 1
   [active[index], active[next]] = [active[next], active[index]];
   return { ...state, active };
 }
+/** Move an instance into the target's current slot, retaining every instance snapshot. */
+export function reorderInstance(state: ActiveSession, id: string, targetId: string): ActiveSession {
+  const source = state.active.findIndex(chart => chart.id === id);
+  const target = state.active.findIndex(chart => chart.id === targetId);
+  if (source < 0 || target < 0 || source === target) return state;
+  const active = [...state.active];
+  const [chart] = active.splice(source, 1);
+  active.splice(target, 0, chart);
+  return { ...state, active };
+}
 export function changeTarget(state: ActiveSession, change: (chart: ActiveChart) => ActiveChart): ActiveSession {
   return { ...state, active: state.active.map(chart => chart.id === state.targetId ? change(chart) : chart) };
 }
