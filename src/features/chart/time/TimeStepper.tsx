@@ -1,54 +1,9 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
-import { AppState, Pressable, ScrollView, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useTheme } from '@/theme';
 import { useChartTime } from './ChartTimeContext';
 import { TIME_STEPS, timeOffset } from './timeSteps';
-
-export function RepeatButton({ label, glyph, disabled, onStep }: {
-  label: string; glyph: string; disabled: boolean; onStep: () => void;
-}) {
-  const theme = useTheme();
-  const action = useRef(onStep);
-  useLayoutEffect(() => { action.current = onStep; }, [onStep]);
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const pressed = useRef(false);
-  const fired = useRef(false);
-  const stop = useCallback(() => {
-    pressed.current = false;
-    clearTimeout(timer.current);
-  }, []);
-  useEffect(() => { if (disabled) { stop(); fired.current = false; } }, [disabled, stop]);
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', state => { if (state !== 'active') stop(); });
-    return () => { stop(); subscription.remove(); };
-  }, [stop]);
-
-  return <Pressable accessibilityRole="button" accessibilityLabel={label}
-    accessibilityHint="Hold to keep stepping" accessibilityState={{ disabled }} disabled={disabled}
-    onPressIn={() => {
-      if (disabled) return;
-      stop();
-      pressed.current = fired.current = true;
-      action.current();
-      const repeat = () => {
-        if (!pressed.current) return;
-        action.current();
-        timer.current = setTimeout(repeat, 80);
-      };
-      timer.current = setTimeout(repeat, 500);
-    }}
-    onPressOut={stop}
-    onPress={() => {
-      // Assistive activation may emit onPress without a physical press-in.
-      if (!fired.current && !disabled) action.current();
-      fired.current = false;
-    }}
-    style={({ pressed: down }) => ({ width: 44, height: 44, borderRadius: 22,
-      alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.3 : 1,
-      backgroundColor: down ? theme.color.bgSecondary : 'transparent' })}>
-    <Text accessible={false} style={[theme.type.whyteSm, { color: theme.color.icPrimary }]}>{glyph}</Text>
-  </Pressable>;
-}
+import { StepButtons } from './StepButtons';
 
 const DIAL_ROW_HEIGHT = 24;
 
@@ -71,7 +26,7 @@ export function IntervalDial({ unit, onChange, onTap, onReset, onScrollStart, of
   const finish = () => { clearTimeout(idle.current); scrolling.current = false; };
   return <View style={{ flex: 1, minWidth: 0, height: 44 }}>
     <View pointerEvents="none" style={{ position: 'absolute', top: 10, left: 4, width: 96, height: 24,
-      borderRadius: 6, backgroundColor: theme.color.bgSecondary }} />
+      borderRadius: 12, backgroundColor: theme.color.bgSecondary }} />
     <ScrollView ref={scroll} testID="time-interval-dial" showsVerticalScrollIndicator={false}
       style={{ flex: 1 }} contentOffset={initialOffset.current}
       onTouchEnd={() => { if (!scrolling.current) onTap(); }}
@@ -122,17 +77,16 @@ export function TimeStepper() {
     else lastTap.current = now;
   };
   const offset = timeOffset(clock.time, clock.origin);
-  return <View style={{ flexDirection: 'row', alignItems: 'center', paddingRight: 2,
-    height: 44, width: '100%' }}>
+  return <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8,
+    minHeight: 60, width: '100%' }}>
     <IntervalDial offset={offset} unit={clock.unit} onChange={unit => { lastTap.current = null; clock.selectUnit(unit); }} onTap={tap} onReset={reset}
       onScrollStart={() => { lastTap.current = null; }} />
     {clock.status === 'error' && <Pressable accessibilityRole="button" accessibilityLabel="Retry chart calculation"
       onPress={clock.retry} style={{ minWidth: 44, height: 44, justifyContent: 'center', alignItems: 'center' }}>
       <Text style={[theme.type.whyteSm, { color: theme.color.txAccent }]}>↻</Text>
     </Pressable>}
-    <RepeatButton label={`Step backward ${TIME_STEPS[clock.unit].label.toLowerCase()}`} glyph="‹"
-      disabled={!clock.canStepBackward} onStep={() => { lastTap.current = null; clock.step(-1); }} />
-    <RepeatButton label={`Step forward ${TIME_STEPS[clock.unit].label.toLowerCase()}`} glyph="›"
-      disabled={!clock.canStepForward} onStep={() => { lastTap.current = null; clock.step(1); }} />
+    <StepButtons interval={TIME_STEPS[clock.unit].label.toLowerCase()}
+      canBackward={clock.canStepBackward} canForward={clock.canStepForward}
+      onStep={direction => { lastTap.current = null; clock.step(direction); }} />
   </View>;
 }
