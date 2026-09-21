@@ -39,7 +39,7 @@ const ROLES = [
   'bd/base', 'bd/primary', 'bd/secondary', 'bd/card', 'bd/accent',
   'bd/hover', 'bd/pressed',
 
-  'ic/primary', 'ic/secondary', 'ic/tertiary', 'ic/accent',
+  'ic/primary', 'ic/secondary', 'ic/tertiary', 'ic/accent', 'ic/error', 'ic/white',
 ];
 
 function die(message) {

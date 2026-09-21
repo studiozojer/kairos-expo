@@ -1,22 +1,50 @@
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect } from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { AppState } from 'react-native';
 import { Gesture } from 'react-native-gesture-handler';
 import { cardSlotAt, slotCardWidth } from '../cardSlots';
 import { useCardDrag } from '../useCardDrag';
+import { useCardDragSession } from '../useCardDragSession';
+import { cardHaptic } from '../cardHaptics';
+import { isPutAwayPoint, putAwayCenter, resolveCardDrop } from '../cardDrop';
 
+jest.mock('../cardHaptics', () => ({ cardHaptic: jest.fn() }));
+let mockQueue: (() => void)[] | null = null;
+const mockUIReactions = new Set<() => void>();
+function flushUIReactions() { for (const reaction of mockUIReactions) reaction(); }
 jest.mock('react-native-reanimated', () => {
   const React = jest.requireActual<typeof import('react')>('react');
   return {
+    useReducedMotion: () => false, ReduceMotion: { Always: 'always', Never: 'never' },
     useSharedValue: (initial: unknown) => React.useRef({ value: initial }).current,
-    runOnJS: (fn: unknown) => fn, cancelAnimation: () => {}, withSpring: (value: number) => value,
+    useAnimatedReaction: (prepare: () => unknown, react: (current: unknown, previous: unknown) => void) => {
+      React.useLayoutEffect(() => {
+        let previous: unknown = null;
+        const flush = () => {
+          const current = prepare();
+          if (JSON.stringify(current) !== JSON.stringify(previous)) {
+            react(current, previous);
+            previous = current;
+          }
+        };
+        mockUIReactions.add(flush);
+        return () => { mockUIReactions.delete(flush); };
+      }, [prepare, react]);
+    },
+    runOnJS: (fn: (...args: any[]) => void) => (...args: any[]) => mockQueue ? mockQueue.push(() => fn(...args)) : fn(...args), cancelAnimation: () => {}, withSpring: (value: number) => value,
   };
 });
-const dragging = { value: '' } as any, target = { value: -1 } as any;
+let session: ReturnType<typeof useCardDragSession>;
+let dragging: typeof session.dragging, target: typeof session.target;
 const onDrop = jest.fn();
 let drag: ReturnType<typeof useCardDrag>, view: ReactTestRenderer;
-function Probe({ width = 320, ids = ['a', 'b', 'c'], index = 0 }: { width?: number; ids?: string[]; index?: number }) {
-  const result = useCardDrag({ id: ids[index], index, ids, width, height: 100, gap: 8, dragging, target, onDrop });
+function Probe({ width = 320, ids = ['a', 'b', 'c'], index = 0, enabled = true }: { width?: number; ids?: string[]; index?: number; enabled?: boolean }) {
+  const controller = useCardDragSession({ ids, viewport: { x: 10, y: 20, width: width + 60, height: 760 }, enabled,
+    onDrop: drop => drop.kind === 'reorder' ? onDrop(drop.id, drop.targetId) : onDrop(drop.id) });
+  const { invalidate } = controller;
+  useLayoutEffect(() => { invalidate(); }, [width, invalidate]);
+  const result = useCardDrag({ id: ids[index], index, ids, width, height: 100, gap: 8, session: controller });
+  useEffect(() => { session = controller; dragging = controller.dragging; target = controller.target; });
   useEffect(() => { drag = result; });
   return null;
 }
@@ -27,8 +55,9 @@ function begin() {
   act(() => { handlers().onBegin!(event(40)); handlers().onStart!(event(40)); });
 }
 beforeEach(() => {
-  jest.clearAllMocks(); dragging.value = ''; target.value = -1;
+  jest.clearAllMocks(); mockQueue = null;
   act(() => { view = create(<Probe />); });
+  act(flushUIReactions);
 });
 afterEach(() => { act(() => view.unmount()); jest.restoreAllMocks(); });
 
@@ -87,4 +116,122 @@ test('backgrounding cancels the drag before any late release', () => {
   begin();
   act(() => { changed('inactive'); handlers().onEnd!(event(300), true); });
   expect(onDrop).not.toHaveBeenCalled(); expect(dragging.value).toBe('');
+});
+
+
+test('put-away uses the lower half of the measured window rect, including side/bottom bounds', () => {
+  const rect = { x: 10, y: 20, width: 400, height: 760 };
+  expect(isPutAwayPoint(10, 400, rect)).toBe(false);
+  expect(isPutAwayPoint(10, 401, rect)).toBe(true);
+  expect(isPutAwayPoint(410, 780, rect)).toBe(true);
+  expect([[9, 500], [411, 500], [30, 781]].map(([x, y]) => isPutAwayPoint(x, y, rect))).toEqual([false, false, false]);
+  const overlappingRow = { x: 10, y: 400, width: 400, height: 100 };
+  expect(resolveCardDrop('a', ['a', 'b'], 300, 450, rect, overlappingRow)).toEqual({ kind: 'remove', id: 'a' });
+  expect(resolveCardDrop('missing', ['a', 'b'], 300, 450, rect, overlappingRow)).toEqual({ kind: 'cancel' });
+  expect(putAwayCenter(844, 730)).toBe(609);
+  expect(putAwayCenter(400, 340)).toBe(235);
+});
+
+test('arming is edge-triggered, clears insertion, and leaving permits reorder again', () => {
+  begin();
+  act(() => { handlers().onUpdate!(event(300)); handlers().onUpdate!(event(300, 500)); handlers().onUpdate!(event(200, 600)); });
+  expect(session.armed.value).toBe(true); expect(target.value).toBe(-1);
+  expect(cardHaptic).toHaveBeenCalledTimes(3); // lift, new slot, entry — not every movement
+  act(() => handlers().onUpdate!(event(300)));
+  expect(session.armed.value).toBe(false); expect(target.value).toBe(2);
+  act(() => { handlers().onEnd!(event(300), true); handlers().onFinalize!(event(300), true); });
+  expect(onDrop).toHaveBeenCalledWith('a', 'c');
+  expect(cardHaptic).not.toHaveBeenCalledWith('removed');
+});
+
+test('final coordinates override hover; successful put-away commits once and does not spring home', () => {
+  begin();
+  act(() => handlers().onUpdate!(event(300)));
+  act(() => { handlers().onEnd!(event(40, 500), true); handlers().onEnd!(event(40, 500), true); handlers().onFinalize!(event(40, 500), true); });
+  expect(onDrop).toHaveBeenCalledTimes(1); expect(onDrop).toHaveBeenCalledWith('a');
+  expect(drag.dismissed.value).toBe(true); expect(drag.x.value).toBe(260);
+  expect(cardHaptic).toHaveBeenLastCalledWith('removed');
+});
+
+test('hovering armed then releasing above the half without another update cancels removal', () => {
+  begin();
+  act(() => handlers().onUpdate!(event(40, 550)));
+  act(() => { handlers().onEnd!(event(40, 350), true); handlers().onFinalize!(event(40, 350), true); });
+  expect(onDrop).not.toHaveBeenCalled(); expect(drag.dismissed.value).toBe(false);
+  expect(drag.x.value).toBe(0); expect(drag.y.value).toBe(0);
+});
+
+test.each(['focus', 'layout', 'replacement'] as const)('queued JS removal cannot cross a %s change', reason => {
+  begin(); mockQueue = [];
+  act(() => { handlers().onEnd!(event(40, 550), true); handlers().onFinalize!(event(40, 550), true); });
+  act(() => view.update(reason === 'focus' ? <Probe enabled={false} /> : reason === 'layout' ? <Probe width={600} /> : <Probe ids={['a', 'replacement', 'c']} />));
+  const pending = mockQueue; mockQueue = null;
+  act(() => pending.forEach(fn => fn()));
+  expect(onDrop).not.toHaveBeenCalled(); expect(cardHaptic).not.toHaveBeenCalledWith('removed');
+});
+
+test('native cancellation while armed preserves every chart', () => {
+  begin();
+  act(() => { handlers().onUpdate!(event(40, 550)); handlers().onEnd!(event(40, 550), false); handlers().onFinalize!(event(40, 550), false); });
+  expect(onDrop).not.toHaveBeenCalled(); expect(session.armed.value).toBe(false); expect(dragging.value).toBe('');
+});
+
+
+test('queued lift/armed feedback is discarded after native cancellation', () => {
+  mockQueue = []; begin();
+  act(() => { handlers().onUpdate!(event(40, 550)); handlers().onEnd!(event(40, 550), false); handlers().onFinalize!(event(40, 550), false); });
+  const pending = mockQueue; mockQueue = null;
+  act(() => pending.forEach(fn => fn()));
+  expect(cardHaptic).not.toHaveBeenCalled(); expect(onDrop).not.toHaveBeenCalled();
+});
+
+test('a delayed release cannot commit after another drag starts', () => {
+  begin(); mockQueue = [];
+  act(() => { handlers().onEnd!(event(40, 550), true); handlers().onFinalize!(event(40, 550), true); });
+  begin();
+  const pending = mockQueue; mockQueue = null;
+  act(() => pending.forEach(fn => fn()));
+  expect(onDrop).not.toHaveBeenCalled();
+  expect(cardHaptic).not.toHaveBeenCalledWith('removed');
+});
+
+test('a second card supersedes a queued removal and restores the first card after cancellation', () => {
+  let first!: ReturnType<typeof useCardDrag>, second!: ReturnType<typeof useCardDrag>;
+  function TwoCards() {
+    const ids = ['a', 'b'];
+    const controller = useCardDragSession({ ids, viewport: { x: 10, y: 20, width: 380, height: 760 }, enabled: true, onDrop });
+    const a = useCardDrag({ id: 'a', index: 0, ids, width: 320, height: 100, gap: 8, session: controller });
+    const b = useCardDrag({ id: 'b', index: 1, ids, width: 320, height: 100, gap: 8, session: controller });
+    useLayoutEffect(() => { first = a; second = b; });
+    return null;
+  }
+  act(() => view.update(<TwoCards />));
+  act(flushUIReactions);
+  const a = first.gesture.handlers, b = second.gesture.handlers;
+  act(() => { a.onBegin!(event(40)); a.onStart!(event(40)); flushUIReactions(); });
+  mockQueue = [];
+  act(() => {
+    a.onUpdate!(event(140, 550));
+    a.onEnd!(event(140, 550), true); a.onFinalize!(event(140, 550), true);
+    flushUIReactions();
+  });
+  expect(first.dismissed.value).toBe(true);
+  expect(first.x.value).toBe(100); expect(first.y.value).toBe(400);
+  act(() => { b.onBegin!(event(204)); b.onStart!(event(204)); flushUIReactions(); });
+  act(() => { b.onEnd!(event(204), false); b.onFinalize!(event(204), false); flushUIReactions(); });
+  const pending = mockQueue; mockQueue = null;
+  act(() => pending.forEach(fn => fn()));
+  expect(onDrop).not.toHaveBeenCalled();
+  expect(first.dismissed.value).toBe(false);
+  expect(first.x.value).toBe(0); expect(first.y.value).toBe(0);
+  expect(cardHaptic).not.toHaveBeenCalledWith('removed');
+});
+
+test('re-entering the lower half gives a new entry feedback, but hovering does not repeat it', () => {
+  begin();
+  act(() => {
+    handlers().onUpdate!(event(40, 550)); handlers().onUpdate!(event(60, 550));
+    handlers().onUpdate!(event(40, 350)); handlers().onUpdate!(event(40, 550));
+  });
+  expect(jest.mocked(cardHaptic).mock.calls.filter(([kind]) => kind === 'armed')).toHaveLength(2);
 });

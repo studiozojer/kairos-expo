@@ -1,5 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { useIsFocused } from 'expo-router';
+import { useCardDragSession } from '@/features/chart/active/useCardDragSession';
+import { ChartPutAwayOverlay } from '@/features/chart/active/ChartPutAwayOverlay';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/theme';
@@ -27,6 +30,10 @@ export default function ChartHome() {
   const window = useWindowDimensions();
   const [viewport, setViewport] = useState({ width: window.width, height: window.height });
   const { width } = viewport;
+  const screen = useRef<View>(null);
+  const focused = useIsFocused();
+  const [windowRect, setWindowRect] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const [stepperTop, setStepperTop] = useState(window.height);
   const [chartArea, setChartArea] = useState({ y: 0, height: 0 });
   const chartHeight = chartArea.height;
   const [wheelY, setWheelY] = useState(0);
@@ -37,6 +44,8 @@ export default function ChartHome() {
   const preset = document.preset;
   const [presetName, setPresetName] = useState('classic');
   const [sheetOpen, setSheetOpen] = useState(false);
+  const cardDrag = useCardDragSession({ ids: session.active.map(chart => chart.id), viewport: windowRect, enabled: focused && !sheetOpen && !settingsOpen,
+    onDrop: drop => { if (drop.kind === 'remove') session.remove(drop.id); else session.moveTo(drop.id, drop.targetId); } });
 
   const bodyNames = useMemo(() => [...new Set(session.active.flatMap(item => {
     const calculation = session.calculations[item.id]?.result;
@@ -53,7 +62,11 @@ export default function ChartHome() {
   };
 
   return (
-    <View onLayout={event => { const { width, height } = event.nativeEvent.layout; setViewport({ width, height }); }}
+    <View ref={screen} onLayout={event => {
+      const { width, height } = event.nativeEvent.layout; setViewport({ width, height });
+      cardDrag.invalidate();
+      screen.current?.measureInWindow((x, y, width, height) => setWindowRect({ x, y, width, height }));
+    }}
       style={{ flex: 1, backgroundColor: theme.color.bgSolidBase }}>
       {/* The canvas fills the screen; the measured slot below locates the wheel
           without clipping it. Cards and the stepper bound the resting slot. */}
@@ -81,7 +94,7 @@ export default function ChartHome() {
         </Pressable>
       </View>
 
-      <ActiveChartCards />
+      <ActiveChartCards session={cardDrag} />
       {(session.loadError || session.saveError) && <Pressable accessibilityRole="button"
         onPress={session.loadError ? session.retryLoad : session.retryPersistence} style={{ paddingHorizontal: theme.space.lg, paddingVertical: theme.space.sm }}>
         <Text accessibilityRole="alert" style={[theme.type.whyteXs, { color: theme.color.txAccent }]}>
@@ -110,10 +123,11 @@ export default function ChartHome() {
         </Pressable>}
       </View>
 
-      <View style={{ marginHorizontal: theme.space.lg, marginBottom: insets.bottom + theme.space.sm }}>
+      <View onLayout={event => setStepperTop(event.nativeEvent.layout.y)} style={{ marginHorizontal: theme.space.lg, marginBottom: insets.bottom + theme.space.sm }}>
         <TimeStepperSurface><TimeStepper key={session.targetId ?? 'empty'} /></TimeStepperSurface>
       </View>
 
+      <ChartPutAwayOverlay session={cardDrag} stepperTop={stepperTop} />
       <SettingsSheet visible={settingsOpen} settings={settings} saveError={saveError} onChange={update} onClose={() => setSettingsOpen(false)} />
       {config && <DisplaySheet
         visible={sheetOpen}
