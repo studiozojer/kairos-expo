@@ -77,8 +77,8 @@ export function TimeStepper() {
     else lastTap.current = now;
   };
   const offset = timeOffset(clock.time, clock.origin);
-  return <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8,
-    minHeight: 60, width: '100%' }}>
+  return <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 4,
+    minHeight: 52, width: '100%' }}>
     <IntervalDial offset={offset} unit={clock.unit} onChange={unit => { lastTap.current = null; clock.selectUnit(unit); }} onTap={tap} onReset={reset}
       onScrollStart={() => { lastTap.current = null; }} />
     {clock.status === 'error' && <Pressable accessibilityRole="button" accessibilityLabel="Retry chart calculation"
