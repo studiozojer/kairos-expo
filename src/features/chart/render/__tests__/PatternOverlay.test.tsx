@@ -5,7 +5,7 @@ import { buildConfiguration } from '../../config/buildConfiguration';
 import chart from '../../fixtures/engine/seattle-2026.json';
 import { parseAspectConfiguration } from '../../schema/preset';
 import { bundledPreset } from '../../display/presets';
-import { PatternOverlay, patternFillColor } from '../PatternOverlay';
+import { PatternOverlay, patternFillColor, patternFillOpacity } from '../PatternOverlay';
 import { useWheelLayout } from '../useWheelLayout';
 import { ChartPaintProvider, resolveColorValue, withAlphaFactor } from '../colors';
 import type { PatternName } from '../../geometry/AspectPatterns';
@@ -28,8 +28,11 @@ test('monochrome uses the configured color and multiplies its existing alpha', (
   const style = { ...config.aspectOverlayStyle, colorMode: 'monochrome' as const, monochromeColor: { source: 'hex' as const, value: '#ff000080', layer: 'ic' as const } };
   expect(patternFillColor('Grand Trine', style, theme)).toBe(withAlphaFactor('#ff000080', .08));
 });
-function Probe({ selected = [] as string[], enabled = true, show = true }) {
-  const cfg = { ...config, aspects: { ...config.aspects, enabled, showPatterns: show } };
+function Probe({ selected = [] as string[], enabled = true, show = true, base = .08, weight = 0, deviation = 0, tolerance = 5 }) {
+  const cfg = { ...config,
+    aspectOverlayStyle: { ...config.aspectOverlayStyle, patternOpacity: base, patternOrbWeighting: weight },
+    rings: config.rings.map(r => r.type.kind === 'planets' ? { ...r, type: { ...r.type, placements: r.type.placements.map((p, i) => ({ ...p, longitude: p.longitude + (i === 0 ? deviation : 0) })) } } : r),
+    aspects: { ...config.aspects, enabled, showPatterns: show, patterns: { enabledTypes: ['Grand Trine'], orb: tolerance } } };
   const layout = useWheelLayout(cfg, 400);
   return <ChartPaintProvider value={theme}><PatternOverlay config={cfg} layout={layout} selectedIdentifiers={new Set(selected)} /></ChartPaintProvider>;
 }
@@ -66,4 +69,23 @@ test('selection reveals only complete patterns, permits extra selections, and re
 test('missing pattern orb defaults to 3 degrees; explicit preset orbs are retained', () => {
   expect(parseAspectConfiguration({ patterns: { enabledTypes: ['Grand Trine'] } }).patterns!.orb).toBe(3);
   expect(parseAspectConfiguration({ patterns: { enabledTypes: ['Grand Trine'], orb: 5 } }).patterns!.orb).toBe(5);
+});
+
+test.each([
+  [0, 2, 4, .2], [1, 0, 4, .2], [1, 2, 4, .05], [.5, 2, 4, .125],
+  [1, 4, 4, 0], [1, 0, 0, .2],
+])('renders weighting %s and deviation %s within tolerance %s at alpha %s', (weight, deviation, tolerance, expected) => {
+  let view!: ReturnType<typeof create>;
+  act(() => { view = create(<Probe base={.2} weight={weight} deviation={deviation} tolerance={tolerance} />); });
+  const path = view.root.findAll(node => (node.type as unknown) === 'skPath')[0];
+  const color = resolveColorValue({ source: 'hue', value: config.aspectOverlayStyle.aspectHues.trine, layer: 'primitive' }, theme);
+  expect(path.props.color).toBe(withAlphaFactor(color, expected));
+  act(() => view.unmount());
+});
+test('base zero hides fills, weighting off retains base, and source alpha is multiplied', () => {
+  expect(patternFillOpacity(0, 1, 0, 0)).toBe(0);
+  expect(patternFillOpacity(.08, 0, 5, 5)).toBe(.08);
+  const style = { ...config.aspectOverlayStyle, patternOpacity: .2, patternOrbWeighting: 1, opacity: .9,
+    colorMode: 'monochrome' as const, monochromeColor: { source: 'hex' as const, value: '#ff000080', layer: 'ic' as const } };
+  expect(patternFillColor('Grand Trine', style, theme, 2, 4)).toBe(withAlphaFactor('#ff000080', .05));
 });

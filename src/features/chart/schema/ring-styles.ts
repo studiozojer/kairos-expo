@@ -597,8 +597,11 @@ export interface AspectOverlayStyle {
   monochromeColor: ColorValue;
   /** Thickness at exactness; orb weighting can only make it thinner. */
   lineWidth: number;
-  /** Expo extension: 0 = uniform, 1 = full squared orb falloff. */
+  /** Expo extension: 0 = uniform, 1 = squared orb falloff, up to 3 = steeper falloff. */
   orbWeighting: number;
+  /** Expo extensions: pattern fill at exactness and squared orb falloff. */
+  patternOpacity: number;
+  patternOrbWeighting: number;
   opacity: number;
   useDashedForSeparating: boolean;
   dashPattern: number[];
@@ -616,7 +619,9 @@ export const ASPECT_OVERLAY_STYLE_DEFAULT: AspectOverlayStyle = {
   colorMode: "monochrome", // DRIFT RECORD: Rust styles.rs:594 says ByType (Phase 4 Axis 3); Swift decode default is monochrome — Swift wins.
   monochromeColor: { source: "semantic", value: "tertiary", layer: "primitive" },
   lineWidth: 0.5,
-  orbWeighting: 0,
+  orbWeighting: 1,
+  patternOpacity: 0.08,
+  patternOrbWeighting: 0,
   opacity: 0.4,
   useDashedForSeparating: false,
   dashPattern: [4.0, 4.0],
@@ -644,7 +649,9 @@ export function parseAspectOverlayStyle(v: unknown): AspectOverlayStyle {
         ? { ...d.monochromeColor }
         : parseColorValue(o.monochromeColor),
     lineWidth: num(o.lineWidth, d.lineWidth),
-    orbWeighting: Math.max(0, Math.min(1, num(o.orbWeighting, d.orbWeighting))),
+    orbWeighting: Math.max(0, Math.min(3, num(o.orbWeighting, d.orbWeighting))),
+    patternOpacity: Math.max(0, Math.min(1, num(o.patternOpacity, d.patternOpacity))),
+    patternOrbWeighting: Math.max(0, Math.min(1, num(o.patternOrbWeighting, d.patternOrbWeighting))),
     opacity: num(o.opacity, d.opacity),
     useDashedForSeparating: bool(o.useDashedForSeparating, d.useDashedForSeparating),
     dashPattern: numArr(o.dashPattern, d.dashPattern),
@@ -664,6 +671,8 @@ export function serializeAspectOverlayStyle(s: AspectOverlayStyle): unknown {
     monochromeColor: serializeColorValue(s.monochromeColor),
     lineWidth: s.lineWidth,
     orbWeighting: s.orbWeighting,
+    patternOpacity: s.patternOpacity,
+    patternOrbWeighting: s.patternOrbWeighting,
     opacity: s.opacity,
     useDashedForSeparating: s.useDashedForSeparating,
     dashPattern: [...s.dashPattern],
