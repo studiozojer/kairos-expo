@@ -14,6 +14,8 @@ export interface PatternPoint {
 export interface AspectPattern {
     name: PatternName;
     points: PatternPoint[];
+    /** Largest deviation among all required relationships in the best matching assignment. */
+    maxOrb: number;
 }
 const distance = (a: number, b: number) => Math.abs(((a - b) % 360 + 540) % 360 - 180);
 export function findAspectPatterns(points: readonly PatternPoint[], enabled: readonly string[], orb: number): AspectPattern[] {
@@ -25,25 +27,30 @@ export function findAspectPatterns(points: readonly PatternPoint[], enabled: rea
         if (!enabled.includes(name))
             continue;
         const angles = TEMPLATES[name];
-        const seen = new Set<string>();
-        const visit = (chosen: PatternPoint[]) => {
+        const seen = new Map<string, AspectPattern>();
+        const visit = (chosen: PatternPoint[], maxOrb: number) => {
             if (chosen.length === angles.length) {
                 const key = JSON.stringify(chosen.map(p => p.id).sort());
-                if (!seen.has(key)) {
-                    seen.add(key);
-                    result.push({ name, points: [...chosen] });
+                const existing = seen.get(key);
+                if (existing) {
+                    existing.maxOrb = Math.min(existing.maxOrb, maxOrb);
+                } else {
+                    const pattern = { name, points: [...chosen], maxOrb };
+                    seen.set(key, pattern);
+                    result.push(pattern);
                 }
                 return;
             }
             for (const point of unique) {
                 if (chosen.some(p => p.id === point.id))
                     continue;
-                if (!chosen.every((p, i) => Math.abs(distance(point.longitude, p.longitude) - distance(angles[chosen.length], angles[i])) <= orb + 1e-9))
+                const deviations = chosen.map((p, i) => Math.abs(distance(point.longitude, p.longitude) - distance(angles[chosen.length], angles[i])));
+                if (!deviations.every(deviation => deviation <= orb + 1e-9))
                     continue;
-                visit([...chosen, point]);
+                visit([...chosen, point], Math.max(maxOrb, ...deviations.map(d => d <= 1e-9 ? 0 : d)));
             }
         };
-        visit([]);
+        visit([], 0);
     }
     return result;
 }

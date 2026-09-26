@@ -24,7 +24,15 @@ test('zero tolerance accepts exactness without NaN and invalid values are bounde
   expect(aspectLineWidth(2, 1, 0, 0)).toBe(2);
   expect(aspectLineWidth(2, 1, 1, 0)).toBe(.15);
   expect(aspectLineWidth(2, -1, 4, 8)).toBe(2);
-  expect(aspectLineWidth(2, 2, 4, 8)).toBe(.5);
+  expect(aspectLineWidth(2, 4, 4, 8)).toBe(.15);
   expect(aspectLineWidth(2, NaN, 4, 8)).toBe(2);
   expect(aspectLineWidth(2, 1, NaN, 8)).toBe(2);
+});
+
+test('100–300% steepens continuously without increasing exact widths or going negative', () => {
+  for (const weighting of [1, 1.5, 2, 3]) {
+    expect(aspectLineWidth(2, weighting, 0, 8)).toBe(2);
+    expect(aspectLineWidth(2, weighting, 2, 8)).toBeCloseTo(2 * .75 ** (2 * weighting));
+    expect(aspectLineWidth(2, weighting, 8, 8)).toBe(.15);
+  }
 });

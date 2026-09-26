@@ -15,10 +15,15 @@ const DEFINING_ASPECT = { 'Grand Trine': 'trine', 'T-square': 'square', 'Grand C
     Yod: 'quincunx', Kite: 'trine',
     // Expo-only pattern: use the harmonious trine color, as for a kite.
     'Mystic Rectangle': 'trine' } as const satisfies Record<PatternName, string>;
-export function patternFillColor(name: PatternName, style: AspectOverlayStyle, theme: Theme) {
+/** Patterns may fade fully at the tolerance boundary; base zero always hides them. */
+export function patternFillOpacity(base: number, weight: number, maxOrb: number, allowedOrb: number) {
+    const closeness = maxOrb === 0 ? 1 : allowedOrb > 0 ? Math.max(0, 1 - maxOrb / allowedOrb) : 0;
+    return base * (1 - weight + weight * closeness * closeness);
+}
+export function patternFillColor(name: PatternName, style: AspectOverlayStyle, theme: Theme, maxOrb = 0, allowedOrb = DEFAULT_PATTERN_ORB) {
     const base = style.colorMode === 'monochrome' ? resolveColorValue(style.monochromeColor, theme)
         : resolveColorValue({ source: 'hue', value: style.aspectHues[DEFINING_ASPECT[name]], layer: 'primitive' }, theme);
-    return withAlphaFactor(base, .08);
+    return withAlphaFactor(base, patternFillOpacity(style.patternOpacity, style.patternOrbWeighting, maxOrb, allowedOrb));
 }
 export function PatternOverlay({ config, layout, selectedIdentifiers = EMPTY_SELECTION }: {
     config: ChartRenderingConfiguration;
@@ -44,10 +49,10 @@ export function PatternOverlay({ config, layout, selectedIdentifiers = EMPTY_SEL
                     builder.lineTo(point.x, point.y);
             });
             builder.close();
-            return { bodyIDs: pattern.points.map(p => p.id), name: pattern.name, key: `${pattern.name}:${pattern.points.map(p => p.id).sort().join(':')}`, path: builder.build() };
+            return { maxOrb: pattern.maxOrb, allowedOrb: options.orb, bodyIDs: pattern.points.map(p => p.id), name: pattern.name, key: `${pattern.name}:${pattern.points.map(p => p.id).sort().join(':')}`, path: builder.build() };
         });
     }, [config.rings, config.aspects, layout]);
-    return <Group>{paths.filter(pattern => selectedIdentifiers.size === 0 || pattern.bodyIDs.every(id => selectedIdentifiers.has(id))).map(({ key, path, name }) =>
-        <Path key={key} path={path} style="fill" color={patternFillColor(name, layout.aspectOverlayStyle, theme)} />
+    return <Group>{paths.filter(pattern => selectedIdentifiers.size === 0 || pattern.bodyIDs.every(id => selectedIdentifiers.has(id))).map(({ key, path, name, maxOrb, allowedOrb }) =>
+        <Path key={key} path={path} style="fill" color={patternFillColor(name, layout.aspectOverlayStyle, theme, maxOrb, allowedOrb)} />
     )}</Group>;
 }

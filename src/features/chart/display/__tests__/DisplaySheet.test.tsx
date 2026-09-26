@@ -27,7 +27,7 @@ it('navigates the agreed pages, applies global labels, and keeps preview size fi
   act(() => root.findAllByType(Toggle).find(n => n.props.label === 'Minutes')!.props.onChange(true));
   expect(planetStyles(onChange.mock.calls[0][0]).every(s => s.showMinuteText)).toBe(true);
   act(() => root.findByType(SegmentedControl).props.onValueChange('Style'));
-  expect(root.findAllByType(LinkRow).map(n => n.props.label)).toEqual(['Aspect line styling', 'Selection']);
+  expect(root.findAllByType(LinkRow).map(n => n.props.label)).toEqual(['Aspect line styling', 'Aspect patterns', 'Selection']);
   act(() => fireGestureHandler(getByGestureTestId('preview-tap')));
   expect(root.findByType(ChartWheel).props.size).toBe(size);
   act(() => renderer.unmount());
@@ -140,7 +140,8 @@ it('edits base thickness and percentage independently and previews the updated s
   act(() => root.findByType(SegmentedControl).props.onValueChange('Style'));
   act(() => root.findAllByType(LinkRow).find(n => n.props.label === 'Aspect line styling')!.props.onPress());
   const row = (label: string) => root.findAllByType(NumberRow).find(n => n.props.label === label)!;
-  expect(row('Orb weighting').props.value).toBe(0);
+  expect(row('Orb weighting').props.value).toBe(100);
+  expect(row('Orb weighting').props.max).toBe(300);
   act(() => row('Base thickness').props.onChange(2));
   act(() => row('Orb weighting').props.onChange(75));
   expect(row('Base thickness').props.value).toBe(2);
@@ -148,5 +149,27 @@ it('edits base thickness and percentage independently and previews the updated s
   expect(root.findByType(ChartWheel).props.config.aspectOverlayStyle).toMatchObject({ lineWidth: 2, orbWeighting: .75 });
   act(() => row('Orb weighting').props.onChange(0));
   expect(root.findByType(ChartWheel).props.config.aspectOverlayStyle).toMatchObject({ lineWidth: 2, orbWeighting: 0 });
+  act(() => renderer.unmount());
+});
+
+it('previews independent pattern base opacity and orb weighting', () => {
+  const preset = bundledPreset('classic')!.preset;
+  function Editor() {
+    const [value, setValue] = React.useState(preset);
+    return <DisplaySheet visible preset={value} presetName="classic" bodyNames={[]} config={buildConfiguration(chart as ChartCalculationResponse, value)} onChangePreset={setValue} onSelectPreset={jest.fn()} onClose={jest.fn()} />;
+  }
+  let renderer!: TestRenderer.ReactTestRenderer;
+  act(() => { renderer = TestRenderer.create(<Editor />); });
+  const root = renderer.root;
+  act(() => root.findByType(SegmentedControl).props.onValueChange('Style'));
+  act(() => root.findAllByType(LinkRow).find(n => n.props.label === 'Aspect patterns')!.props.onPress());
+  const row = (label: string) => root.findAllByType(NumberRow).find(n => n.props.label === label)!;
+  expect(row('Base opacity').props.value).toBe(8);
+  expect(row('Orb weighting').props.value).toBe(0);
+  act(() => row('Base opacity').props.onChange(20));
+  act(() => row('Orb weighting').props.onChange(75));
+  expect(root.findByType(ChartWheel).props.config.aspectOverlayStyle).toMatchObject({ patternOpacity: .2, patternOrbWeighting: .75, opacity: preset.aspectOverlay.opacity, orbWeighting: preset.aspectOverlay.orbWeighting });
+  act(() => row('Orb weighting').props.onChange(0));
+  expect(root.findByType(ChartWheel).props.config.aspectOverlayStyle).toMatchObject({ patternOpacity: .2, patternOrbWeighting: 0 });
   act(() => renderer.unmount());
 });

@@ -1,4 +1,6 @@
 import { parsePreset, type Preset } from "../schema/preset";
+import { editPresetDocument, presetDocument } from "./presetDocument";
+import { updatePlanetStyles } from "./sharedControls";
 
 import classic from "../fixtures/presets/classic.json";
 import minimal from "../fixtures/presets/minimal.json";
@@ -48,10 +50,16 @@ export const BUNDLED_PRESET_NAMES: readonly string[] = [
 
 /** Parse one bundled preset by name (undefined for an unknown name). */
 export function bundledPreset(name: string): BundledPreset | undefined {
-  const raw = RAW[name];
+  const raw = bundledPresetSource(name);
   if (raw === undefined) return undefined;
   return { name, preset: parsePreset(raw) };
 }
 
-/** Untouched wire document, retained by the editor for lossless field edits. */
-export function bundledPresetSource(name: string): unknown { return RAW[name]; }
+/** Expo product defaults layered onto the untouched Swift reference fixtures. */
+export function bundledPresetSource(name: string): unknown {
+  const raw = RAW[name];
+  if (raw === undefined) return undefined;
+  const document = presetDocument(raw);
+  const preset = updatePlanetStyles(document.preset, { showMinuteText: false, showSignGlyph: true });
+  return editPresetDocument(document, { ...preset, aspects: { ...preset.aspects, showPatterns: true } }).source;
+}
