@@ -7,7 +7,7 @@ import { fireGestureHandler, getByGestureTestId } from 'react-native-gesture-han
 import TestRenderer, { act } from 'react-test-renderer';
 import { DisplaySheet } from '../DisplaySheet';
 import { ChartWheel } from '../../render/ChartWheel';
-import { Choices, LinkRow, Toggle } from '../controls';
+import { Choices, LinkRow, NumberRow, Toggle } from '../controls';
 import { bundledPreset } from '../presets';
 import { buildConfiguration } from '../../config/buildConfiguration';
 import type { ChartCalculationResponse } from '../../config/engine-types';
@@ -124,5 +124,29 @@ it('selects presets from the native menu without replacing the active settings s
   act(() => menu.props.onPressAction({ nativeEvent: { event: 'minimal' } }));
   expect(onSelectPreset).toHaveBeenCalledWith('minimal');
   expect(root.findAllByType(Choices).map(n => n.props.label)).toEqual(['Color', 'Shape']);
+  act(() => renderer.unmount());
+});
+
+
+it('edits base thickness and percentage independently and previews the updated style', () => {
+  const preset = bundledPreset('classic')!.preset;
+  function Editor() {
+    const [value, setValue] = React.useState(preset);
+    return <DisplaySheet visible preset={value} presetName="classic" bodyNames={[]} config={buildConfiguration(chart as ChartCalculationResponse, value)} onChangePreset={setValue} onSelectPreset={jest.fn()} onClose={jest.fn()} />;
+  }
+  let renderer!: TestRenderer.ReactTestRenderer;
+  act(() => { renderer = TestRenderer.create(<Editor />); });
+  const root = renderer.root;
+  act(() => root.findByType(SegmentedControl).props.onValueChange('Style'));
+  act(() => root.findAllByType(LinkRow).find(n => n.props.label === 'Aspect line styling')!.props.onPress());
+  const row = (label: string) => root.findAllByType(NumberRow).find(n => n.props.label === label)!;
+  expect(row('Orb weighting').props.value).toBe(0);
+  act(() => row('Base thickness').props.onChange(2));
+  act(() => row('Orb weighting').props.onChange(75));
+  expect(row('Base thickness').props.value).toBe(2);
+  expect(row('Orb weighting').props.value).toBe(75);
+  expect(root.findByType(ChartWheel).props.config.aspectOverlayStyle).toMatchObject({ lineWidth: 2, orbWeighting: .75 });
+  act(() => row('Orb weighting').props.onChange(0));
+  expect(root.findByType(ChartWheel).props.config.aspectOverlayStyle).toMatchObject({ lineWidth: 2, orbWeighting: 0 });
   act(() => renderer.unmount());
 });

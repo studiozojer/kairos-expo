@@ -163,6 +163,11 @@ export interface EvaluateAspectFilterParams {
   toRing: number;
 }
 
+/** Shared by filtering and thickness so user-edited tolerances agree. */
+export function allowedAspectOrb(aspects: AspectConfiguration, type: ResolvedAspectType): number {
+  return aspects.orbs.orbs[type.wireName] ?? ASPECT_TYPES[type.key].defaultOrb;
+}
+
 /**
  * Evaluate whether an aspect should be rendered, per the ten filters in
  * `AspectFilterResult.evaluate` (Swift order preserved exactly).
@@ -193,8 +198,7 @@ export function evaluateAspectFilter(p: EvaluateAspectFilterParams): AspectFilte
 
   // FILTER 6: orb tolerance — configured orb, falling back to the type's
   // default (Swift `AspectConfiguration.orb(for:)`).
-  const allowedOrb =
-    p.aspects.orbs.orbs[aspectType.wireName] ?? ASPECT_TYPES[aspectType.key].defaultOrb;
+  const allowedOrb = allowedAspectOrb(p.aspects, aspectType);
   if (Math.abs(p.aspect.orb) > allowedOrb) return skip("orb_exceeds_allowed");
 
   // FILTER 7: minimum strength (style setting).

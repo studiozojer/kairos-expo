@@ -27,6 +27,7 @@ import type { Theme } from "@/theme";
 import type { ChartRenderingConfiguration, RingConfiguration } from "../config/ChartRenderingConfiguration";
 import type { AspectEdgeDTO, Placement } from "../config/engine-types";
 import {
+  allowedAspectOrb,
   calculateBezierControlPoint,
   evaluateAspectFilter,
   type ResolvedAspectType,
@@ -35,6 +36,7 @@ import type { Point } from "../geometry/types";
 import type { ChartColors } from "../schema/core-types";
 import type { AspectHues, AspectOverlayStyle } from "../schema/ring-styles";
 import { celestialBodyColor, resolveColorValue, useChartPaintTheme, withAlphaFactor } from "./colors";
+import { aspectLineWidth } from "./aspectLineWidth";
 import type { WheelLayout } from "./useWheelLayout";
 
 // SwiftUI's `.red` (used by iOS's `drawConjunctionMarker`) is the adaptive
@@ -202,10 +204,12 @@ export function AspectOverlay({ config, layout, selectedIdentifiers = EMPTY_SELE
         const toPoint = coordinates.pointForDegree(va.toPlacement.longitude, aspectRadius);
         const key = `${va.edge.from}-${va.edge.to}-${va.aspectType.wireName}`;
 
+        const lineWidth = aspectLineWidth(style.lineWidth, style.orbWeighting, va.edge.orb, allowedAspectOrb(config.aspects, va.aspectType));
+
         // Conjunctions draw as a small dot at the midpoint, not a line
         // (Swift `drawConjunctionMarker`).
         if (va.aspectType.key === "conjunction") {
-          const dotRadius = style.lineWidth * 2;
+          const dotRadius = lineWidth * 2;
           return (
             <Circle
               key={key}
@@ -234,12 +238,12 @@ export function AspectOverlay({ config, layout, selectedIdentifiers = EMPTY_SELE
         const dashed = style.useDashedForSeparating && !va.edge.is_applying;
         if (dashed) {
           return (
-            <Path key={key} path={path} style="stroke" strokeWidth={style.lineWidth} color={color}>
+            <Path key={key} path={path} style="stroke" strokeWidth={lineWidth} color={color}>
               <DashPathEffect intervals={style.dashPattern} />
             </Path>
           );
         }
-        return <Path key={key} path={path} style="stroke" strokeWidth={style.lineWidth} color={color} />;
+        return <Path key={key} path={path} style="stroke" strokeWidth={lineWidth} color={color} />;
       })}
     </Group>
   );

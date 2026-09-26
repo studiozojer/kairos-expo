@@ -595,7 +595,10 @@ export interface AspectOverlayStyle {
   $type: typeof ASPECTS_STYLE_TYPE;
   colorMode: AspectColorMode;
   monochromeColor: ColorValue;
+  /** Thickness at exactness; orb weighting can only make it thinner. */
   lineWidth: number;
+  /** Expo extension: 0 = uniform, 1 = full squared orb falloff. */
+  orbWeighting: number;
   opacity: number;
   useDashedForSeparating: boolean;
   dashPattern: number[];
@@ -613,6 +616,7 @@ export const ASPECT_OVERLAY_STYLE_DEFAULT: AspectOverlayStyle = {
   colorMode: "monochrome", // DRIFT RECORD: Rust styles.rs:594 says ByType (Phase 4 Axis 3); Swift decode default is monochrome — Swift wins.
   monochromeColor: { source: "semantic", value: "tertiary", layer: "primitive" },
   lineWidth: 0.5,
+  orbWeighting: 0,
   opacity: 0.4,
   useDashedForSeparating: false,
   dashPattern: [4.0, 4.0],
@@ -640,6 +644,7 @@ export function parseAspectOverlayStyle(v: unknown): AspectOverlayStyle {
         ? { ...d.monochromeColor }
         : parseColorValue(o.monochromeColor),
     lineWidth: num(o.lineWidth, d.lineWidth),
+    orbWeighting: Math.max(0, Math.min(1, num(o.orbWeighting, d.orbWeighting))),
     opacity: num(o.opacity, d.opacity),
     useDashedForSeparating: bool(o.useDashedForSeparating, d.useDashedForSeparating),
     dashPattern: numArr(o.dashPattern, d.dashPattern),
@@ -658,6 +663,7 @@ export function serializeAspectOverlayStyle(s: AspectOverlayStyle): unknown {
     colorMode: s.colorMode,
     monochromeColor: serializeColorValue(s.monochromeColor),
     lineWidth: s.lineWidth,
+    orbWeighting: s.orbWeighting,
     opacity: s.opacity,
     useDashedForSeparating: s.useDashedForSeparating,
     dashPattern: [...s.dashPattern],
