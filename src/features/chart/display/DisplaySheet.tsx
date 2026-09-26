@@ -108,7 +108,9 @@ function DisplayEditor({ preset, presetName, bodyNames, config, onChangePreset: 
     <Choices label="Color" value={preset.aspectOverlay.colorMode} options={[["byType", "Aspect"], ["byCelestial", "Planet"], ["monochrome", "One color"]]} onChange={v => line({ colorMode: v })}/>
     <Choices label="Shape" value={preset.aspectOverlay.renderMode} options={[["straight", "Straight"], ["bezier", "Curved"]]} onChange={v => line({ renderMode: v })}/>
     {preset.aspectOverlay.renderMode === 'bezier' && <NumberRow label="Curve strength" value={preset.aspectOverlay.bezierCurveStrength} onChange={v => line({ bezierCurveStrength: v })} max={1} step={.05} suffix=""/>}
-    <NumberRow label="Line width" value={preset.aspectOverlay.lineWidth} onChange={v => line({ lineWidth: v })} min={.25} max={4} step={.25} suffix=""/>
+    <NumberRow label="Base thickness" value={preset.aspectOverlay.lineWidth} onChange={v => line({ lineWidth: v })} min={.25} max={4} step={.25} suffix=""/>
+    <NumberRow label="Orb weighting" value={preset.aspectOverlay.orbWeighting * 100} onChange={v => line({ orbWeighting: v / 100 })} max={100} step={5} suffix="%"/>
+    <Note>Base thickness is the width of an exact aspect. Orb weighting makes wider aspects thinner: 0% keeps every line uniform; 100% gives the strongest contrast. A small minimum keeps lines visible.</Note>
     <NumberRow label="Opacity" value={preset.aspectOverlay.opacity * 100} onChange={v => line({ opacity: v / 100 })} max={100} step={5} suffix="%"/>
     <Toggle label="Dash separating aspects" value={preset.aspectOverlay.useDashedForSeparating} onChange={v => line({ useDashedForSeparating: v })}/>
   </Section>;

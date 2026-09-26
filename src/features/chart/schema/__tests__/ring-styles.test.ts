@@ -431,6 +431,7 @@ test("parses classic.json preset-level aspectOverlay shape under the aspects $ty
     colorMode: "byType",
     monochromeColor: { source: "semantic", value: "tertiary", layer: "primitive" },
     lineWidth: 0.5,
+    orbWeighting: 0,
     opacity: 0.4,
     useDashedForSeparating: false,
     dashPattern: [4, 4],
