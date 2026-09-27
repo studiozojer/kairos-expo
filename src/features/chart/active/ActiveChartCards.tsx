@@ -2,7 +2,7 @@ import { useLayoutEffect, useState } from 'react';
 import { Pressable, Text, View, useWindowDimensions, type ViewProps } from 'react-native';
 import { MenuView, type MenuAction } from '@react-native-menu/menu';
 import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
-import Animated, { ReduceMotion, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import Animated, { ReduceMotion, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/theme';
 import { useActiveCharts, type ActiveCalculation } from './ActiveChartsContext';
@@ -46,7 +46,7 @@ function CardSlot({ chart, index, ids, width, height, session }: {
   const liftStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: x.value }, { translateY: y.value }, { scale: dragging.value === chart.id ? 1.05 : 1 }],
     shadowOpacity: dragging.value === chart.id ? 0.2 : 0,
-    opacity: dismissed.value ? 0 : withSpring(dragging.value === chart.id && armed.value ? 0.7 : 1, { duration: 300, dampingRatio: 0.7, reduceMotion: reducedMotion.value ? ReduceMotion.Always : ReduceMotion.Never }),
+    opacity: dismissed.value ? 0 : withTiming(dragging.value === chart.id && armed.value ? 0.7 : 1, { duration: 160, reduceMotion: reducedMotion.value ? ReduceMotion.Always : ReduceMotion.Never }),
   }));
   const insertionStyle = useAnimatedStyle(() => {
     const source = ids.indexOf(dragging.value);

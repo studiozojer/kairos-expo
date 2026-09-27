@@ -33,7 +33,7 @@ jest.mock('react-native-reanimated', () => {
     useSharedValue: (initial: unknown) => React.useRef({ value: initial }).current,
     useAnimatedReaction: () => {}, withTiming: (value: number) => value,
     useAnimatedStyle: (calculate: () => unknown) => calculate(),
-    runOnJS: (fn: unknown) => fn, cancelAnimation: () => {}, withSpring: (value: number) => value,
+    runOnJS: (fn: unknown) => fn, cancelAnimation: () => {}, Easing: { linear: (t: number) => t }, withSpring: (value: number) => value,
   };
 });
 function Cards() {
