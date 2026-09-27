@@ -39,7 +39,7 @@ export function PatternOverlay({ config, layout, selectedIdentifiers = EMPTY_SEL
         const radius = layout.geometry.innerRadiusForRing(layout.ringThicknesses.length - 1);
         if (radius <= 0)
             return [];
-        return findAspectPatterns(points, options.enabledTypes, options.orb).map(pattern => {
+        return findAspectPatterns(points, options.enabledTypes, options.orb, config.aspects.showFalseAspects).map(pattern => {
             const builder = Skia.PathBuilder.Make();
             [...pattern.points].sort((a, b) => a.longitude - b.longitude).forEach((p, i) => {
                 const point = layout.coordinates.pointForDegree(p.longitude, radius);

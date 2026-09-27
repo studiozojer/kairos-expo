@@ -36,3 +36,18 @@ it('treats floating-point noise in an exact rotated pattern as zero orb', () => 
   const pattern = findAspectPatterns(points([.123, 120.123, 240.123]), ['Grand Trine'], 0)[0];
   expect(pattern.maxOrb).toBe(0);
 });
+
+it.each([
+  ['Grand Trine', [0, 120, 240]], ['T-square', [0, 90, 180]],
+  ['Grand Cross', [0, 90, 180, 270]], ['Yod', [0, 150, 210]],
+  ['Kite', [0, 120, 180, 240]], ['Mystic Rectangle', [0, 60, 180, 240]],
+] as const)('false-aspect filtering rejects out-of-sign %s but retains in-sign patterns', (name, degrees) => {
+  const outOfSign = points(degrees.map((d, i) => (d + (i === 0 ? 359 : 1)) % 360));
+  // Cross-chart identities must obey the same sign rule.
+  outOfSign.forEach((p, i) => { p.id = `chart-${i % 2}:${p.id}`; });
+  expect(findAspectPatterns(outOfSign, [name], 5, true)).toHaveLength(1);
+  expect(findAspectPatterns(outOfSign, [name], 5, false)).toEqual([]);
+  const inSign = points(degrees.map(d => d + 1));
+  expect(findAspectPatterns(inSign, [name], 5, false)).toHaveLength(1);
+  expect(findAspectPatterns([...outOfSign].reverse(), [name], 5, false)).toEqual([]);
+});

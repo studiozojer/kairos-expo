@@ -1,3 +1,5 @@
+import { isFalseAspect } from './AspectFilter';
+
 export const PATTERN_NAMES = ['Grand Trine', 'T-square', 'Grand Cross', 'Yod', 'Kite', 'Mystic Rectangle'] as const;
 export type PatternName = typeof PATTERN_NAMES[number];
 /** Ideal longitudes encode every required pairwise relation, including diagonals.
@@ -18,7 +20,7 @@ export interface AspectPattern {
     maxOrb: number;
 }
 const distance = (a: number, b: number) => Math.abs(((a - b) % 360 + 540) % 360 - 180);
-export function findAspectPatterns(points: readonly PatternPoint[], enabled: readonly string[], orb: number): AspectPattern[] {
+export function findAspectPatterns(points: readonly PatternPoint[], enabled: readonly string[], orb: number, showFalseAspects = true): AspectPattern[] {
     if (!Number.isFinite(orb) || orb < 0 || orb > 15)
         return [];
     const unique = [...new Map(points.filter(p => Number.isFinite(p.longitude)).map(p => [p.id, p])).values()];
@@ -43,6 +45,11 @@ export function findAspectPatterns(points: readonly PatternPoint[], enabled: rea
             }
             for (const point of unique) {
                 if (chosen.some(p => p.id === point.id))
+                    continue;
+                // Check the template relationship before deduplication, so only valid
+                // assignments contribute a pattern or its best orb.
+                if (!showFalseAspects && chosen.some((p, i) =>
+                    isFalseAspect(distance(angles[chosen.length], angles[i]), p.longitude, point.longitude)))
                     continue;
                 const deviations = chosen.map((p, i) => Math.abs(distance(point.longitude, p.longitude) - distance(angles[chosen.length], angles[i])));
                 if (!deviations.every(deviation => deviation <= orb + 1e-9))
