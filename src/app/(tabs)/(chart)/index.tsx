@@ -3,6 +3,9 @@ import { ActivityIndicator, Pressable, Text, View, useWindowDimensions } from 'r
 import { useIsFocused } from 'expo-router';
 import { useCardDragSession } from '@/features/chart/active/useCardDragSession';
 import { ChartPutAwayOverlay } from '@/features/chart/active/ChartPutAwayOverlay';
+import { MarkingMenuProvider } from '@/features/chart/marking/MarkingMenu';
+import { ChartToolbar } from '@/features/chart/marking/ChartToolbar';
+import { useChartScreenshot } from '@/features/chart/marking/useChartScreenshot';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/theme';
@@ -32,6 +35,9 @@ export default function ChartHome() {
   const { width } = viewport;
   const screen = useRef<View>(null);
   const focused = useIsFocused();
+  const [menuActive, setMenuActive] = useState(false);
+  const [orientationMode, setOrientationMode] = useState<"static" | "ascendant">("static");
+  const { capturing, capture } = useChartScreenshot(screen);
   const [windowRect, setWindowRect] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const [stepperTop, setStepperTop] = useState(window.height);
   const [chartArea, setChartArea] = useState({ y: 0, height: 0 });
@@ -44,7 +50,7 @@ export default function ChartHome() {
   const preset = document.preset;
   const [presetName, setPresetName] = useState('classic');
   const [sheetOpen, setSheetOpen] = useState(false);
-  const cardDrag = useCardDragSession({ ids: session.active.map(chart => chart.id), viewport: windowRect, enabled: focused && !sheetOpen && !settingsOpen,
+  const cardDrag = useCardDragSession({ ids: session.active.map(chart => chart.id), viewport: windowRect, enabled: focused && !sheetOpen && !settingsOpen && !menuActive && !capturing,
     onDrop: drop => { if (drop.kind === 'remove') session.remove(drop.id); else session.moveTo(drop.id, drop.targetId); } });
 
   const bodyNames = useMemo(() => [...new Set(session.active.flatMap(item => {
@@ -52,7 +58,7 @@ export default function ChartHome() {
     return calculation ? bodyChoices(calculation.chart) : [];
   }))].sort(), [session.active, session.calculations]);
 
-  const { config, previousArrangement } = useActiveConfiguration(session.active, session.calculations, preset);
+  const { config, previousArrangement } = useActiveConfiguration(session.active, session.calculations, preset, orientationMode);
 
   const selectPreset = (name: string) => {
     const next = bundledPreset(name);
@@ -62,7 +68,8 @@ export default function ChartHome() {
   };
 
   return (
-    <View ref={screen} onLayout={event => {
+    <MarkingMenuProvider enabled={focused && !sheetOpen && !settingsOpen && !capturing} onActiveChange={setMenuActive}>
+    <View ref={screen} collapsable={false} onLayout={event => {
       const { width, height } = event.nativeEvent.layout; setViewport({ width, height });
       cardDrag.invalidate();
       screen.current?.measureInWindow((x, y, width, height) => setWindowRect({ x, y, width, height }));
@@ -72,27 +79,12 @@ export default function ChartHome() {
           without clipping it. Cards and the stepper bound the resting slot. */}
       {config && wheelSize > 0 && <InteractiveChartWheel config={config} size={wheelSize} viewport={viewport}
         baseCenter={{ x: width / 2, y: chartArea.y + wheelY + wheelSize / 2 }}
-        selectionStyle={preset.selection} enabled={!sheetOpen && !settingsOpen && !previousArrangement}
+        selectionStyle={preset.selection} enabled={!sheetOpen && !settingsOpen && !menuActive && !capturing && !previousArrangement}
         onHideBody={name => setDocument(current => editPresetDocument(current, toggleBody(current.preset, name, false)))} />}
-      <View pointerEvents="box-none"
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingHorizontal: theme.space.lg,
-          paddingTop: insets.top + theme.space.sm,
-        }}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Chart settings" disabled={!loaded || !session.targetId} onPress={() => setSettingsOpen(true)}
-          style={{ minHeight: 44, justifyContent: 'center' }}>
-          <Text style={[theme.type.whyteSm, { color: theme.color.txAccent }]}>Chart settings</Text>
-        </Pressable>
-        <Text numberOfLines={1} style={[theme.type.fraktionXxs, { color: theme.color.txAccent, flex: 1, textAlign: 'center', marginHorizontal: theme.space.sm }]}>
-          {session.active.find(item => item.id === session.targetId)?.name ?? 'Chart'}
-        </Text>
-        <Pressable accessibilityRole="button" disabled={!config || previousArrangement} onPress={() => setSheetOpen(true)} hitSlop={8}>
-          <Text style={[theme.type.whyteSm, { color: theme.color.txAccent }]}>Display</Text>
-        </Pressable>
-      </View>
+      <ChartToolbar title={session.active.find(item => item.id === session.targetId)?.name ?? 'Chart'} topInset={insets.top}
+        locked={orientationMode === 'static'} settingsEnabled={loaded && !!session.targetId} chartEnabled={!!config && !previousArrangement}
+        capturing={capturing} onSettings={() => setSettingsOpen(true)} onDisplay={() => setSheetOpen(true)}
+        onLock={() => setOrientationMode(mode => mode === 'static' ? 'ascendant' : 'static')} onScreenshot={() => { void capture(); }} />
 
       <ActiveChartCards session={cardDrag} />
       {(session.loadError || session.saveError) && <Pressable accessibilityRole="button"
@@ -140,5 +132,6 @@ export default function ChartHome() {
         onClose={() => setSheetOpen(false)}
       />}
     </View>
+    </MarkingMenuProvider>
   );
 }
