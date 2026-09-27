@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Modal, Platform, Pressable, Text, View } from 'react-native';
 import { Canvas, Path, Skia } from '@shopify/react-native-skia';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -13,7 +13,18 @@ export function ChartSheet({ visible, onClose, children }: {
   visible: boolean; onClose: () => void; children: ReactNode;
 }) {
   const t = useTheme();
-  return <Modal backdropColor={t.color.bgSolidBase} visible={visible} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={onClose}>
+  const [swipeDismissed, setSwipeDismissed] = useState(false);
+  // On iOS, allowSwipeDismissal sends onRequestClose AFTER UIKit finishes
+  // dismissing. RN 0.86 still processes visible=false as a dismissal; do not
+  // request a second animation while it releases the modal's touch ownership.
+  const requestClose = () => {
+    if (Platform.OS === 'ios') setSwipeDismissed(true);
+    onClose();
+  };
+  return <Modal backdropColor={t.color.bgSolidBase} visible={visible}
+    animationType={!visible && swipeDismissed ? 'none' : 'slide'}
+    onShow={() => setSwipeDismissed(false)}
+    presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={requestClose}>
     <GestureHandlerRootView style={{ flex: 1 }}><SafeAreaProvider>{children}</SafeAreaProvider></GestureHandlerRootView>
   </Modal>;
 }
