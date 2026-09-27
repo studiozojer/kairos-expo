@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import { ChartSheet } from '../../components/ChartSheet';
+import { Modal } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { AppState, Text, View, type AppStateStatus } from 'react-native';
 import { MarkingMenuProvider, MarkingMenuButton } from '../MarkingMenu';
@@ -83,4 +86,29 @@ test('dragging back to the center and adding a second finger never become taps',
   act(() => button().props.onResponderStart(touch(100, 100, 2)));
   act(() => button().props.onResponderRelease(touch(100, 100, 0)));
   expect(action).not.toHaveBeenCalled();
+});
+
+test('a completed sheet swipe releases its host and permits an immediate toolbar tap', async () => {
+  const opened = jest.fn();
+  function SheetProbe() {
+    const [visible, setVisible] = useState(false);
+    return <MarkingMenuProvider enabled={!visible}>
+      <MarkingMenuButton id="test" label="Display" onPress={() => { opened(); setVisible(true); }}><Text>Display</Text></MarkingMenuButton>
+      <ChartSheet visible={visible} onClose={() => setVisible(false)}><Text>Sheet</Text></ChartSheet>
+    </MarkingMenuProvider>;
+  }
+  await act(async () => { view = create(<SheetProbe />); });
+  for (let i = 1; i <= 3; i++) {
+    expect(button().props.onStartShouldSetResponder()).toBe(true);
+    act(() => button().props.onResponderGrant(touch()));
+    act(() => button().props.onResponderRelease(touch(100, 100, 0)));
+    expect(opened).toHaveBeenCalledTimes(i);
+    expect(button().props.onStartShouldSetResponder()).toBe(false);
+    const modal = () => view.root.findByType(Modal).props;
+    act(() => modal().onShow());
+    act(() => modal().onRequestClose());
+    expect(view.root.findAllByType(Modal)).toHaveLength(0);
+    // Intentionally do not advance any timers or deliver a second onDismiss.
+    expect(button().props.onStartShouldSetResponder()).toBe(true);
+  }
 });

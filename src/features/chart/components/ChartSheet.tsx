@@ -14,15 +14,15 @@ export function ChartSheet({ visible, onClose, children }: {
 }) {
   const t = useTheme();
   const [swipeDismissed, setSwipeDismissed] = useState(false);
-  // On iOS, allowSwipeDismissal sends onRequestClose AFTER UIKit finishes
-  // dismissing. RN 0.86 still processes visible=false as a dismissal; do not
-  // request a second animation while it releases the modal's touch ownership.
+  // With allowSwipeDismissal, iOS reports a completed native dismissal here.
+  // Remove the React Modal too: visible=false alone retains its responder host
+  // until a second native onDismiss. Retain the usual lifecycle for × / Back.
   const requestClose = () => {
     if (Platform.OS === 'ios') setSwipeDismissed(true);
     onClose();
   };
-  return <Modal backdropColor={t.color.bgSolidBase} visible={visible}
-    animationType={!visible && swipeDismissed ? 'none' : 'slide'}
+  if (!visible && swipeDismissed) return null;
+  return <Modal backdropColor={t.color.bgSolidBase} visible={visible} animationType="slide"
     onShow={() => setSwipeDismissed(false)}
     presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={requestClose}>
     <GestureHandlerRootView style={{ flex: 1 }}><SafeAreaProvider>{children}</SafeAreaProvider></GestureHandlerRootView>
