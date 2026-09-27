@@ -1,3 +1,4 @@
+import { wheelFrame } from '@/features/chart/interaction/wheelFrame';
 import { ReplacementChooser } from '@/features/chart/active/ReplacementChooser';
 import { useActionRegistry } from '@/features/chart/actions/useActionRegistry';
 import { useMemo, useRef, useState } from 'react';
@@ -46,9 +47,7 @@ export default function ChartHome() {
   const [windowRect, setWindowRect] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const [stepperTop, setStepperTop] = useState(window.height);
   const [chartArea, setChartArea] = useState({ y: 0, height: 0 });
-  const chartHeight = chartArea.height;
-  const [wheelY, setWheelY] = useState(0);
-  const wheelSize = Math.min(width, Math.max(0, chartHeight - (failed.length > 0 ? 104 : 60)));
+  const { size: wheelSize, center: wheelCenter } = wheelFrame(width, chartArea, failed.length > 0);
   const insets = useSafeAreaInsets();
 
   const [document, setDocument] = useState(() => presetDocument(bundledPresetSource('classic')));
@@ -99,24 +98,21 @@ export default function ChartHome() {
       {/* The canvas fills the screen; the measured slot below locates the wheel
           without clipping it. Cards and the stepper bound the resting slot. */}
       {config && wheelSize > 0 && <InteractiveChartWheel config={config} size={wheelSize} viewport={viewport}
-        baseCenter={{ x: width / 2, y: chartArea.y + wheelY + wheelSize / 2 }}
+        baseCenter={wheelCenter}
         selectionStyle={preset.selection} enabled={!sheetOpen && !settingsOpen && !replaceNow && !menuActive && !capturing && !previousArrangement}
         onHideBody={name => setDocument(current => editPresetDocument(current, toggleBody(current.preset, name, false)))} />}
       <ChartToolbar title={session.active.find(item => item.id === session.targetId)?.name ?? 'Chart'} topInset={insets.top}
         actions={actions} />
 
-      <ActiveChartCards session={cardDrag} chartActions={actions} />
+      <ActiveChartCards session={cardDrag} chartActions={actions} updatingArrangement={previousArrangement} />
       {(session.loadError || session.saveError) && <Pressable accessibilityRole="button"
         onPress={session.loadError ? session.retryLoad : session.retryPersistence} style={{ paddingHorizontal: theme.space.lg, paddingVertical: theme.space.sm }}>
         <Text accessibilityRole="alert" style={[theme.type.whyteXs, { color: theme.color.txAccent }]}>
           {session.loadError ? 'Couldn’t restore charts. Tap to retry; stored charts have not been replaced.' : 'Changes haven’t been saved on this device. Tap to retry.'}
         </Text>
       </Pressable>}
-      {previousArrangement && <Text accessibilityRole="alert" style={[theme.type.whyteXxs, { color: theme.color.txSecondary, paddingHorizontal: theme.space.lg }]}>
-        Showing the previous wheel arrangement until all open charts calculate.
-      </Text>}
       <View pointerEvents="box-none" onLayout={event => { const { y, height } = event.nativeEvent.layout; setChartArea({ y, height }); }} style={{ flex: 1, minHeight: 0, alignItems: 'center', justifyContent: 'center' }}>
-        {config && wheelSize > 0 ? <View pointerEvents="none" onLayout={event => setWheelY(event.nativeEvent.layout.y)}
+        {config && wheelSize > 0 ? <View pointerEvents="none"
           style={{ width: wheelSize, height: wheelSize + 44 }} /> : failed.length > 0 ? (
           <View style={{ alignItems: 'center', gap: theme.space.md }}>
             <Text accessibilityRole="alert" style={[theme.type.whyteSm, { color: theme.color.txAccent }]}>
@@ -129,8 +125,8 @@ export default function ChartHome() {
         ) : config ? <Text style={[theme.type.whyteXs, { color: theme.color.txSecondary }]}>Hide chart cards to make room for the wheel.</Text> : session.loaded && session.active.length === 0 ? <Text style={[theme.type.whyteSm, { color: theme.color.txSecondary }]}>Add a saved chart or current transits to begin.</Text>
           : !session.loadError ? <ActivityIndicator accessibilityLabel="Calculating open charts" color={theme.color.txAccent} /> : null}
         {config && failed.length > 0 && <Pressable accessibilityRole="button"
-          onPress={() => failed.forEach(item => session.calculations[item.id]?.retry())} style={{ padding: theme.space.md }}>
-          <Text accessibilityRole="alert" style={[theme.type.whyteXs, { color: theme.color.txAccent }]}>Showing previous positions for {failed.map(item => item.name).join(', ')}. Retry</Text>
+          onPress={() => failed.forEach(item => session.calculations[item.id]?.retry())} style={{ height: 44, justifyContent: 'center', paddingHorizontal: theme.space.md }}>
+          <Text numberOfLines={1} accessibilityRole="alert" style={[theme.type.whyteXs, { color: theme.color.txAccent }]}>Showing previous positions for {failed.map(item => item.name).join(', ')}. Retry</Text>
         </Pressable>}
       </View>
 
