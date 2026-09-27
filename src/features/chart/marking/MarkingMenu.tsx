@@ -76,20 +76,33 @@ export function MarkingMenuButton({ id, label, hint, disabled = false, onPress, 
   const { controller, session, enabled, reduced } = context;
   const theme = useTheme();
   const token = useRef<number | undefined>(undefined);
+  const start = useRef({ x: 0, y: 0 });
   const allowed = enabled && !disabled;
   const liveAllowed = useRef(allowed);
   const active = session?.owner === id;
   useEffect(() => { liveAllowed.current = allowed; if (!allowed) controller.cancelOwner(id); }, [allowed, controller, id]);
   useEffect(() => () => controller.cancelOwner(id), [controller, id]);
   const activate = () => { if (liveAllowed.current && !controller.current) onPress?.(); };
-  const gesture = Gesture.Pan().withTestId(`marking-${id}`).minDistance(0).maxPointers(1).enabled(allowed).runOnJS(true)
+  // A zero-duration press recognizes a stationary tap. UIPanGestureRecognizer
+  // still requires a movement event even when its minimum distance is zero.
+  const gesture = Gesture.LongPress().withTestId(`marking-${id}`).minDuration(0)
+    .maxDistance(100000).shouldCancelWhenOutside(false).numberOfPointers(1).enabled(allowed).runOnJS(true)
     .onBegin(event => {
       if (!liveAllowed.current) return;
+      start.current = { x: event.absoluteX, y: event.absoluteY };
       token.current = controller.begin(id, { x: event.absoluteX - event.x + 22, y: event.absoluteY - event.y + 22 }, options, onPress, children);
       if (token.current !== undefined) haptic();
     })
-    .onUpdate(event => controller.update(token.current, event.translationX, event.translationY))
-    .onEnd((event, success) => { if (success && liveAllowed.current) controller.end(token.current, event.translationX, event.translationY); })
+    .onTouchesDown(event => {
+      if (event.numberOfTouches > 1 && token.current !== undefined) controller.cancel(token.current);
+    })
+    .onTouchesMove(event => {
+      const touch = event.changedTouches[0];
+      if (touch) controller.update(token.current, touch.absoluteX - start.current.x, touch.absoluteY - start.current.y);
+    })
+    .onEnd((event, success) => {
+      if (success && liveAllowed.current) controller.end(token.current, event.absoluteX - start.current.x, event.absoluteY - start.current.y);
+    })
     .onFinalize(() => { if (token.current !== undefined) controller.cancel(token.current); token.current = undefined; });
   const style = useAnimatedStyle(() => ({
     transform: [{ scale: withSpring(active ? 1.1 : 1, { duration: 150, dampingRatio: .7, reduceMotion: reduced ? ReduceMotion.Always : ReduceMotion.Never }) }],
