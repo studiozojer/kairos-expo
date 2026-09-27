@@ -1,8 +1,11 @@
+import type { ReactNode } from 'react';
+
 export const DIRECTIONS = ['e', 'se', 's', 'sw', 'w', 'nw', 'n', 'ne'] as const;
 export type MarkingDirection = typeof DIRECTIONS[number];
 export interface MarkingOption { id: string; position: MarkingDirection; label: string; disabled?: boolean; onSelect: () => void }
 export interface MenuSession {
   token: number; owner: string; center: { x: number; y: number }; options: readonly MarkingOption[];
+  centerContent?: ReactNode;
   shown: boolean; highlighted?: string; marked: boolean; started: number; onTap?: () => void;
 }
 export function markingDirection(x: number, y: number): MarkingDirection | undefined {
@@ -18,10 +21,10 @@ export class MarkingMenuController {
   setEnabled(enabled: boolean) { this.enabled = enabled; if (!enabled) this.cancel(); }
   private timer?: ReturnType<typeof setTimeout>;
   constructor(private notify: (session: MenuSession | null) => void) {}
-  begin(owner: string, center: MenuSession['center'], options: readonly MarkingOption[], onTap?: () => void) {
+  begin(owner: string, center: MenuSession['center'], options: readonly MarkingOption[], onTap?: () => void, centerContent?: ReactNode) {
     if (!this.enabled || this.current) return undefined;
     const token = ++this.serial;
-    this.current = { token, owner, center, options, onTap, shown: false, marked: false, started: Date.now() };
+    this.current = { token, owner, center, options, onTap, centerContent, shown: false, marked: false, started: Date.now() };
     this.notify(this.current);
     this.timer = setTimeout(() => {
       if (this.current?.token !== token) return;

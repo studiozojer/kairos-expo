@@ -46,10 +46,13 @@ export function MarkingMenuProvider({ children, enabled = true, onActiveChange }
       }}>
         <BlurTargetView ref={blurTarget} style={{ flex: 1 }}>{children}</BlurTargetView>
         {session?.shown && center && <View testID="marking-menu-overlay" pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill}>
-          <BlurView intensity={50} tint="systemUltraThinMaterial" blurTarget={blurTarget} blurMethod="dimezisBlurViewSdk31Plus" style={StyleSheet.absoluteFill} />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.color.bgSolidBase, opacity: .3 }]} />
+          <BlurView intensity={15} tint="systemUltraThinMaterial" blurTarget={blurTarget} blurMethod="dimezisBlurViewSdk31Plus" style={StyleSheet.absoluteFill} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.color.bgSolidBase, opacity: .1 }]} />
           <View style={{ position: 'absolute', left: center.x - 100, top: center.y - 100, width: 200, height: 200, borderRadius: 100, backgroundColor: theme.color.txAccent, opacity: .1 }} />
           <View style={{ position: 'absolute', left: center.x - 100, top: center.y - 100, width: 200, height: 200, borderRadius: 100, borderWidth: 2, borderColor: theme.color.txAccent, opacity: .3 }} />
+          <View style={{ position: 'absolute', left: center.x - 22, top: center.y - 22, width: 44, height: 44,
+            alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: theme.color.bgPressed,
+            transform: [{ scale: reduced ? 1 : 1.1 }] }}>{session.centerContent}</View>
           {(session.options as readonly MarkingMenuOption[]).map(option => {
             const angle = DIRECTIONS.indexOf(option.position) * Math.PI / 4;
             const highlighted = option.id === session.highlighted;
@@ -82,7 +85,7 @@ export function MarkingMenuButton({ id, label, hint, disabled = false, onPress, 
   const gesture = Gesture.Pan().withTestId(`marking-${id}`).minDistance(0).maxPointers(1).enabled(allowed).runOnJS(true)
     .onBegin(event => {
       if (!liveAllowed.current) return;
-      token.current = controller.begin(id, { x: event.absoluteX - event.x + 22, y: event.absoluteY - event.y + 22 }, options, onPress);
+      token.current = controller.begin(id, { x: event.absoluteX - event.x + 22, y: event.absoluteY - event.y + 22 }, options, onPress, children);
       if (token.current !== undefined) haptic();
     })
     .onUpdate(event => controller.update(token.current, event.translationX, event.translationY))
@@ -103,7 +106,7 @@ export function MarkingMenuButton({ id, label, hint, disabled = false, onPress, 
       // Web has no native accessibility activation callback.
       {...(Platform.OS === 'web' ? { onClick: activate } : {})}
       style={[{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: active ? theme.color.bgPressed : 'transparent', opacity: allowed ? 1 : .35 }, style]}>
-      <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">{children}</View>
+      <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ opacity: active && session.shown ? 0 : 1 }}>{children}</View>
     </Animated.View>
   </GestureDetector>;
 }
