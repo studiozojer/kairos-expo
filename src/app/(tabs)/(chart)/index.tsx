@@ -1,3 +1,4 @@
+import { useActionRegistry } from '@/features/chart/actions/useActionRegistry';
 import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { useIsFocused } from 'expo-router';
@@ -26,7 +27,8 @@ import { presetDocument, editPresetDocument } from '@/features/chart/display/pre
  * its explicit target. Keep every ring in place while its next result computes. */
 export default function ChartHome() {
   const theme = useTheme();
-  const { settings, loaded, update, saveError } = useChartTime();
+  const clock = useChartTime();
+  const { settings, loaded, update, saveError } = clock;
   const session = useActiveCharts();
   const failed = session.active.filter(item => session.calculations[item.id]?.status === 'error');
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -60,6 +62,20 @@ export default function ChartHome() {
 
   const { config, previousArrangement } = useActiveConfiguration(session.active, session.calculations, preset, orientationMode);
 
+  const actions = useActionRegistry({
+    enabled: focused && !sheetOpen && !settingsOpen && !capturing,
+    settingsEnabled: loaded && !!session.targetId, chartEnabled: !!config && !previousArrangement,
+    capturing, locked: orientationMode === 'static', hasTarget: loaded && !!clock.targetId,
+    targetKind: clock.kind, canStepBackward: clock.canStepBackward, canStepForward: clock.canStepForward,
+    aspects: { ...preset.aspects, showPatterns: !!preset.aspects.showPatterns },
+    openSettings: () => setSettingsOpen(true), openDisplay: () => setSheetOpen(true),
+    toggleOrientation: () => setOrientationMode(mode => mode === 'static' ? 'ascendant' : 'static'),
+    screenshot: capture, step: clock.step, reset: clock.reset,
+    toggleDisplay: key => setDocument(current => editPresetDocument(current, {
+      ...current.preset, aspects: { ...current.preset.aspects, [key]: !current.preset.aspects[key] },
+    })),
+  });
+
   const selectPreset = (name: string) => {
     const next = bundledPreset(name);
     if (!next) return;
@@ -82,9 +98,7 @@ export default function ChartHome() {
         selectionStyle={preset.selection} enabled={!sheetOpen && !settingsOpen && !menuActive && !capturing && !previousArrangement}
         onHideBody={name => setDocument(current => editPresetDocument(current, toggleBody(current.preset, name, false)))} />}
       <ChartToolbar title={session.active.find(item => item.id === session.targetId)?.name ?? 'Chart'} topInset={insets.top}
-        locked={orientationMode === 'static'} settingsEnabled={loaded && !!session.targetId} chartEnabled={!!config && !previousArrangement}
-        capturing={capturing} onSettings={() => setSettingsOpen(true)} onDisplay={() => setSheetOpen(true)}
-        onLock={() => setOrientationMode(mode => mode === 'static' ? 'ascendant' : 'static')} onScreenshot={() => { void capture(); }} />
+        actions={actions} />
 
       <ActiveChartCards session={cardDrag} />
       {(session.loadError || session.saveError) && <Pressable accessibilityRole="button"
