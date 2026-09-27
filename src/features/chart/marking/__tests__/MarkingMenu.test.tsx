@@ -16,11 +16,11 @@ function Probe({ enabled = true, disabled = false, action = jest.fn() }) {
   return <MarkingMenuProvider enabled={enabled}><MarkingMenuButton id="test" label="Test menu" disabled={disabled} onPress={action}><Text>Icon</Text></MarkingMenuButton></MarkingMenuProvider>;
 }
 const touch = { absoluteX: 100, absoluteY: 100, x: 22, y: 22, translationX: 0, translationY: 0 };
-const pan = () => getByGestureTestId('marking-test') as ReturnType<typeof Gesture.Pan>;
+const press = () => getByGestureTestId('marking-test') as ReturnType<typeof Gesture.LongPress>;
 test('gesture tap and screen-reader activation call primary action; disabled blocks activation', async () => {
   const action = jest.fn();
   await act(async () => { view = create(<Probe action={action} />); });
-  act(() => fireGestureHandler(pan(), [touch]));
+  act(() => fireGestureHandler(press(), [touch]));
   expect(action).toHaveBeenCalledTimes(1);
   const button = () => view.root.findAll(n => n.props.accessibilityLabel === 'Test menu' && !!n.props.onAccessibilityTap)[0];
   act(() => button().props.onAccessibilityTap());
@@ -32,7 +32,7 @@ test('gesture tap and screen-reader activation call primary action; disabled blo
 test('route disable cancels an open menu and a later release cannot run the old tap', async () => {
   const action = jest.fn();
   await act(async () => { view = create(<Probe action={action} />); });
-  const handlers = pan().handlers;
+  const handlers = press().handlers;
   act(() => handlers.onBegin!(touch as never));
   act(() => jest.advanceTimersByTime(100));
   expect(view.root.findAll(n => n.type === View && n.props.testID === 'marking-menu-overlay')).toHaveLength(1);
@@ -46,11 +46,27 @@ test('app background cancels reveal and selection', async () => {
   jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, cb) => { onState = cb; return { remove: jest.fn() }; });
   const action = jest.fn();
   await act(async () => { view = create(<Probe action={action} />); });
-  const handlers = pan().handlers;
+  const handlers = press().handlers;
   act(() => handlers.onBegin!(touch as never));
   act(() => onState('background'));
   act(() => jest.advanceTimersByTime(200));
   act(() => handlers.onEnd!(touch as never, true));
   expect(action).not.toHaveBeenCalled();
   expect(view.root.findAll(n => n.type === View && n.props.testID === 'marking-menu-overlay')).toHaveLength(0);
+});
+
+test('press tracking preserves drag-back cancellation and rejects a second finger', async () => {
+  const action = jest.fn();
+  await act(async () => { view = create(<Probe action={action} />); });
+  const handlers = press().handlers;
+  const manager = {} as never;
+  act(() => handlers.onBegin!(touch as never));
+  act(() => handlers.onTouchesMove!({ changedTouches: [{ absoluteX: 145, absoluteY: 100 }], numberOfTouches: 1 } as never, manager));
+  act(() => handlers.onEnd!(touch as never, true));
+  expect(action).not.toHaveBeenCalled();
+  act(() => handlers.onFinalize!(touch as never, true));
+  act(() => handlers.onBegin!(touch as never));
+  act(() => handlers.onTouchesDown!({ numberOfTouches: 2 } as never, manager));
+  act(() => handlers.onEnd!(touch as never, true));
+  expect(action).not.toHaveBeenCalled();
 });
