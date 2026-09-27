@@ -1,7 +1,8 @@
+import { ReplacementChooser } from '@/features/chart/active/ReplacementChooser';
 import { useActionRegistry } from '@/features/chart/actions/useActionRegistry';
 import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View, useWindowDimensions } from 'react-native';
-import { useIsFocused } from 'expo-router';
+import { useIsFocused, useRouter } from 'expo-router';
 import { useCardDragSession } from '@/features/chart/active/useCardDragSession';
 import { ChartPutAwayOverlay } from '@/features/chart/active/ChartPutAwayOverlay';
 import { MarkingMenuProvider } from '@/features/chart/marking/MarkingMenu';
@@ -27,6 +28,8 @@ import { presetDocument, editPresetDocument } from '@/features/chart/display/pre
  * its explicit target. Keep every ring in place while its next result computes. */
 export default function ChartHome() {
   const theme = useTheme();
+  const router = useRouter();
+  const [replaceNow, setReplaceNow] = useState(false);
   const clock = useChartTime();
   const { settings, loaded, update, saveError } = clock;
   const session = useActiveCharts();
@@ -52,7 +55,7 @@ export default function ChartHome() {
   const preset = document.preset;
   const [presetName, setPresetName] = useState('classic');
   const [sheetOpen, setSheetOpen] = useState(false);
-  const cardDrag = useCardDragSession({ ids: session.active.map(chart => chart.id), viewport: windowRect, enabled: focused && !sheetOpen && !settingsOpen && !menuActive && !capturing,
+  const cardDrag = useCardDragSession({ ids: session.active.map(chart => chart.id), viewport: windowRect, enabled: focused && !sheetOpen && !settingsOpen && !replaceNow && !menuActive && !capturing,
     onDrop: drop => { if (drop.kind === 'remove') session.remove(drop.id); else session.moveTo(drop.id, drop.targetId); } });
 
   const bodyNames = useMemo(() => [...new Set(session.active.flatMap(item => {
@@ -63,8 +66,10 @@ export default function ChartHome() {
   const { config, previousArrangement } = useActiveConfiguration(session.active, session.calculations, preset, orientationMode);
 
   const actions = useActionRegistry({
-    enabled: focused && !sheetOpen && !settingsOpen && !capturing,
+    enabled: focused && !sheetOpen && !settingsOpen && !replaceNow && !capturing,
     settingsEnabled: loaded && !!session.targetId, chartEnabled: !!config && !previousArrangement,
+    chartsLoaded: session.loaded, openLibrary: () => router.push('/charts'),
+    addNow: () => { if (!session.addNow()) setReplaceNow(true); },
     capturing, locked: orientationMode === 'static', hasTarget: loaded && !!clock.targetId,
     targetKind: clock.kind, canStepBackward: clock.canStepBackward, canStepForward: clock.canStepForward,
     aspects: { ...preset.aspects, showPatterns: !!preset.aspects.showPatterns },
@@ -84,7 +89,7 @@ export default function ChartHome() {
   };
 
   return (
-    <MarkingMenuProvider enabled={focused && !sheetOpen && !settingsOpen && !capturing} onActiveChange={setMenuActive}>
+    <MarkingMenuProvider enabled={focused && !sheetOpen && !settingsOpen && !replaceNow && !capturing} onActiveChange={setMenuActive}>
     <View ref={screen} collapsable={false} onLayout={event => {
       const { width, height } = event.nativeEvent.layout; setViewport({ width, height });
       cardDrag.invalidate();
@@ -95,12 +100,12 @@ export default function ChartHome() {
           without clipping it. Cards and the stepper bound the resting slot. */}
       {config && wheelSize > 0 && <InteractiveChartWheel config={config} size={wheelSize} viewport={viewport}
         baseCenter={{ x: width / 2, y: chartArea.y + wheelY + wheelSize / 2 }}
-        selectionStyle={preset.selection} enabled={!sheetOpen && !settingsOpen && !menuActive && !capturing && !previousArrangement}
+        selectionStyle={preset.selection} enabled={!sheetOpen && !settingsOpen && !replaceNow && !menuActive && !capturing && !previousArrangement}
         onHideBody={name => setDocument(current => editPresetDocument(current, toggleBody(current.preset, name, false)))} />}
       <ChartToolbar title={session.active.find(item => item.id === session.targetId)?.name ?? 'Chart'} topInset={insets.top}
         actions={actions} />
 
-      <ActiveChartCards session={cardDrag} />
+      <ActiveChartCards session={cardDrag} chartActions={actions} />
       {(session.loadError || session.saveError) && <Pressable accessibilityRole="button"
         onPress={session.loadError ? session.retryLoad : session.retryPersistence} style={{ paddingHorizontal: theme.space.lg, paddingVertical: theme.space.sm }}>
         <Text accessibilityRole="alert" style={[theme.type.whyteXs, { color: theme.color.txAccent }]}>
@@ -134,6 +139,8 @@ export default function ChartHome() {
       </View>
 
       <ChartPutAwayOverlay session={cardDrag} stepperTop={stepperTop} />
+      <ReplacementChooser active={session.active} visible={replaceNow} onCancel={() => setReplaceNow(false)}
+        onSelect={id => { if (session.addNow(id)) setReplaceNow(false); }} />
       <SettingsSheet visible={settingsOpen} settings={settings} saveError={saveError} onChange={update} onClose={() => setSettingsOpen(false)} />
       {config && <DisplaySheet
         visible={sheetOpen}

@@ -1,6 +1,8 @@
 import type { MarkingIconName } from '../marking/iconNames';
 
 export const ACTIONS = {
+  'chart.library': { label: 'Add / saved charts', hint: 'Opens saved charts. Hold and drag down to add a Now chart.', icon: 'add', category: 'chart' },
+  'chart.addNow': { label: 'Now', hint: 'Adds a chart for the current time.', icon: 'now', category: 'chart' },
   'chart.settings': { label: 'Chart settings', hint: 'Opens calculation settings for the selected chart.', icon: 'settings', category: 'chart' },
   'orientation.toggle': { label: 'Lock chart', hint: 'Switches between fixed and Ascendant orientation.', icon: 'lock', category: 'orientation' },
   'chart.screenshot': { label: 'Screenshot', hint: 'Captures this chart page for sharing.', icon: 'screenshot', category: 'screenshot' },
@@ -18,6 +20,7 @@ export const ACTION_IDS = Object.keys(ACTIONS) as ActionId[];
 export function isActionId(id: string): id is ActionId { return Object.hasOwn(ACTIONS, id); }
 export interface ActionContext {
   enabled: boolean; settingsEnabled: boolean; chartEnabled: boolean; capturing: boolean; locked: boolean;
+  chartsLoaded: boolean; openLibrary: () => void; addNow: () => void;
   hasTarget: boolean; targetKind?: 'saved' | 'now'; canStepBackward: boolean; canStepForward: boolean;
   aspects: { enabled: boolean; showPatterns: boolean; showFalseAspects: boolean };
   openSettings: () => void; openDisplay: () => void; toggleOrientation: () => void;
@@ -43,6 +46,8 @@ export function createActionRegistry(getContext: () => ActionContext, changed: (
     let icon: MarkingIconName = ACTIONS[id].icon;
     let selected: boolean | undefined;
     switch (id) {
+      case 'chart.library': enabled = true; break;
+      case 'chart.addNow': enabled = c.chartsLoaded; break;
       case 'chart.settings': enabled = c.settingsEnabled; break;
       case 'chart.screenshot': if (c.capturing || pending.has(id)) label = 'Capturing chart'; break;
       case 'orientation.toggle': selected = c.locked; label = c.locked ? 'Unlock chart' : 'Lock chart'; icon = c.locked ? 'lock' : 'unlock'; break;
@@ -61,6 +66,8 @@ export function createActionRegistry(getContext: () => ActionContext, changed: (
     pending.add(id); changed();
     try {
       switch (id) {
+        case 'chart.library': c.openLibrary(); break;
+        case 'chart.addNow': c.addNow(); break;
         case 'chart.settings': c.openSettings(); break;
         case 'display.settings': c.openDisplay(); break;
         case 'orientation.toggle': c.toggleOrientation(); break;
