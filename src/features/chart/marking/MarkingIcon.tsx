@@ -1,6 +1,9 @@
 import { Canvas, Path } from '@shopify/react-native-skia';
 import type { MarkingIconName } from './iconNames';
 const paths: Record<MarkingIconName, string> = {
+  backward: 'M15 4L7 12L15 20L17 18L11 12L17 6Z',
+  forward: 'M9 4L17 12L9 20L7 18L13 12L7 6Z',
+  reset: 'M4 3V10H11L8 7A6 6 0 1 1 6 13H3A9 9 0 1 0 6 5Z',
   settings: 'M19.4 13a7.9 7.9 0 0 0 0-2l2-1.5-2-3.5-2.3 1a8 8 0 0 0-1.7-1L15 3h-4l-.4 3a8 8 0 0 0-1.7 1L6.6 6l-2 3.5 2 1.5a7.9 7.9 0 0 0 0 2l-2 1.5 2 3.5 2.3-1a8 8 0 0 0 1.7 1l.4 3h4l.4-3a8 8 0 0 0 1.7-1l2.3 1 2-3.5-2-1.5ZM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z',
   lock: 'M18 8h-1V6A5 5 0 0 0 7 6v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2ZM9 6a3 3 0 0 1 6 0v2H9V6Zm4 10v2h-2v-2a2 2 0 1 1 2 0Z',
   unlock: 'M18 8H9V6a3 3 0 0 1 5.8-1h2.1A5 5 0 0 0 7 6v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2Zm-5 8v2h-2v-2a2 2 0 1 1 2 0Z',
