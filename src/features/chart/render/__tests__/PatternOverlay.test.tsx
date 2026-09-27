@@ -28,11 +28,11 @@ test('monochrome uses the configured color and multiplies its existing alpha', (
   const style = { ...config.aspectOverlayStyle, colorMode: 'monochrome' as const, monochromeColor: { source: 'hex' as const, value: '#ff000080', layer: 'ic' as const } };
   expect(patternFillColor('Grand Trine', style, theme)).toBe(withAlphaFactor('#ff000080', .05));
 });
-function Probe({ selected = [] as string[], enabled = true, show = true, base = .08, weight = 0, deviation = 0, tolerance = 5 }) {
+function Probe({ selected = [] as string[], enabled = true, show = true, base = .08, weight = 0, deviation = 0, tolerance = 5, showFalseAspects = true }) {
   const cfg = { ...config,
     aspectOverlayStyle: { ...config.aspectOverlayStyle, patternOpacity: base, patternOrbWeighting: weight },
     rings: config.rings.map(r => r.type.kind === 'planets' ? { ...r, type: { ...r.type, placements: r.type.placements.map((p, i) => ({ ...p, longitude: p.longitude + (i === 0 ? deviation : 0) })) } } : r),
-    aspects: { ...config.aspects, enabled, showPatterns: show, patterns: { enabledTypes: ['Grand Trine'], orb: tolerance } } };
+    aspects: { ...config.aspects, enabled, showFalseAspects, showPatterns: show, patterns: { enabledTypes: ['Grand Trine'], orb: tolerance } } };
   const layout = useWheelLayout(cfg, 400);
   return <ChartPaintProvider value={theme}><PatternOverlay config={cfg} layout={layout} selectedIdentifiers={new Set(selected)} /></ChartPaintProvider>;
 }
@@ -118,5 +118,21 @@ test('first paint and control updates retain distinct pattern hues', () => {
   expect(colors()).toEqual(expectedColors(.2));
   act(() => view.update(<MixedPatterns />));
   expect(colors()).toEqual(expectedColors(.05));
+  act(() => view.unmount());
+});
+
+test('false-aspects toggle removes and restores an out-of-sign pattern without changing its orb', () => {
+  let view!: ReturnType<typeof create>;
+  // Sun at 359°, with the other vertices at 120° and 240°: in orb,
+  // but its sign relationships are not trines.
+  act(() => { view = create(<Probe deviation={359} />); });
+  const paths = () => view.root.findAll(node => (node.type as unknown) === 'skPath');
+  expect(paths()).toHaveLength(1);
+  act(() => view.update(<Probe deviation={359} showFalseAspects={false} />));
+  expect(paths()).toHaveLength(0);
+  act(() => view.update(<Probe deviation={359} showFalseAspects />));
+  expect(paths()).toHaveLength(1);
+  act(() => view.update(<Probe showFalseAspects={false} />));
+  expect(paths()).toHaveLength(1);
   act(() => view.unmount());
 });
