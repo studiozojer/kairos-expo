@@ -85,7 +85,7 @@ function CardSlot({ chart, index, ids, width, height, session }: {
 /** Swift's fitted active row: every card is visible, slots indicate ring order,
  * and only a completed drop changes membership order. Secondary actions use the
  * platform's anchored menu instead of filling each card with buttons. */
-export function ActiveChartCards({ session, chartActions }: { session: CardDragSession; chartActions: ChartActions }) {
+export function ActiveChartCards({ session, chartActions, updatingArrangement = false }: { session: CardDragSession; chartActions: ChartActions; updatingArrangement?: boolean }) {
   const state = useActiveCharts();
   const router = useRouter();
   const t = useTheme();
@@ -120,9 +120,9 @@ export function ActiveChartCards({ session, chartActions }: { session: CardDragS
     </View>}
     {!!ids.length && <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
       {collapsed ? <Pressable accessibilityRole="button" onPress={() => setCollapsed(false)} style={{ minHeight: 44, justifyContent: 'center' }}>
-        <Text style={[t.type.whyteXs, { color: t.color.txAccent }]}>Show cards</Text>
-      </Pressable> : <Text style={[t.type.fraktionXxs, { flex: 1, color: t.color.txTertiary }]}>
-        {state.active.some(chart => state.calculations[chart.id]?.result && state.calculations[chart.id]?.status !== 'ready') ? 'Showing previous positions while updating' : 'Drag down to put away · Tap to step'}
+        <Text style={[t.type.whyteXs, { color: t.color.txAccent }]}>{updatingArrangement ? 'Show cards · Updating…' : 'Show cards'}</Text>
+      </Pressable> : <Text numberOfLines={1} accessibilityLiveRegion="polite" style={[t.type.fraktionXxs, { flex: 1, color: t.color.txTertiary }]}>
+        {updatingArrangement ? 'Updating chart arrangement…' : state.active.some(chart => state.calculations[chart.id]?.result && state.calculations[chart.id]?.status !== 'ready') ? 'Showing previous positions while updating' : 'Drag down to put away · Tap to step'}
       </Text>}
       <MenuView {...menuAccessibility} title={selected ? `${selected.name} · Ring ${selectedIndex + 1}` : 'Charts'} themeVariant={t.scheme}
         shouldOpenOnLongPress={false} isAnchoredToRight actions={actions} style={{ minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' }}
