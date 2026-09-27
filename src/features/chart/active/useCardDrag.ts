@@ -1,7 +1,7 @@
 /* SharedValue writes happen in effects/native callbacks, never React render. */
 /* eslint-disable react-hooks/immutability */
 import { Gesture } from 'react-native-gesture-handler';
-import { cancelAnimation, ReduceMotion, runOnJS, useAnimatedReaction, useSharedValue, withSpring } from 'react-native-reanimated';
+import { cancelAnimation, Easing, ReduceMotion, runOnJS, useAnimatedReaction, useSharedValue, withTiming } from 'react-native-reanimated';
 import { cardSlotAt, slotCardWidth } from './cardSlots';
 import { isPutAwayPoint, resolveCardDrop } from './cardDrop';
 import type { CardDragSession } from './useCardDragSession';
@@ -57,8 +57,8 @@ export function useCardDrag({ id, index, ids, width, height, gap, session }: {
       valid.value = false;
       if (dragging.value === id) { dragging.value = ''; target.value = -1; armed.value = false; }
       if (!dismissed.value) {
-        x.value = withSpring(0, { damping: 22, stiffness: 240, reduceMotion: reducedMotion.value ? ReduceMotion.Always : ReduceMotion.Never });
-        y.value = withSpring(0, { damping: 22, stiffness: 240, reduceMotion: reducedMotion.value ? ReduceMotion.Always : ReduceMotion.Never });
+        x.value = withTiming(0, { duration: 160, easing: Easing.linear, reduceMotion: reducedMotion.value ? ReduceMotion.Always : ReduceMotion.Never });
+        y.value = withTiming(0, { duration: 160, easing: Easing.linear, reduceMotion: reducedMotion.value ? ReduceMotion.Always : ReduceMotion.Never });
       }
     });
   return { gesture, x, y, dismissed };

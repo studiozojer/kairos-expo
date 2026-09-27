@@ -15,7 +15,7 @@ function flushUIReactions() { for (const reaction of mockUIReactions) reaction()
 jest.mock('react-native-reanimated', () => {
   const React = jest.requireActual<typeof import('react')>('react');
   return {
-    useReducedMotion: () => false, ReduceMotion: { Always: 'always', Never: 'never' },
+    Easing: { linear: (t: number) => t }, useReducedMotion: () => false, ReduceMotion: { Always: 'always', Never: 'never' },
     useSharedValue: (initial: unknown) => React.useRef({ value: initial }).current,
     useAnimatedReaction: (prepare: () => unknown, react: (current: unknown, previous: unknown) => void) => {
       React.useLayoutEffect(() => {
@@ -31,7 +31,7 @@ jest.mock('react-native-reanimated', () => {
         return () => { mockUIReactions.delete(flush); };
       }, [prepare, react]);
     },
-    runOnJS: (fn: (...args: any[]) => void) => (...args: any[]) => mockQueue ? mockQueue.push(() => fn(...args)) : fn(...args), cancelAnimation: () => {}, withSpring: (value: number) => value,
+    runOnJS: (fn: (...args: any[]) => void) => (...args: any[]) => mockQueue ? mockQueue.push(() => fn(...args)) : fn(...args), cancelAnimation: () => {}, withTiming: (value: number) => value,
   };
 });
 let session: ReturnType<typeof useCardDragSession>;
@@ -144,7 +144,7 @@ test('arming is edge-triggered, clears insertion, and leaving permits reorder ag
   expect(cardHaptic).not.toHaveBeenCalledWith('removed');
 });
 
-test('final coordinates override hover; successful put-away commits once and does not spring home', () => {
+test('final coordinates override hover; successful put-away commits once and does not animate home', () => {
   begin();
   act(() => handlers().onUpdate!(event(300)));
   act(() => { handlers().onEnd!(event(40, 500), true); handlers().onEnd!(event(40, 500), true); handlers().onFinalize!(event(40, 500), true); });
