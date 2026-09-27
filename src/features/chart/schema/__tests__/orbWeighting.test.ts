@@ -21,7 +21,7 @@ test.each([[undefined, 1], [null, 1], ['50', 1], [NaN, 1], [Infinity, 1], [-1, 0
 
 test('pattern opacity defaults and edits survive full preset document roundtrips', () => {
   const document = presetDocument(classic);
-  expect(document.preset.aspectOverlay).toMatchObject({ patternOpacity: .08, patternOrbWeighting: 0 });
+  expect(document.preset.aspectOverlay).toMatchObject({ patternOpacity: .05, patternOrbWeighting: .75 });
   const preset = { ...document.preset, aspectOverlay: { ...document.preset.aspectOverlay, patternOpacity: .2, patternOrbWeighting: .75 } };
   expect(parsePreset(editPresetDocument(document, preset).source).aspectOverlay).toMatchObject({ patternOpacity: .2, patternOrbWeighting: .75 });
   expect(parsePreset(serializePreset(preset)).aspectOverlay).toMatchObject({ patternOpacity: .2, patternOrbWeighting: .75 });
@@ -29,6 +29,6 @@ test('pattern opacity defaults and edits survive full preset document roundtrips
 test.each([undefined, null, '50', NaN, Infinity, -1, 2, .5, 0])('sanitizes pattern opacity and weighting %s', input => {
   const style = parseAspectOverlayStyle({ patternOpacity: input, patternOrbWeighting: input });
   const valid = typeof input === 'number' && Number.isFinite(input);
-  expect(style.patternOpacity).toBe(valid ? Math.max(0, Math.min(1, input)) : .08);
-  expect(style.patternOrbWeighting).toBe(valid ? Math.max(0, Math.min(1, input)) : 0);
+  expect(style.patternOpacity).toBe(valid ? Math.max(0, Math.min(1, input)) : .05);
+  expect(style.patternOrbWeighting).toBe(valid ? Math.max(0, Math.min(1, input)) : .75);
 });

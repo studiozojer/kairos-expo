@@ -164,8 +164,8 @@ it('previews independent pattern base opacity and orb weighting', () => {
   act(() => root.findByType(SegmentedControl).props.onValueChange('Style'));
   act(() => root.findAllByType(LinkRow).find(n => n.props.label === 'Aspect patterns')!.props.onPress());
   const row = (label: string) => root.findAllByType(NumberRow).find(n => n.props.label === label)!;
-  expect(row('Base opacity').props.value).toBe(8);
-  expect(row('Orb weighting').props.value).toBe(0);
+  expect(row('Base opacity').props.value).toBe(5);
+  expect(row('Orb weighting').props.value).toBe(75);
   act(() => row('Base opacity').props.onChange(20));
   act(() => row('Orb weighting').props.onChange(75));
   expect(root.findByType(ChartWheel).props.config.aspectOverlayStyle).toMatchObject({ patternOpacity: .2, patternOrbWeighting: .75, opacity: preset.aspectOverlay.opacity, orbWeighting: preset.aspectOverlay.orbWeighting });
