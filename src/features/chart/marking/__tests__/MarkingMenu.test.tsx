@@ -1,9 +1,13 @@
+import { AddChartButton } from '../../active/AddChartButton';
+import { useActionRegistry } from '../../actions/useActionRegistry';
+import { context as actionContext } from '../../actions/testContext';
 import { useState } from 'react';
 import { ChartSheet } from '../../components/ChartSheet';
 import { Modal } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { AppState, Text, View, type AppStateStatus } from 'react-native';
 import { MarkingMenuProvider, MarkingMenuButton } from '../MarkingMenu';
+jest.mock('../MarkingIcon', () => ({ MarkingIcon: 'MarkingIcon' }));
 jest.mock('expo-blur', () => ({ BlurView: 'BlurView', BlurTargetView: 'BlurTargetView' }));
 jest.mock('expo-haptics', () => ({ impactAsync: jest.fn(() => Promise.resolve()), ImpactFeedbackStyle: { Light: 'light' } }));
 jest.mock('react-native-reanimated', () => ({
@@ -111,4 +115,34 @@ test('a completed sheet swipe releases its host and permits an immediate toolbar
     // Intentionally do not advance any timers or deliver a second onDismiss.
     expect(button().props.onStartShouldSetResponder()).toBe(true);
   }
+});
+
+test('Add Chart taps open the library; dragging south adds Now exactly once', async () => {
+  const c = actionContext();
+  function AddProbe({ expanded = false }: { expanded?: boolean }) {
+    const actions = useActionRegistry(c);
+    return <MarkingMenuProvider><AddChartButton actions={actions} expanded={expanded} /></MarkingMenuProvider>;
+  }
+  await act(async () => { view = create(<AddProbe />); });
+  const add = () => view.root.findAll(n => n.type === View && n.props.testID === 'marking-add-chart')[0];
+  act(() => add().props.onResponderGrant(touch()));
+  await act(async () => add().props.onResponderRelease(touch(100, 100, 0)));
+  expect(c.openLibrary).toHaveBeenCalledTimes(1); expect(c.addNow).not.toHaveBeenCalled();
+  act(() => add().props.onResponderGrant(touch()));
+  act(() => jest.advanceTimersByTime(100));
+  act(() => add().props.onResponderMove(touch(100, 200)));
+  await act(async () => add().props.onResponderRelease(touch(100, 200, 0)));
+  expect(c.addNow).toHaveBeenCalledTimes(1); expect(c.openLibrary).toHaveBeenCalledTimes(1);
+  expect(overlays()).toHaveLength(0);
+  // The wide empty-state button anchors the menu near the touch, keeping south directly below.
+  act(() => view.update(<AddProbe expanded />));
+  act(() => add().props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 320, height: 44 } } }));
+  act(() => add().props.onResponderGrant(touch()));
+  act(() => jest.advanceTimersByTime(100));
+  const overlay = overlays()[0];
+  expect(overlay.findAll(n => n.type === View && n.props.style?.left === 0 && n.props.style?.width === 200).length).toBeGreaterThan(0);
+  act(() => add().props.onResponderTerminate());
+  expect(c.addNow).toHaveBeenCalledTimes(1);
+  await act(async () => add().props.onAccessibilityAction({ nativeEvent: { actionName: 's:chart.addNow' } }));
+  expect(c.addNow).toHaveBeenCalledTimes(2);
 });

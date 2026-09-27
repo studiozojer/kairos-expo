@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { AccessibilityInfo, AppState, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
+import { AccessibilityInfo, AppState, StyleSheet, Text, View, type GestureResponderEvent, type StyleProp, type ViewStyle } from 'react-native';
 import { BlurTargetView, BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -65,9 +65,9 @@ export function MarkingMenuProvider({ children, enabled = true, onActiveChange }
   </Context.Provider>;
 }
 
-export function MarkingMenuButton({ id, label, hint, disabled = false, onPress, options = EMPTY, children }: {
+export function MarkingMenuButton({ id, label, hint, disabled = false, onPress, options = EMPTY, children, style: buttonStyle, menuContent }: {
   id: string; label: string; hint?: string; disabled?: boolean; onPress?: () => void;
-  options?: readonly MarkingMenuOption[]; children: ReactNode;
+  options?: readonly MarkingMenuOption[]; children: ReactNode; style?: StyleProp<ViewStyle>; menuContent?: ReactNode;
 }) {
   const context = useContext(Context);
   if (!context) throw new Error('MarkingMenuButton requires MarkingMenuProvider');
@@ -75,6 +75,7 @@ export function MarkingMenuButton({ id, label, hint, disabled = false, onPress, 
   const theme = useTheme();
   const token = useRef<number | undefined>(undefined);
   const start = useRef({ x: 0, y: 0 });
+  const bounds = useRef({ width: 44, height: 44 });
   const allowed = enabled && !disabled;
   const liveAllowed = useRef(allowed);
   const active = session?.owner === id;
@@ -91,7 +92,10 @@ export function MarkingMenuButton({ id, label, hint, disabled = false, onPress, 
     if (!liveAllowed.current || event.nativeEvent.touches.length !== 1) return;
     const { pageX, pageY, locationX, locationY } = event.nativeEvent;
     start.current = { x: pageX, y: pageY };
-    token.current = controller.begin(id, { x: pageX - locationX + 22, y: pageY - locationY + 22 }, options, onPress, children);
+    // A wide empty-state button opens near the finger, so a downward mark
+    // still reaches the south slot instead of pointing across the button.
+    const anchorX = Math.max(22, Math.min(bounds.current.width - 22, locationX));
+    token.current = controller.begin(id, { x: pageX - locationX + anchorX, y: pageY - locationY + bounds.current.height / 2 }, options, onPress, menuContent ?? children);
     if (token.current !== undefined) haptic();
   };
   const move = (event: GestureResponderEvent) => {
@@ -106,6 +110,7 @@ export function MarkingMenuButton({ id, label, hint, disabled = false, onPress, 
     transform: [{ scale: withSpring(active ? 1.1 : 1, { duration: 150, dampingRatio: .7, reduceMotion: reduced ? ReduceMotion.Always : ReduceMotion.Never }) }],
   }));
   return <Animated.View testID={`marking-${id}`}
+      onLayout={event => { bounds.current = event.nativeEvent.layout; }}
       onStartShouldSetResponder={() => liveAllowed.current && !controller.current}
       onResponderGrant={begin} onResponderMove={move} onResponderRelease={release}
       onResponderStart={event => { if (event.nativeEvent.touches.length > 1) cancel(); }}
@@ -118,7 +123,7 @@ export function MarkingMenuButton({ id, label, hint, disabled = false, onPress, 
         if (event.nativeEvent.actionName === 'activate') activate();
         else options.find(o => !o.disabled && o.id === event.nativeEvent.actionName)?.onSelect();
       }}
-      style={[{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: active ? theme.color.bgPressed : 'transparent', opacity: allowed ? 1 : .35 }, style]}>
+      style={[{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: active ? theme.color.bgPressed : 'transparent', opacity: allowed ? 1 : .35 }, buttonStyle, style]}>
       <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ opacity: active && session.shown ? 0 : 1 }}>{children}</View>
     </Animated.View>;
 }

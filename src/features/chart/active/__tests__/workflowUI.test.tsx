@@ -1,3 +1,5 @@
+import { context } from '../../actions/testContext';
+import { useActionRegistry } from '../../actions/useActionRegistry';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Modal, TextInput } from 'react-native';
 import { MenuView } from '@react-native-menu/menu';
@@ -36,9 +38,15 @@ jest.mock('react-native-reanimated', () => {
     runOnJS: (fn: unknown) => fn, cancelAnimation: () => {}, Easing: { linear: (t: number) => t }, withSpring: (value: number) => value,
   };
 });
+jest.mock('../../marking/MarkingMenu', () => ({ MarkingMenuButton: (props: any) => {
+  const { Pressable } = jest.requireActual('react-native');
+  return <Pressable accessibilityLabel={props.label} onPress={props.onPress}>{props.children}</Pressable>;
+} }));
+jest.mock('../../marking/MarkingIcon', () => ({ MarkingIcon: 'MarkingIcon' }));
 function Cards() {
+  const actions = useActionRegistry({ ...context(), openLibrary: () => mockRouter.push('/charts') });
   const session = useCardDragSession({ ids: mockState.active.map(chart => chart.id), viewport: { x: 0, y: 0, width: 400, height: 800 }, enabled: true, onDrop: jest.fn() });
-  return <ActiveChartCards session={session} />;
+  return <ActiveChartCards session={session} chartActions={actions} />;
 }
 let view: ReactTestRenderer;
 const action = (label: string) => view.root.findAllByType(Action).find(node => node.props.label === label)!;

@@ -1,6 +1,8 @@
 import { Canvas, Path } from '@shopify/react-native-skia';
 import type { MarkingIconName } from './iconNames';
 const paths: Record<MarkingIconName, string> = {
+  add: 'M11 3H13V11H21V13H13V21H11V13H3V11H11Z',
+  now: 'M12 2A10 10 0 1 0 12 22A10 10 0 1 0 12 2ZM12 4A8 8 0 1 1 12 20A8 8 0 1 1 12 4ZM11 6H13V11H17V13H11Z',
   backward: 'M15 4L7 12L15 20L17 18L11 12L17 6Z',
   forward: 'M9 4L17 12L9 20L7 18L13 12L7 6Z',
   reset: 'M4 3V10H11L8 7A6 6 0 1 1 6 13H3A9 9 0 1 0 6 5Z',

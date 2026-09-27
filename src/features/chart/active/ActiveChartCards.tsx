@@ -1,3 +1,5 @@
+import { AddChartButton } from './AddChartButton';
+import type { ChartActions } from '../actions/useActionRegistry';
 import { useLayoutEffect, useState } from 'react';
 import { Pressable, Text, View, useWindowDimensions, type ViewProps } from 'react-native';
 import { MenuView, type MenuAction } from '@react-native-menu/menu';
@@ -83,7 +85,7 @@ function CardSlot({ chart, index, ids, width, height, session }: {
 /** Swift's fitted active row: every card is visible, slots indicate ring order,
  * and only a completed drop changes membership order. Secondary actions use the
  * platform's anchored menu instead of filling each card with buttons. */
-export function ActiveChartCards({ session }: { session: CardDragSession }) {
+export function ActiveChartCards({ session, chartActions }: { session: CardDragSession; chartActions: ChartActions }) {
   const state = useActiveCharts();
   const router = useRouter();
   const t = useTheme();
@@ -114,10 +116,7 @@ export function ActiveChartCards({ session }: { session: CardDragSession }) {
       {!!ids.length && <View testID="active-card-slots" onLayout={event => setWidth(event.nativeEvent.layout.width)} style={{ flex: 1, flexDirection: 'row', gap: GAP }}>
         {state.active.map((chart, index) => <CardSlot key={chart.id} chart={chart} index={index} ids={ids} width={width} height={height} session={session} />)}
       </View>}
-      {ids.length < 3 && <Pressable accessibilityRole="button" accessibilityLabel="Add / saved charts" onPress={openLibrary}
-        style={{ minWidth: 44, minHeight: 44, flex: ids.length ? undefined : 1, alignItems: 'center', justifyContent: 'center', borderRadius: 6, backgroundColor: t.color.bgSolidCardSecondary }}>
-        <Text style={[t.type.whyteMd, { color: t.color.txSecondary }]}>{ids.length ? '+' : '+  Add chart to view'}</Text>
-      </Pressable>}
+      {ids.length < 3 && <AddChartButton actions={chartActions} expanded={!ids.length} />}
     </View>}
     {!!ids.length && <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
       {collapsed ? <Pressable accessibilityRole="button" onPress={() => setCollapsed(false)} style={{ minHeight: 44, justifyContent: 'center' }}>

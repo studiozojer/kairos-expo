@@ -1,1 +1,1 @@
-export type MarkingIconName = 'settings' | 'lock' | 'unlock' | 'screenshot' | 'display' | 'backward' | 'forward' | 'reset';
+export type MarkingIconName = 'add' | 'now' | 'settings' | 'lock' | 'unlock' | 'screenshot' | 'display' | 'backward' | 'forward' | 'reset';

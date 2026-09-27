@@ -4,7 +4,7 @@ import { context } from '../testContext';
 test('every listed action has a working handler, with explicit arguments', async () => {
   const c = context(); const registry = createActionRegistry(() => c);
   for (const id of ACTION_IDS) expect(await registry.execute(id)).toEqual({ status: 'executed' });
-  for (const fn of [c.openSettings, c.openDisplay, c.toggleOrientation, c.screenshot, c.reset]) expect(fn).toHaveBeenCalledTimes(1);
+  for (const fn of [c.openLibrary, c.addNow, c.openSettings, c.openDisplay, c.toggleOrientation, c.screenshot, c.reset]) expect(fn).toHaveBeenCalledTimes(1);
   expect(c.step).toHaveBeenNthCalledWith(1, -1); expect(c.step).toHaveBeenNthCalledWith(2, 1);
   expect(c.toggleDisplay).toHaveBeenNthCalledWith(1, 'enabled');
   expect(c.toggleDisplay).toHaveBeenNthCalledWith(2, 'showPatterns');
@@ -49,4 +49,14 @@ test('async actions block duplicates and screenshot conflicts, then recover afte
   expect(registry.describe('chart.screenshot').enabled).toBe(true);
   c.screenshot = jest.fn();
   expect(await registry.execute('chart.screenshot')).toEqual({ status: 'executed' });
+});
+
+test('Now is available without a calculated chart, but waits for session hydration', async () => {
+  const c = context(); c.chartEnabled = false; c.hasTarget = false;
+  const registry = createActionRegistry(() => c);
+  expect(await registry.execute('chart.addNow')).toEqual({ status: 'executed' });
+  c.chartsLoaded = false;
+  expect(await registry.execute('chart.addNow')).toEqual({ status: 'unavailable' });
+  expect(c.addNow).toHaveBeenCalledTimes(1);
+  expect(registry.describe('chart.library').enabled).toBe(true);
 });
