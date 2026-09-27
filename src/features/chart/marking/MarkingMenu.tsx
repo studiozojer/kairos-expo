@@ -1,10 +1,8 @@
-/* Gesture callbacks access refs only when native events fire, never during render. */
-/* eslint-disable react-hooks/refs */
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { AccessibilityInfo, AppState, Platform, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, AppState, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
 import { BlurTargetView, BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, withSpring, ReduceMotion } from 'react-native-reanimated';
 import { useTheme } from '@/theme';
 import { DIRECTIONS, MarkingMenuController, type MarkingOption, type MenuSession } from './markingMenuState';
@@ -83,32 +81,36 @@ export function MarkingMenuButton({ id, label, hint, disabled = false, onPress, 
   useEffect(() => { liveAllowed.current = allowed; if (!allowed) controller.cancelOwner(id); }, [allowed, controller, id]);
   useEffect(() => () => controller.cancelOwner(id), [controller, id]);
   const activate = () => { if (liveAllowed.current && !controller.current) onPress?.(); };
-  // A zero-duration press recognizes a stationary tap. UIPanGestureRecognizer
-  // still requires a movement event even when its minimum distance is zero.
-  const gesture = Gesture.LongPress().withTestId(`marking-${id}`).minDuration(0)
-    .maxDistance(100000).shouldCancelWhenOutside(false).numberOfPointers(1).enabled(allowed).runOnJS(true)
-    .onBegin(event => {
-      if (!liveAllowed.current) return;
-      start.current = { x: event.absoluteX, y: event.absoluteY };
-      token.current = controller.begin(id, { x: event.absoluteX - event.x + 22, y: event.absoluteY - event.y + 22 }, options, onPress, children);
-      if (token.current !== undefined) haptic();
-    })
-    .onTouchesDown(event => {
-      if (event.numberOfTouches > 1 && token.current !== undefined) controller.cancel(token.current);
-    })
-    .onTouchesMove(event => {
-      const touch = event.changedTouches[0];
-      if (touch) controller.update(token.current, touch.absoluteX - start.current.x, touch.absoluteY - start.current.y);
-    })
-    .onEnd((event, success) => {
-      if (success && liveAllowed.current) controller.end(token.current, event.absoluteX - start.current.x, event.absoluteY - start.current.y);
-    })
-    .onFinalize(() => { if (token.current !== undefined) controller.cancel(token.current); token.current = undefined; });
+  const cancel = () => {
+    if (token.current !== undefined) controller.cancel(token.current);
+    token.current = undefined;
+  };
+  // Match Swift's zero-distance drag lifecycle: own the touch immediately,
+  // then classify tap vs mark on release. No recognizer activation is required.
+  const begin = (event: GestureResponderEvent) => {
+    if (!liveAllowed.current || event.nativeEvent.touches.length !== 1) return;
+    const { pageX, pageY, locationX, locationY } = event.nativeEvent;
+    start.current = { x: pageX, y: pageY };
+    token.current = controller.begin(id, { x: pageX - locationX + 22, y: pageY - locationY + 22 }, options, onPress, children);
+    if (token.current !== undefined) haptic();
+  };
+  const move = (event: GestureResponderEvent) => {
+    if (event.nativeEvent.touches.length !== 1) { cancel(); return; }
+    controller.update(token.current, event.nativeEvent.pageX - start.current.x, event.nativeEvent.pageY - start.current.y);
+  };
+  const release = (event: GestureResponderEvent) => {
+    if (liveAllowed.current) controller.end(token.current, event.nativeEvent.pageX - start.current.x, event.nativeEvent.pageY - start.current.y);
+    cancel();
+  };
   const style = useAnimatedStyle(() => ({
     transform: [{ scale: withSpring(active ? 1.1 : 1, { duration: 150, dampingRatio: .7, reduceMotion: reduced ? ReduceMotion.Always : ReduceMotion.Never }) }],
   }));
-  return <GestureDetector gesture={gesture}>
-    <Animated.View accessible accessibilityRole="button" accessibilityLabel={label} accessibilityHint={hint}
+  return <Animated.View testID={`marking-${id}`}
+      onStartShouldSetResponder={() => liveAllowed.current && !controller.current}
+      onResponderGrant={begin} onResponderMove={move} onResponderRelease={release}
+      onResponderStart={event => { if (event.nativeEvent.touches.length > 1) cancel(); }}
+      onResponderTerminate={cancel} onResponderTerminationRequest={() => false}
+      accessible accessibilityRole="button" accessibilityLabel={label} accessibilityHint={hint}
       accessibilityState={{ disabled: !allowed }} onAccessibilityTap={activate}
       accessibilityActions={[{ name: 'activate' }, ...options.filter(o => !o.disabled).map(o => ({ name: o.id, label: o.label }))]}
       onAccessibilityAction={event => {
@@ -116,10 +118,7 @@ export function MarkingMenuButton({ id, label, hint, disabled = false, onPress, 
         if (event.nativeEvent.actionName === 'activate') activate();
         else options.find(o => !o.disabled && o.id === event.nativeEvent.actionName)?.onSelect();
       }}
-      // Web has no native accessibility activation callback.
-      {...(Platform.OS === 'web' ? { onClick: activate } : {})}
       style={[{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: active ? theme.color.bgPressed : 'transparent', opacity: allowed ? 1 : .35 }, style]}>
       <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ opacity: active && session.shown ? 0 : 1 }}>{children}</View>
-    </Animated.View>
-  </GestureDetector>;
+    </Animated.View>;
 }

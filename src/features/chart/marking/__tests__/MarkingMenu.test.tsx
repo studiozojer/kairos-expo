@@ -1,7 +1,5 @@
 import { act, create } from 'react-test-renderer';
 import { AppState, Text, View, type AppStateStatus } from 'react-native';
-import { Gesture } from 'react-native-gesture-handler';
-import { fireGestureHandler, getByGestureTestId } from 'react-native-gesture-handler/jest-utils';
 import { MarkingMenuProvider, MarkingMenuButton } from '../MarkingMenu';
 jest.mock('expo-blur', () => ({ BlurView: 'BlurView', BlurTargetView: 'BlurTargetView' }));
 jest.mock('expo-haptics', () => ({ impactAsync: jest.fn(() => Promise.resolve()), ImpactFeedbackStyle: { Light: 'light' } }));
@@ -15,58 +13,74 @@ afterEach(() => { act(() => view?.unmount()); jest.useRealTimers(); jest.restore
 function Probe({ enabled = true, disabled = false, action = jest.fn() }) {
   return <MarkingMenuProvider enabled={enabled}><MarkingMenuButton id="test" label="Test menu" disabled={disabled} onPress={action}><Text>Icon</Text></MarkingMenuButton></MarkingMenuProvider>;
 }
-const touch = { absoluteX: 100, absoluteY: 100, x: 22, y: 22, translationX: 0, translationY: 0 };
-const press = () => getByGestureTestId('marking-test') as ReturnType<typeof Gesture.LongPress>;
-test('gesture tap and screen-reader activation call primary action; disabled blocks activation', async () => {
+const touch = (pageX = 100, pageY = 100, count = 1) => ({ nativeEvent: { pageX, pageY, locationX: 22, locationY: 22, touches: Array.from({ length: count }, () => ({ pageX, pageY })) } });
+const button = () => view.root.findAll(n => n.type === View && n.props.testID === 'marking-test')[0];
+const overlays = () => view.root.findAll(n => n.type === View && n.props.testID === 'marking-menu-overlay');
+test('touch grant and release with no movement runs the primary action exactly once', async () => {
   const action = jest.fn();
   await act(async () => { view = create(<Probe action={action} />); });
-  act(() => fireGestureHandler(press(), [touch]));
+  expect(button().props.onStartShouldSetResponder()).toBe(true);
+  act(() => button().props.onResponderGrant(touch()));
+  expect(action).not.toHaveBeenCalled();
+  act(() => jest.advanceTimersByTime(50));
+  act(() => button().props.onResponderRelease(touch(100, 100, 0)));
   expect(action).toHaveBeenCalledTimes(1);
-  const button = () => view.root.findAll(n => n.props.accessibilityLabel === 'Test menu' && !!n.props.onAccessibilityTap)[0];
+  act(() => jest.runAllTimers());
+  expect(overlays()).toHaveLength(0);
   act(() => button().props.onAccessibilityTap());
   expect(action).toHaveBeenCalledTimes(2);
   act(() => view.update(<Probe action={action} disabled />));
+  expect(button().props.onStartShouldSetResponder()).toBe(false);
   act(() => button().props.onAccessibilityTap());
   expect(action).toHaveBeenCalledTimes(2);
 });
-test('route disable cancels an open menu and a later release cannot run the old tap', async () => {
+test('a held stationary touch reveals the menu but does not run a tap on release', async () => {
   const action = jest.fn();
   await act(async () => { view = create(<Probe action={action} />); });
-  const handlers = press().handlers;
-  act(() => handlers.onBegin!(touch as never));
+  act(() => button().props.onResponderGrant(touch()));
   act(() => jest.advanceTimersByTime(100));
-  expect(view.root.findAll(n => n.type === View && n.props.testID === 'marking-menu-overlay')).toHaveLength(1);
-  act(() => view.update(<Probe enabled={false} action={action} />));
-  expect(view.root.findAll(n => n.type === View && n.props.testID === 'marking-menu-overlay')).toHaveLength(0);
-  act(() => handlers.onEnd!(touch as never, true));
+  expect(overlays()).toHaveLength(1);
+  act(() => jest.advanceTimersByTime(200));
+  act(() => button().props.onResponderRelease(touch(100, 100, 0)));
+  expect(overlays()).toHaveLength(0);
   expect(action).not.toHaveBeenCalled();
 });
-test('app background cancels reveal and selection', async () => {
+test('route disable cancels a menu and ignores a queued release', async () => {
+  const action = jest.fn();
+  await act(async () => { view = create(<Probe action={action} />); });
+  act(() => button().props.onResponderGrant(touch()));
+  const release = button().props.onResponderRelease;
+  act(() => jest.advanceTimersByTime(100));
+  expect(overlays()).toHaveLength(1);
+  act(() => view.update(<Probe enabled={false} action={action} />));
+  expect(overlays()).toHaveLength(0);
+  act(() => release(touch(100, 100, 0)));
+  expect(action).not.toHaveBeenCalled();
+});
+test('app background and responder termination cancel without an action', async () => {
   let onState: (state: AppStateStatus) => void = () => {};
   jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, cb) => { onState = cb; return { remove: jest.fn() }; });
   const action = jest.fn();
   await act(async () => { view = create(<Probe action={action} />); });
-  const handlers = press().handlers;
-  act(() => handlers.onBegin!(touch as never));
+  act(() => button().props.onResponderGrant(touch()));
   act(() => onState('background'));
+  act(() => button().props.onResponderRelease(touch(100, 100, 0)));
+  act(() => button().props.onResponderGrant(touch()));
+  act(() => button().props.onResponderTerminate());
   act(() => jest.advanceTimersByTime(200));
-  act(() => handlers.onEnd!(touch as never, true));
   expect(action).not.toHaveBeenCalled();
-  expect(view.root.findAll(n => n.type === View && n.props.testID === 'marking-menu-overlay')).toHaveLength(0);
+  expect(overlays()).toHaveLength(0);
 });
-
-test('press tracking preserves drag-back cancellation and rejects a second finger', async () => {
+test('dragging back to the center and adding a second finger never become taps', async () => {
   const action = jest.fn();
   await act(async () => { view = create(<Probe action={action} />); });
-  const handlers = press().handlers;
-  const manager = {} as never;
-  act(() => handlers.onBegin!(touch as never));
-  act(() => handlers.onTouchesMove!({ changedTouches: [{ absoluteX: 145, absoluteY: 100 }], numberOfTouches: 1 } as never, manager));
-  act(() => handlers.onEnd!(touch as never, true));
+  act(() => button().props.onResponderGrant(touch()));
+  act(() => button().props.onResponderMove(touch(145)));
+  expect(overlays()).toHaveLength(1);
+  act(() => button().props.onResponderRelease(touch(100, 100, 0)));
   expect(action).not.toHaveBeenCalled();
-  act(() => handlers.onFinalize!(touch as never, true));
-  act(() => handlers.onBegin!(touch as never));
-  act(() => handlers.onTouchesDown!({ numberOfTouches: 2 } as never, manager));
-  act(() => handlers.onEnd!(touch as never, true));
+  act(() => button().props.onResponderGrant(touch()));
+  act(() => button().props.onResponderStart(touch(100, 100, 2)));
+  act(() => button().props.onResponderRelease(touch(100, 100, 0)));
   expect(action).not.toHaveBeenCalled();
 });
