@@ -18,15 +18,15 @@ const theme = themeFor('dark');
 
 test.each<[PatternName, 'trine' | 'square' | 'quincunx']>([
   ['Grand Trine', 'trine'], ['T-square', 'square'], ['Grand Cross', 'square'], ['Yod', 'quincunx'], ['Kite', 'trine'],
-])('%s uses its defining aspect hue at 8%%, independent of line opacity', (name, aspect) => {
+])('%s uses its defining aspect hue at 5%%, independent of line opacity', (name, aspect) => {
   const style = { ...config.aspectOverlayStyle, opacity: .9, aspectHues: { ...config.aspectOverlayStyle.aspectHues, trine: 'green', square: 'red', quincunx: 'purple' } };
   for (const colorMode of ['byType', 'byCelestial'] as const) {
-    expect(patternFillColor(name, { ...style, colorMode }, theme)).toBe(withAlphaFactor(resolveColorValue({ source: 'hue', value: style.aspectHues[aspect], layer: 'primitive' }, theme), .08));
+    expect(patternFillColor(name, { ...style, colorMode }, theme)).toBe(withAlphaFactor(resolveColorValue({ source: 'hue', value: style.aspectHues[aspect], layer: 'primitive' }, theme), .05));
   }
 });
 test('monochrome uses the configured color and multiplies its existing alpha', () => {
   const style = { ...config.aspectOverlayStyle, colorMode: 'monochrome' as const, monochromeColor: { source: 'hex' as const, value: '#ff000080', layer: 'ic' as const } };
-  expect(patternFillColor('Grand Trine', style, theme)).toBe(withAlphaFactor('#ff000080', .08));
+  expect(patternFillColor('Grand Trine', style, theme)).toBe(withAlphaFactor('#ff000080', .05));
 });
 function Probe({ selected = [] as string[], enabled = true, show = true, base = .08, weight = 0, deviation = 0, tolerance = 5 }) {
   const cfg = { ...config,
@@ -66,9 +66,9 @@ test('selection reveals only complete patterns, permits extra selections, and re
   act(() => view!.unmount());
 });
 
-test('missing pattern orb defaults to 3 degrees; explicit preset orbs are retained', () => {
-  expect(parseAspectConfiguration({ patterns: { enabledTypes: ['Grand Trine'] } }).patterns!.orb).toBe(3);
-  expect(parseAspectConfiguration({ patterns: { enabledTypes: ['Grand Trine'], orb: 5 } }).patterns!.orb).toBe(5);
+test('missing pattern orb defaults to 5 degrees; explicit preset orbs are retained', () => {
+  expect(parseAspectConfiguration({ patterns: { enabledTypes: ['Grand Trine'] } }).patterns!.orb).toBe(5);
+  expect(parseAspectConfiguration({ patterns: { enabledTypes: ['Grand Trine'], orb: 2 } }).patterns!.orb).toBe(2);
 });
 
 test.each([
@@ -88,4 +88,35 @@ test('base zero hides fills, weighting off retains base, and source alpha is mul
   const style = { ...config.aspectOverlayStyle, patternOpacity: .2, patternOrbWeighting: 1, opacity: .9,
     colorMode: 'monochrome' as const, monochromeColor: { source: 'hex' as const, value: '#ff000080', layer: 'ic' as const } };
   expect(patternFillColor('Grand Trine', style, theme, 2, 4)).toBe(withAlphaFactor('#ff000080', .05));
+});
+
+// One wheel contains exact trine, square, and quincunx patterns simultaneously.
+// Exercise rendered path colors, including the first paint before any control changes.
+function MixedPatterns({ mode = 'byType', base = .05, weight = .75, orb = 5 }: {
+  mode?: 'byType' | 'byCelestial' | 'monochrome'; base?: number; weight?: number; orb?: number;
+}) {
+  const placement = config.rings.flatMap(r => r.type.kind === 'planets' ? r.type.placements : [])[0];
+  const cfg = { ...config,
+    aspectOverlayStyle: { ...config.aspectOverlayStyle, colorMode: mode, patternOpacity: base, patternOrbWeighting: weight },
+    rings: config.rings.map(r => r.type.kind === 'planets' ? { ...r, type: { ...r.type,
+      placements: [0, 90, 120, 150, 180, 210, 240].map((longitude, i) => ({ ...placement, id: `body-${i}`, longitude })) } } : r),
+    aspects: { ...config.aspects, patterns: { enabledTypes: ['Grand Trine', 'T-square', 'Yod'], orb } } };
+  const layout = useWheelLayout(cfg, 400);
+  return <ChartPaintProvider value={theme}><PatternOverlay config={cfg} layout={layout} /></ChartPaintProvider>;
+}
+test('first paint and control updates retain distinct pattern hues', () => {
+  let view!: ReturnType<typeof create>;
+  const expectedColors = (base: number) => new Set((['trine', 'square', 'quincunx'] as const).map(aspect =>
+    withAlphaFactor(resolveColorValue({ source: 'hue', value: config.aspectOverlayStyle.aspectHues[aspect], layer: 'primitive' }, theme), base)));
+  const colors = () => new Set(view.root.findAll(node => (node.type as unknown) === 'skPath').map(path => path.props.color));
+  act(() => { view = create(<MixedPatterns />); });
+  expect(colors()).toEqual(expectedColors(.05));
+  expect(colors().size).toBe(3);
+  act(() => view.update(<MixedPatterns mode="monochrome" />));
+  expect(colors()).toEqual(new Set([withAlphaFactor(resolveColorValue(config.aspectOverlayStyle.monochromeColor, theme), .05)]));
+  act(() => view.update(<MixedPatterns mode="byCelestial" base={.2} weight={0} orb={2} />));
+  expect(colors()).toEqual(expectedColors(.2));
+  act(() => view.update(<MixedPatterns />));
+  expect(colors()).toEqual(expectedColors(.05));
+  act(() => view.unmount());
 });

@@ -128,7 +128,7 @@ export const ASPECT_CONFIGURATION_DEFAULT: AspectConfiguration = {
   filterBySelection: false,
 };
 
-export const DEFAULT_PATTERN_ORB = 3;
+export const DEFAULT_PATTERN_ORB = 5;
 
 export function parseAspectConfiguration(v: unknown): AspectConfiguration {
   const o = obj(v);
