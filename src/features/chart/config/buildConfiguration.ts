@@ -127,15 +127,15 @@ export interface RenderChart {
 }
 
 /** Active inputs are innermost first. Identity never depends on ring position. */
-export function buildMultiConfiguration(charts: RenderChart[], preset: Preset): ChartRenderingConfiguration {
+export function buildMultiConfiguration(charts: RenderChart[], preset: Preset, orientationMode: "static" | "ascendant" = "static"): ChartRenderingConfiguration {
   if (charts.length > 3) throw new Error("A wheel supports at most three charts");
   if (charts.some(c => !c.instanceId) || new Set(charts.map(c => c.instanceId)).size !== charts.length) {
     throw new Error("Active charts require unique instance identities");
   }
-  return buildCharts(charts, preset, true);
+  return buildCharts(charts, preset, true, orientationMode);
 }
 
-function buildCharts(charts: RenderChart[], preset: Preset, qualified: boolean): ChartRenderingConfiguration {
+function buildCharts(charts: RenderChart[], preset: Preset, qualified: boolean, orientationMode: "static" | "ascendant" = "static"): ChartRenderingConfiguration {
   const slot = charts.length === 3 ? preset.tripleChart : charts.length === 2 ? preset.dualChart : preset.soloChart;
   const chart = charts[0]?.chart;
   // Houses: sort by house_number (the graph's node order is insertion order;
@@ -143,7 +143,9 @@ function buildCharts(charts: RenderChart[], preset: Preset, qualified: boolean):
   const sortedHouses = [...(chart?.houses.nodes ?? [])].sort((a, b) => a.house_number - b.house_number);
   const houseCusps = sortedHouses.map((h) => h.cusp_longitude);
   // Display orientation is a preset preference; house cusps remain astronomical data.
-  const orientation = slot.globalSettings.staticOrientationDegree;
+  const ascendant = chart?.celestial.nodes.find(node => node.body_id === 2001)?.position.longitude;
+  const orientation = orientationMode === "ascendant" && ascendant !== undefined && Number.isFinite(ascendant)
+    ? ascendant : slot.globalSettings.staticOrientationDegree;
 
   // Houses are "on" iff the preset has an enabled houses ring — the signal
   // the windowed displacement uses to choose house-bound vs sign-bound.

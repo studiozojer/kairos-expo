@@ -6,7 +6,7 @@ import type { ActiveCalculation } from './ActiveChartsContext';
 
 /** Geometry changes only when ordered identities, labels, calculated charts or
  * display preferences change. Target/unit/persistence updates do not rebuild it. */
-export function useActiveConfiguration(active: ActiveChart[], calculations: Record<string, ActiveCalculation>, preset: Preset) {
+export function useActiveConfiguration(active: ActiveChart[], calculations: Record<string, ActiveCalculation>, preset: Preset, orientationMode: "static" | "ascendant" = "static") {
   const [a, b, c] = active;
   const first = a && calculations[a.id]?.result?.chart;
   const second = b && calculations[b.id]?.result?.chart;
@@ -17,10 +17,10 @@ export function useActiveConfiguration(active: ActiveChart[], calculations: Reco
       { instanceId: a.id, name: a.name, chart: first },
       ...(b && second ? [{ instanceId: b.id, name: b.name, chart: second }] : []),
       ...(c && third ? [{ instanceId: c.id, name: c.name, chart: third }] : []),
-    ], preset);
+    ], preset, orientationMode);
     // Only these projected identity fields are consumed, not instance time or settings.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [a?.id, a?.name, b?.id, b?.name, c?.id, c?.name, first, second, third, preset]);
+  }, [a?.id, a?.name, b?.id, b?.name, c?.id, c?.name, first, second, third, preset, orientationMode]);
   const [lastComplete, setLastComplete] = useState(config);
   if (config && config !== lastComplete) setLastComplete(config);
   if (!a && lastComplete) setLastComplete(undefined);
