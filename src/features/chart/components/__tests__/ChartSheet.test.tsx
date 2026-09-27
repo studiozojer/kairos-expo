@@ -30,8 +30,13 @@ test.each(['ios', 'android'] as const)('%s closes and reopens without retaining 
       // iOS sends this only after completing its interactive dismissal.
       // Android sends it for Back, which still needs the dismissal animation.
       act(() => modal().onRequestClose());
-      expect(modal().visible).toBe(false);
-      expect(modal().animationType).toBe(platform === 'ios' ? 'none' : 'slide');
+      if (platform === 'ios') {
+        // No second onDismiss event or timer is needed to remove the host.
+        expect(view.root.findAllByType(Modal)).toHaveLength(0);
+      } else {
+        expect(modal().visible).toBe(false);
+        expect(modal().animationType).toBe('slide');
+      }
       open();
       act(() => view.root.findByProps({ testID: 'close' }).props.onPress());
       expect(modal().visible).toBe(false);
