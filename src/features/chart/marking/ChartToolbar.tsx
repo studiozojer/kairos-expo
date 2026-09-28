@@ -6,6 +6,8 @@ import type { ActionId } from '../actions/actionRegistry';
 import { markingActions, type ActionSlots } from '../actions/markingActions';
 import type { ChartActions } from '../actions/useActionRegistry';
 
+export const LOCK_SLOTS = { sw: 'orientation.left', s: 'orientation.reset', se: 'orientation.right' } as const satisfies ActionSlots;
+
 type ToolbarButton = 'settings' | 'lock' | 'screenshot' | 'display';
 export function ChartToolbar({ title, topInset, actions, slots }: {
   title: string; topInset: number; actions: ChartActions; slots?: Partial<Record<ToolbarButton, ActionSlots>>;
@@ -13,9 +15,10 @@ export function ChartToolbar({ title, topInset, actions, slots }: {
   const t = useTheme();
   const button = (id: ToolbarButton, actionId: ActionId) => {
     const action = actions.describe(actionId);
+    const assigned = slots?.[id] ?? (id === 'lock' ? LOCK_SLOTS : undefined);
     return <MarkingMenuButton id={id} label={action.label} hint={action.hint}
       onPress={() => actions.invoke(actionId)} disabled={!action.enabled}
-      options={slots?.[id] ? markingActions(slots[id], actions, t.color.txAccent) : undefined}>
+      options={assigned ? markingActions(assigned, actions, t.color.txAccent) : undefined}>
       <MarkingIcon name={action.icon} color={t.color.txAccent} />
     </MarkingMenuButton>;
   };

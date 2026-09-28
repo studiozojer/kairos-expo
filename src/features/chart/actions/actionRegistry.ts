@@ -1,6 +1,9 @@
 import type { MarkingIconName } from '../marking/iconNames';
 
 export const ACTIONS = {
+  'orientation.left': { label: 'Rotate left', hint: 'Locks orientation and moves one zodiac sign left.', icon: 'rotateLeft', category: 'orientation' },
+  'orientation.right': { label: 'Rotate right', hint: 'Locks orientation and moves one zodiac sign right.', icon: 'rotateRight', category: 'orientation' },
+  'orientation.reset': { label: 'Reset orientation', hint: 'Restores the preset’s fixed orientation without changing lock mode.', icon: 'reset', category: 'orientation' },
   'chart.library': { label: 'Add / saved charts', hint: 'Opens saved charts. Hold and drag down to add a Now chart.', icon: 'add', category: 'chart' },
   'chart.addNow': { label: 'Now', hint: 'Adds a chart for the current time.', icon: 'now', category: 'chart' },
   'chart.settings': { label: 'Chart settings', hint: 'Opens calculation settings for the selected chart.', icon: 'settings', category: 'chart' },
@@ -24,6 +27,7 @@ export interface ActionContext {
   hasTarget: boolean; targetKind?: 'saved' | 'now'; canStepBackward: boolean; canStepForward: boolean;
   aspects: { enabled: boolean; showPatterns: boolean; showFalseAspects: boolean };
   openSettings: () => void; openDisplay: () => void; toggleOrientation: () => void;
+  rotateOrientation: (direction: -1 | 1) => void; resetOrientation: () => void;
   screenshot: () => void | Promise<void>;
   toggleDisplay: (key: DisplayToggle) => void;
   step: (direction: -1 | 1) => void; reset: () => void;
@@ -70,6 +74,9 @@ export function createActionRegistry(getContext: () => ActionContext, changed: (
         case 'chart.addNow': c.addNow(); break;
         case 'chart.settings': c.openSettings(); break;
         case 'display.settings': c.openDisplay(); break;
+        case 'orientation.left': c.rotateOrientation(-1); break;
+        case 'orientation.right': c.rotateOrientation(1); break;
+        case 'orientation.reset': c.resetOrientation(); break;
         case 'orientation.toggle': c.toggleOrientation(); break;
         case 'chart.screenshot': await c.screenshot(); break;
         case 'display.aspects': case 'display.patterns': case 'display.falseAspects': c.toggleDisplay(displayKeys[id]); break;

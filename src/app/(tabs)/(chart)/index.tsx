@@ -1,3 +1,4 @@
+import { rotateOrientation, resetOrientation } from '@/features/chart/interaction/orientation';
 import { wheelFrame } from '@/features/chart/interaction/wheelFrame';
 import { ReplacementChooser } from '@/features/chart/active/ReplacementChooser';
 import { useActionRegistry } from '@/features/chart/actions/useActionRegistry';
@@ -74,6 +75,11 @@ export default function ChartHome() {
     aspects: { ...preset.aspects, showPatterns: !!preset.aspects.showPatterns },
     openSettings: () => setSettingsOpen(true), openDisplay: () => setSheetOpen(true),
     toggleOrientation: () => setOrientationMode(mode => mode === 'static' ? 'ascendant' : 'static'),
+    rotateOrientation: direction => {
+      setDocument(current => editPresetDocument(current, rotateOrientation(current.preset, session.active.length, orientationMode, config?.orientation, direction)));
+      setOrientationMode('static');
+    },
+    resetOrientation: () => setDocument(current => editPresetDocument(current, resetOrientation(current.preset, bundledPreset(presetName)!.preset))),
     screenshot: capture, step: clock.step, reset: clock.reset,
     toggleDisplay: key => setDocument(current => editPresetDocument(current, {
       ...current.preset, aspects: { ...current.preset.aspects, [key]: !current.preset.aspects[key] },
