@@ -18,7 +18,9 @@ export function SelectionStepper({ config, selectedIds, enabled, active }: {
   const clock = useChartTime();
   const availability = useEventAvailability(active && session.loaded && !!session.targetId);
   const placements = config?.rings.flatMap(ring => ring.type.kind === 'planets' ? ring.type.placements : []) ?? [];
-  const mode = eventMode(placements, selectedIds, session.targetId, config?.aspects.enabledTypes ?? []);
+  // Negotiate the query subset so an older server can still step major aspects.
+  const enabledAspects = (config?.aspects.enabledTypes ?? []).filter(aspect => availability.capabilities?.aspects.some(supported => supported === aspect));
+  const mode = eventMode(placements, selectedIds, session.targetId, enabledAspects);
   const fixedIds = [...new Set(placements.filter(p => selectedIds.includes(p.id) && p.chartInstanceId !== session.targetId)
     .map(p => p.chartInstanceId).filter((id): id is string => !!id))];
   const fixedReady = fixedIds.every(id => session.calculations[id]?.status === 'ready');

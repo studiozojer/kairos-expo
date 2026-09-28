@@ -62,3 +62,18 @@ test('other-chart selection falls back; temporary disabling retains the disabled
   const seek = session.seek; act(() => paused.props.onSeek(first.time + 1000)); expect(seek).not.toHaveBeenCalled();
   act(() => view.update(render([sun], true))); expect(view.root.findByType(EventStepper)).toBe(paused);
 });
+
+test('negotiates the enabled aspect subset across old and expanded servers', () => {
+  const expanded = { ...config, aspects: { ...config.aspects, enabledTypes: ['Square', 'Semisextile', 'Quincunx'] as typeof config.aspects.enabledTypes } };
+  const pair = () => <SelectionStepper config={expanded} selectedIds={[sun, moon]} enabled active />;
+  available.capabilities!.aspects = ['Square'];
+  act(() => view.update(pair()));
+  expect(view.root.findByType(EventStepper).props.mode.query.aspects).toEqual(['Square']);
+  available.capabilities!.aspects = ['Square', 'Semisextile', 'Quincunx'];
+  act(() => view.update(pair()));
+  expect(view.root.findByType(EventStepper).props.mode.query.aspects).toEqual(['Semisextile', 'Square', 'Quincunx']);
+  available.capabilities!.aspects = [];
+  act(() => view.update(pair()));
+  expect(view.root.findAllByType(EventStepper)).toHaveLength(0);
+  expect(view.root.findAllByType(TimeStepper)).toHaveLength(1);
+});

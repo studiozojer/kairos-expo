@@ -26,9 +26,9 @@ test('same body in different instances becomes moving/fixed, with the fixed long
 });
 test('within-chart pair requests moving/moving and only enabled supported aspects', () => {
   const mode = eventMode([sun, moon], [sun.id, moon.id], 'moving', ['Square', 'Quincunx'])!;
-  expect(mode.query).toMatchObject({ bodies: ['Moon', 'Sun'], aspects: ['Square'], kinds: ['aspect'] });
+  expect(mode.query).toMatchObject({ bodies: ['Moon', 'Sun'], aspects: ['Square', 'Quincunx'], kinds: ['aspect'] });
   expect(mode.query.fixed_points).toBeUndefined();
-  expect(eventMode([sun, moon], [sun.id, moon.id], 'moving', ['Quincunx'])).toBeNull();
+  expect(eventMode([sun, moon], [sun.id, moon.id], 'moving', ['Quintile'])).toBeNull();
   expect(eventMode([sun, moon, fixedSun], [sun.id, moon.id, fixedSun.id], 'moving', ['Square'])).toBeNull();
 });
 test('unsupported moving bodies fail closed; any finite calculated fixed point can be searched', () => {
@@ -43,4 +43,14 @@ test('capability compatibility and supported time bounds gate entry', () => {
   expect(supportsMode(capabilities, mode, time)).toBe(true);
   for (const cap of [{ ...capabilities, available: false }, { ...capabilities, aspects: [] }, { ...capabilities, modes: [] }, { ...capabilities, zodiac: 'sidereal' }]) expect(supportsMode(cap, mode, time)).toBe(false);
   expect(supportsMode(capabilities, mode, Date.parse(capabilities.supported_to))).toBe(false);
+});
+
+test.each(['Semisextile', 'Quincunx'] as const)('%s supports both chart modes only when advertised by the server', aspect => {
+  const time = Date.parse('2026-09-28T00:00:00Z');
+  for (const other of [moon, fixedSun]) {
+    const mode = eventMode([sun, other], [sun.id, other.id], 'moving', [aspect])!;
+    expect(mode.query.aspects).toEqual([aspect]);
+    expect(supportsMode(capabilities, mode, time)).toBe(false);
+    expect(supportsMode({ ...capabilities, aspects: [aspect] }, mode, time)).toBe(true);
+  }
 });

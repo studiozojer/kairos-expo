@@ -15,6 +15,7 @@ const time = '2024-01-01T00:00:00Z';
 
 test.each([
   ['Conjunction', 'aspects/conjunct', 'gold'], ['Opposition', 'aspects/opposite', 'purple'],
+  ['Semisextile', 'aspects/semi-sextile', hues.semiSextile], ['Quincunx', 'aspects/quincunx', hues.quincunx],
   ['Sextile', 'aspects/sextile', hues.sextile], ['Square', 'aspects/square', hues.square], ['Trine', 'aspects/trine', hues.trine],
 ] as const)('%s uses the real aspect asset and primitive profile hue', (aspect, glyph, hue) => {
   const style = eventSymbolStyle(node({ kind: 'aspect', aspect, time, body: 'Venus', target: { type: 'fixed', id: 'sun', longitude: 0 }, residual_degrees: 0 }), colors, hues, theme);
