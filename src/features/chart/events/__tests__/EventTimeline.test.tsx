@@ -1,4 +1,5 @@
 import React from 'react';
+import { Mask, Rect, AlphaType, ColorType } from '@shopify/react-native-skia';
 import { act, create } from 'react-test-renderer';
 import { AppState, type AppStateStatus } from 'react-native';
 import { EventTimeline, type EventTimelineProps } from '../EventTimeline';
@@ -69,14 +70,33 @@ test('preview slots wait for the 350ms settlement without restarting the spring'
   act(() => { view.root.findByProps({ testID: 'event-symbol-timeline' }).props.onLayout({ nativeEvent: { layout: { width: 220 } } }); });
   const stepped: EventTimelineProps = { ...props, slots: [null, origin, entry, null, null], transition: { sequence: 1, direction: 1 } };
   act(() => view.update(<EventTimeline {...stepped} />));
-  expect(view.root.findAllByType(EventSymbol)).toHaveLength(2);
+  // Skia clips the mask with one content pass, then paints a second pass.
+  expect(view.root.findAllByType(EventSymbol)).toHaveLength(4);
   const preview: EventTimelineProps = { ...stepped, slots: [{ ...origin, id: 'preview' }, origin, entry, null, null] };
   act(() => view.update(<EventTimeline {...preview} />));
-  expect(view.root.findAllByType(EventSymbol)).toHaveLength(2);
+  expect(view.root.findAllByType(EventSymbol)).toHaveLength(4);
   act(() => jest.advanceTimersByTime(349));
-  expect(view.root.findAllByType(EventSymbol)).toHaveLength(2);
+  expect(view.root.findAllByType(EventSymbol)).toHaveLength(4);
   act(() => jest.advanceTimersByTime(1));
-  expect(view.root.findAllByType(EventSymbol)).toHaveLength(3);
+  expect(view.root.findAllByType(EventSymbol)).toHaveLength(6);
   expect(mockSpring).toHaveBeenCalledTimes(1);
   act(() => view.unmount()); jest.useRealTimers();
+});
+
+test('edge mask leaves empty space transparent and preserves content color', async () => {
+  const { drawAsImage } = jest.requireActual('@shopify/react-native-skia/src/renderer/Offscreen');
+  let view!: ReturnType<typeof create>;
+  act(() => { view = create(<EventTimeline {...props} />); });
+  act(() => { view.root.findByProps({ testID: 'event-symbol-timeline' }).props.onLayout({ nativeEvent: { layout: { width: 220 } } }); });
+  const mask = view.root.findByType(Mask);
+  // An opaque mask isolates clipping from gradient interpolation (covered by fade-stop tests).
+  const image = await drawAsImage(<Mask {...mask.props} mask={<Rect x={0} y={0} width={220} height={44} color="black" />}><Rect x={0} y={10} width={220} height={10} color="#ff0000" /></Mask>, { width: 220, height: 44 });
+  const pixels = image.readPixels(0, 0, { width: 220, height: 44, colorType: ColorType.RGBA_8888, alphaType: AlphaType.Unpremul });
+  const alpha = (x: number, y: number) => pixels[(y * 220 + x) * 4 + 3];
+  expect(alpha(110, 30)).toBe(0); // Empty center must not become an opaque black panel.
+  expect(alpha(8, 30)).toBe(0);
+  expect(alpha(110, 15)).toBe(255);
+  expect(pixels[(15 * 220 + 110) * 4]).toBe(255);
+  image.dispose();
+  act(() => view.unmount());
 });
