@@ -25,6 +25,7 @@ test('disabled capability need not include supported fields; unknown schema reje
 test('public request validates capabilities, has no authorization, and aborts promptly', async () => {
   fetchMock.mockResolvedValueOnce(response(cap));
   await expect(fetchEventCapabilities(signal())).resolves.toEqual(cap);
+  expect(fetchMock.mock.calls[0][0]).toContain('/api/sky/status?minor_aspects=true');
   expect(fetchMock.mock.calls[0][1].headers.Authorization).toBeUndefined();
   fetchMock.mockImplementation(() => new Promise(() => {}));
   const controller = new AbortController();
@@ -148,4 +149,14 @@ test('transport, timeout, malformed JSON, and incompatible coverage have distinc
   jest.useFakeTimers(); fetchMock.mockImplementation(() => new Promise(() => {}));
   const check = expect(fetchEventCapabilities(signal())).rejects.toMatchObject({ kind: 'timeout' });
   await jest.advanceTimersByTimeAsync(8000); await check;
+});
+
+test.each(['Semisextile', 'Quincunx'] as const)('steps forward and backward through %s responses', async aspect => {
+  const pair: EventQuery = { zodiac: 'tropical', bodies: ['Mercury', 'Saturn'], kinds: ['aspect'], aspects: [aspect] };
+  const capabilities: EventCapabilities = { ...cap, bodies: pair.bodies, kinds: pair.kinds, aspects: [aspect] };
+  const event = (time: number): SkyEvent => ({ kind: 'aspect', aspect, body: 'Mercury', target: { type: 'moving', body: 'Saturn' }, residual_degrees: 0, time: new Date(time).toISOString() });
+  windows([event(anchor - 3000), event(anchor + 3000)]);
+  expect((await findEvent(pair, anchor, 1, capabilities, signal())).event).toEqual(event(anchor + 3000));
+  expect((await findEvent(pair, anchor, -1, capabilities, signal())).event).toEqual(event(anchor - 3000));
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body).aspects).toEqual([aspect]);
 });

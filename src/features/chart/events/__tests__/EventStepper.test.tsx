@@ -155,3 +155,13 @@ test('retry resumes the failed direction from the same chart time', async () => 
   expect(props.onSeek).toHaveBeenCalledTimes(1);
   expect(surface().props.accessibilityLabel).not.toContain('tap to retry');
 });
+
+test.each(['Semisextile', 'Quincunx'] as const)('%s can be chosen from the aspect filter and stepped', async aspect => {
+  act(() => view.update(<EventStepper {...props} mode={{ key: 'minor-pair', label: 'Mercury / Sun', kind: 'aspect', query: { zodiac: 'tropical', bodies: ['Mercury', 'Sun'], kinds: ['aspect'], aspects: ['Semisextile', 'Quincunx'] } }} />));
+  action('filters');
+  const option = view.root.findAll(n => n.props.accessibilityLabel === aspect && typeof n.props.onPress === 'function')[0];
+  act(() => option.props.onPress()); action('increment');
+  expect(mockedFind.mock.calls[0][0].aspects).toEqual([aspect]);
+  await resolve({ event: { kind: 'aspect', body: 'Mercury', aspect, target: { type: 'moving', body: 'Sun' }, residual_degrees: 0, time: next.time }, boundary: now, exhausted: false });
+  expect(props.onSeek).toHaveBeenCalledWith(Date.parse(next.time));
+});

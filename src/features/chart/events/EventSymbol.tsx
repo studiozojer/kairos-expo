@@ -10,6 +10,8 @@ import type { TimelineNode } from './timelineTypes';
 
 const ASPECTS: Record<EventAspect, { glyph: GlyphName; hue: keyof AspectHues }> = {
   Conjunction: { glyph: 'aspects/conjunct', hue: 'conjunction' },
+  Semisextile: { glyph: 'aspects/semi-sextile', hue: 'semiSextile' },
+  Quincunx: { glyph: 'aspects/quincunx', hue: 'quincunx' },
   Sextile: { glyph: 'aspects/sextile', hue: 'sextile' },
   Square: { glyph: 'aspects/square', hue: 'square' },
   Trine: { glyph: 'aspects/trine', hue: 'trine' },

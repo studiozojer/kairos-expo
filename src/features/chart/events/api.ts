@@ -58,7 +58,7 @@ async function request(path: string, signal: AbortSignal, timeout: number, body?
 }
 
 export async function fetchEventCapabilities(signal: AbortSignal): Promise<EventCapabilities> {
-  const value = await request('/api/sky/status', signal, 8_000);
+  const value = await request('/api/sky/status?minor_aspects=true', signal, 8_000);
   if (!object(value) || value.schema_version !== 1 || typeof value.available !== 'boolean') throw invalid();
   // Disabled deployments may intentionally omit all capability details.
   if (!value.available) return { schema_version: 1, available: false, supported_from: '', supported_to: '', max_window_days: 0, max_events: 0, bodies: [], aspects: [], kinds: [], modes: [], zodiac: '', reason: typeof value.reason === 'string' ? value.reason : 'unavailable' };

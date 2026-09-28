@@ -1,6 +1,6 @@
 /** Public sky-service v1 contract. Times are UTC; event windows are half-open. */
 export const EVENT_BODIES = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'] as const;
-export const EVENT_ASPECTS = ['Conjunction', 'Sextile', 'Square', 'Trine', 'Opposition'] as const;
+export const EVENT_ASPECTS = ['Conjunction', 'Semisextile', 'Sextile', 'Square', 'Trine', 'Quincunx', 'Opposition'] as const;
 export type EventBody = typeof EVENT_BODIES[number];
 export type EventAspect = typeof EVENT_ASPECTS[number];
 export type EventKind = 'aspect' | 'ingress' | 'station';
