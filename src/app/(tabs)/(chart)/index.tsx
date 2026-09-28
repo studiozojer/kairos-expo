@@ -136,7 +136,7 @@ export default function ChartHome() {
         </Pressable>}
       </View>
 
-      <View onLayout={event => setStepperTop(event.nativeEvent.layout.y)} style={{ marginHorizontal: theme.space.lg, marginBottom: insets.bottom + theme.space.sm }}>
+      <View onLayout={event => setStepperTop(event.nativeEvent.layout.y)} style={{ marginHorizontal: 16, marginBottom: insets.bottom + theme.space.sm }}>
         <TimeStepperSurface><TimeStepper key={session.targetId ?? 'empty'} /></TimeStepperSurface>
       </View>
 
