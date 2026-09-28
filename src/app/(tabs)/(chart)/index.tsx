@@ -17,8 +17,7 @@ import { useActiveConfiguration } from '@/features/chart/active/useActiveConfigu
 import { useChartTime } from '@/features/chart/time/ChartTimeContext';
 import { ActiveChartCards } from '@/features/chart/active/ActiveChartCards';
 import { useActiveCharts } from '@/features/chart/active/ActiveChartsContext';
-import { TimeStepper } from '@/features/chart/time/TimeStepper';
-import { TimeStepperSurface } from '@/features/chart/time/TimeStepperSurface';
+import { SelectionStepper } from '@/features/chart/events/SelectionStepper';
 import { SettingsSheet } from '@/features/chart/settings/SettingsSheet';
 import { DisplaySheet } from '@/features/chart/display/DisplaySheet';
 import { toggleBody, bodyChoices } from '@/features/chart/display/displayPreset';
@@ -32,6 +31,7 @@ export default function ChartHome() {
   const theme = useTheme();
   const router = useRouter();
   const [replaceNow, setReplaceNow] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const clock = useChartTime();
   const { settings, loaded, update, saveError } = clock;
   const session = useActiveCharts();
@@ -104,7 +104,7 @@ export default function ChartHome() {
       {/* The canvas fills the screen; the measured slot below locates the wheel
           without clipping it. Cards and the stepper bound the resting slot. */}
       {config && wheelSize > 0 && <InteractiveChartWheel config={config} size={wheelSize} viewport={viewport}
-        baseCenter={wheelCenter}
+        baseCenter={wheelCenter} selectedIds={selectedIds} onSelectionChange={setSelectedIds}
         selectionStyle={preset.selection} enabled={!sheetOpen && !settingsOpen && !replaceNow && !menuActive && !capturing && !previousArrangement}
         onHideBody={name => setDocument(current => editPresetDocument(current, toggleBody(current.preset, name, false)))} />}
       <ChartToolbar title={session.active.find(item => item.id === session.targetId)?.name ?? 'Chart'} topInset={insets.top}
@@ -137,7 +137,8 @@ export default function ChartHome() {
       </View>
 
       <View onLayout={event => setStepperTop(event.nativeEvent.layout.y)} style={{ marginHorizontal: 16, marginBottom: insets.bottom + theme.space.sm }}>
-        <TimeStepperSurface><TimeStepper key={session.targetId ?? 'empty'} /></TimeStepperSurface>
+        <SelectionStepper config={config} selectedIds={selectedIds}
+          enabled={focused && !sheetOpen && !settingsOpen && !replaceNow && !menuActive && !capturing && !previousArrangement} />
       </View>
 
       <ChartPutAwayOverlay session={cardDrag} stepperTop={stepperTop} />

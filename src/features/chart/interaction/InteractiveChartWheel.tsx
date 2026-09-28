@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useTheme } from '@/theme';
@@ -13,27 +13,33 @@ import { useChartGesture } from './useChartGesture';
 /** Native touch recognition feeds Mercurial-derived UI-thread transforms.
  * The native sheet and alert own presentation; chart-specific motion and
  * hit detection are custom because there is no platform chart interaction. */
-export function InteractiveChartWheel({ config, size, selectionStyle, enabled = true, onHideBody, viewport, baseCenter }: {
+export function InteractiveChartWheel({ config, size, selectionStyle, enabled = true, onHideBody, viewport, baseCenter, selectedIds, onSelectionChange }: {
   config: ChartRenderingConfiguration; size: number; selectionStyle: SelectionStyleOverride;
   viewport: { width: number; height: number }; baseCenter: { x: number; y: number };
+  selectedIds?: string[]; onSelectionChange?: Dispatch<SetStateAction<string[]>>;
   enabled?: boolean; onHideBody: (name: string) => void;
 }) {
   const theme = useTheme();
   const layout = useWheelLayout(config, size);
   const targets = useMemo(() => chartTargets(layout), [layout]);
-  const [selected, setSelected] = useState<string[]>([]);
+  const [localSelected, setLocalSelected] = useState<string[]>([]);
+  const selected = selectedIds ?? localSelected;
+  const setSelected = useCallback((ids: SetStateAction<string[]>) => {
+    if (onSelectionChange) onSelectionChange(ids); else setLocalSelected(ids);
+  }, [onSelectionChange]);
   const [objectsOpen, setObjectsOpen] = useState(false);
   // IDs persist through time steps; display text and hit positions are always
   // derived from the currently rendered chart. Hiding a body drops selection.
-  const [previousTargets, setPreviousTargets] = useState(targets);
-  if (previousTargets !== targets) {
-    setPreviousTargets(targets);
+  useEffect(() => {
     const visible = new Set(targets.map(t => t.id));
-    if (selected.some(id => !visible.has(id))) setSelected(selected.filter(id => visible.has(id)));
-  }
+    // Controlled selection belongs to the page: notify it after commit, never
+    // update the parent while rendering this wheel. The guard prevents loops.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (selected.some(id => !visible.has(id))) setSelected(old => old.filter(id => visible.has(id)));
+  }, [targets, selected, setSelected]);
   const paint = useMemo(() => selectionPaint(selected, targets, config, selectionStyle), [selected, targets, config, selectionStyle]);
   const selectedTargets = selected.flatMap(id => { const target = targets.find(t => t.id === id); return target ? [target] : []; });
-  const tap = useCallback((id: string | null) => setSelected(old => toggleSelection(old, id)), []);
+  const tap = useCallback((id: string | null) => setSelected(old => toggleSelection(old, id)), [setSelected]);
   const hold = useCallback((id: string) => {
     const target = targets.find(t => t.id === id);
     if (!target) return;

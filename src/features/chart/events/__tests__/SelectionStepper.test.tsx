@@ -1,0 +1,63 @@
+import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { SelectionStepper } from '../SelectionStepper';
+import { EventStepper } from '../EventStepper';
+import { TimeStepper } from '../../time/TimeStepper';
+import { useEventAvailability } from '../useEventAvailability';
+import { useActiveCharts } from '../../active/ActiveChartsContext';
+import { useChartTime } from '../../time/ChartTimeContext';
+import { buildMultiConfiguration } from '../../config/buildConfiguration';
+import { bundledPreset } from '../../display/presets';
+import { nowInstance } from '../../active/model';
+import { placementIdentifier } from '../../config/identifiers';
+import fixture from '../../fixtures/engine/seattle-2026.json';
+import { EVENT_BODIES, EVENT_ASPECTS } from '../types';
+jest.mock('../EventStepper', () => ({ EventStepper: jest.fn(() => null) }));
+jest.mock('../../time/TimeStepper', () => ({ TimeStepper: jest.fn(() => null) }));
+jest.mock('../../time/TimeStepperSurface', () => ({ TimeStepperSurface: ({ children }: any) => children }));
+jest.mock('../useEventAvailability');
+jest.mock('../../active/ActiveChartsContext');
+jest.mock('../../time/ChartTimeContext', () => ({ useChartTime: jest.fn(), ChartTimeProvider: ({ children }: any) => children }));
+const first = { ...nowInstance(), id: 'first' }, second = { ...nowInstance(), id: 'second' };
+const config = buildMultiConfiguration([{ instanceId: first.id, name: 'One', chart: fixture }, { instanceId: second.id, name: 'Two', chart: fixture }], bundledPreset('classic')!.preset);
+const sun = placementIdentifier(first.id, 'sun'), moon = placementIdentifier(second.id, 'moon');
+let session: ReturnType<typeof useActiveCharts>, available: ReturnType<typeof useEventAvailability>, view: ReactTestRenderer;
+const render = (ids = [sun], enabled = true) => <SelectionStepper config={config} selectedIds={ids} enabled={enabled} />;
+beforeEach(() => {
+  session = { active: [first, second], targetId: first.id, loaded: true, calculations: { [first.id]: { status: 'ready' }, [second.id]: { status: 'ready' } }, seek: jest.fn(() => true) } as unknown as typeof session;
+  available = { capabilities: { schema_version: 1, available: true, supported_from: '1900-02-04T00:00:00Z', supported_to: '2199-11-28T00:00:00Z', max_window_days: 31, max_events: 500, bodies: [...EVENT_BODIES], aspects: [...EVENT_ASPECTS], kinds: ['aspect', 'ingress', 'station'], modes: ['moving_moving', 'moving_fixed'], zodiac: 'tropical', reason: 'available' }, status: 'available', retry: jest.fn(), markUnavailable: jest.fn() };
+  jest.mocked(useActiveCharts).mockImplementation(() => session);
+  jest.mocked(useEventAvailability).mockImplementation(() => available);
+  jest.mocked(useChartTime).mockReturnValue({ targetId: first.id, time: first.time, origin: first.time, settings: first.settings, kind: 'now', reset: jest.fn() } as any);
+  act(() => { view = create(render()); });
+});
+afterEach(() => act(() => view.unmount()));
+test('only confirmed compatible readiness enters event mode; failure returns to ordinary time without seeking', () => {
+  expect(view.root.findAllByType(EventStepper)).toHaveLength(1);
+  available = { ...available, capabilities: null, status: 'checking' };
+  act(() => view.update(render()));
+  expect(view.root.findAllByType(EventStepper)).toHaveLength(0); expect(view.root.findAllByType(TimeStepper)).toHaveLength(1);
+  available.status = 'unavailable'; act(() => view.update(render()));
+  expect(session.seek).not.toHaveBeenCalled();
+  const retry = view.root.findAll(n => n.props.accessibilityLabel === 'Events unavailable · Retry' && n.props.onPress)[0];
+  act(() => retry.props.onPress()); expect(available.retry).toHaveBeenCalled();
+});
+test('swap retains selection and ordinary time preference for the current mode', () => {
+  const swap = view.root.findAll(n => n.props.accessibilityLabel === 'Use time stepper' && n.props.onPress)[0];
+  act(() => swap.props.onPress()); expect(view.root.findAllByType(TimeStepper)).toHaveLength(1);
+  act(() => view.update(render())); expect(view.root.findAllByType(TimeStepper)).toHaveLength(1);
+  const back = view.root.findAll(n => n.props.accessibilityLabel === 'Use event stepper' && n.props.onPress)[0];
+  act(() => back.props.onPress()); expect(view.root.findAllByType(EventStepper)).toHaveLength(1);
+});
+test('cross-chart query waits for fresh fixed calculation and supplies both snapshots to guarded seek', () => {
+  act(() => view.update(render([sun, moon])));
+  const event = view.root.findByType(EventStepper);
+  expect(event.props.mode.query.fixed_points).toHaveLength(1);
+  act(() => event.props.onSeek(first.time + 1000));
+  expect(session.seek).toHaveBeenCalledWith({ targetId: first.id, charts: [first, second] }, first.time + 1000);
+  session.calculations[second.id].status = 'loading'; act(() => view.update(render([sun, moon])));
+  expect(view.root.findAllByType(EventStepper)).toHaveLength(0);
+});
+test('other-chart-only selection or disabled controls never exposes event navigation', () => {
+  act(() => view.update(render([moon]))); expect(view.root.findAllByType(EventStepper)).toHaveLength(0);
+  act(() => view.update(render([sun], false))); expect(view.root.findAllByType(EventStepper)).toHaveLength(0);
+});
