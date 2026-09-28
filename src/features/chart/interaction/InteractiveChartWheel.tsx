@@ -1,17 +1,15 @@
 import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, View } from 'react-native';
 import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useTheme } from '@/theme';
 import type { ChartRenderingConfiguration } from '../config/ChartRenderingConfiguration';
 import type { SelectionStyleOverride } from '../schema/preset';
 import { ChartWheelCanvas } from '../render/ChartWheel';
 import { useWheelLayout } from '../render/useWheelLayout';
-import { ChartSheet, SheetHeader } from '../components/ChartSheet';
 import { chartTargets, selectionPaint, toggleSelection } from './selection';
 import { useChartGesture } from './useChartGesture';
 
 /** Native touch recognition feeds Mercurial-derived UI-thread transforms.
- * The native sheet and alert own presentation; chart-specific motion and
+ * The native alert owns presentation; chart-specific motion and
  * hit detection are custom because there is no platform chart interaction. */
 export function InteractiveChartWheel({ config, size, selectionStyle, enabled = true, onHideBody, viewport, baseCenter, selectedIds, onSelectionChange }: {
   config: ChartRenderingConfiguration; size: number; selectionStyle: SelectionStyleOverride;
@@ -19,7 +17,6 @@ export function InteractiveChartWheel({ config, size, selectionStyle, enabled = 
   selectedIds?: string[]; onSelectionChange?: Dispatch<SetStateAction<string[]>>;
   enabled?: boolean; onHideBody: (name: string) => void;
 }) {
-  const theme = useTheme();
   const layout = useWheelLayout(config, size);
   const targets = useMemo(() => chartTargets(layout), [layout]);
   const [localSelected, setLocalSelected] = useState<string[]>([]);
@@ -27,8 +24,7 @@ export function InteractiveChartWheel({ config, size, selectionStyle, enabled = 
   const setSelected = useCallback((ids: SetStateAction<string[]>) => {
     if (onSelectionChange) onSelectionChange(ids); else setLocalSelected(ids);
   }, [onSelectionChange]);
-  const [objectsOpen, setObjectsOpen] = useState(false);
-  // IDs persist through time steps; display text and hit positions are always
+  // IDs persist through time steps; hit positions are always
   // derived from the currently rendered chart. Hiding a body drops selection.
   useEffect(() => {
     const visible = new Set(targets.map(t => t.id));
@@ -38,7 +34,6 @@ export function InteractiveChartWheel({ config, size, selectionStyle, enabled = 
     if (selected.some(id => !visible.has(id))) setSelected(old => old.filter(id => visible.has(id)));
   }, [targets, selected, setSelected]);
   const paint = useMemo(() => selectionPaint(selected, targets, config, selectionStyle), [selected, targets, config, selectionStyle]);
-  const selectedTargets = selected.flatMap(id => { const target = targets.find(t => t.id === id); return target ? [target] : []; });
   const tap = useCallback((id: string | null) => setSelected(old => toggleSelection(old, id)), [setSelected]);
   const hold = useCallback((id: string) => {
     const target = targets.find(t => t.id === id);
@@ -49,13 +44,7 @@ export function InteractiveChartWheel({ config, size, selectionStyle, enabled = 
       { text: 'Hide from chart', onPress: () => onHideBody(target.label) },
     ]);
   }, [targets, tap, onHideBody]);
-  const motion = useChartGesture(size, targets, enabled && !objectsOpen, tap, hold, baseCenter);
-  const button = (label: string, action: () => void) => <Pressable key={label} accessibilityRole="button"
-    accessibilityLabel={label} onPress={action} disabled={!enabled}
-    style={{ minHeight: 44, minWidth: 44, justifyContent: 'center', paddingHorizontal: 8 }}>
-    <Text style={[theme.type.whyteXs, { color: theme.color.txAccent }]}>{label}</Text>
-  </Pressable>;
-
+  const motion = useChartGesture(size, targets, enabled, tap, hold, baseCenter);
   return <View style={{ position: 'absolute', top: 0, left: 0, width: viewport.width, height: viewport.height }}>
     <GestureHandlerRootView style={{ width: viewport.width, height: viewport.height }}>
       <GestureDetector gesture={motion.gesture}>
@@ -64,31 +53,5 @@ export function InteractiveChartWheel({ config, size, selectionStyle, enabled = 
         </View>
       </GestureDetector>
     </GestureHandlerRootView>
-    <View pointerEvents="box-none" style={{ position: 'absolute', top: baseCenter.y + size / 2, left: 0, right: 0, minHeight: 44, paddingHorizontal: theme.space.md }}>
-      {selectedTargets.length ? <Pressable accessibilityRole="button" accessibilityLabel={`Selection: ${selectedTargets.map(t => `${t.label}, ${t.detail}`).join('; ')}. Open chart objects.`}
-        onPress={() => setObjectsOpen(true)} style={{ minHeight: 44, justifyContent: 'center' }}>
-        <Text numberOfLines={2} style={[theme.type.fraktionXxs, { color: theme.color.txPrimary, textAlign: 'center' }]}>
-          {selectedTargets.map(t => `${t.label} · ${t.detail}`).join('\n')}
-        </Text>
-      </Pressable> : null}
-    </View>
-    <ChartSheet visible={objectsOpen} onClose={() => setObjectsOpen(false)}>
-      <SheetHeader title="Chart objects" closeLabel="Close chart objects" onClose={() => setObjectsOpen(false)}
-        trailing={button('Clear', () => setSelected([]))} />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: theme.space.lg, paddingBottom: 32 }}>
-        {targets.map(target => <View key={target.id} style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: theme.border.hairline, borderColor: theme.color.bdSecondary }}>
-          <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: paint.selected.has(target.id) }}
-            accessibilityLabel={`${target.label}, ${target.detail}`} onPress={() => tap(target.id)}
-            style={{ flex: 1, minHeight: 60, justifyContent: 'center', paddingVertical: 8 }}>
-            <Text style={[theme.type.whyteSm, { color: theme.color.txPrimary }]}>{paint.selected.has(target.id) ? '✓ ' : ''}{target.label}</Text>
-            <Text style={[theme.type.fraktionXxs, { color: theme.color.txSecondary }]}>{target.detail}</Text>
-          </Pressable>
-          {target.kind === 'body' && <Pressable accessibilityRole="button" accessibilityLabel={`Actions for ${target.label}`}
-            onPress={() => hold(target.id)} style={{ minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' }}>
-            <Text style={[theme.type.whyteSm, { color: theme.color.txAccent }]}>···</Text>
-          </Pressable>}
-        </View>)}
-      </ScrollView>
-    </ChartSheet>
   </View>;
 }
