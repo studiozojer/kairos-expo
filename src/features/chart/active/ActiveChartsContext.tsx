@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { DEFAULT_SETTINGS, parseSettings, SETTINGS_KEY, type ChartSettings } from '../settings/chartSettings';
 import { TIME_STEPS } from '../time/timeSteps';
 import { useSteppedChart } from '../time/useSteppedChart';
-import { ACTIVE_CHARTS_KEY, changeTarget, initialSession, moveInstance, newChartId, nowInstance, openInstance, parseSession, removeInstance, reorderInstance, resetTarget, snapshotSettings, stepTarget, validateDraft, type ActiveChart, type ActiveSession, type ChartDraft, type SavedChart } from './model';
+import { seekEvent, type EventSeekSnapshot, ACTIVE_CHARTS_KEY, changeTarget, initialSession, moveInstance, newChartId, nowInstance, openInstance, parseSession, removeInstance, reorderInstance, resetTarget, snapshotSettings, stepTarget, validateDraft, type ActiveChart, type ActiveSession, type ChartDraft, type SavedChart } from './model';
 
 export type ActiveCalculation = ReturnType<typeof useSteppedChart>;
 type PublishedCalculation = ActiveCalculation & { requestedTime: number; requestedSettings: ChartSettings };
@@ -110,6 +110,10 @@ function useActiveState() {
     commit({ ...current.current, active: current.current.active.map(chart => chart.id === id ? { ...chart, settings: snapshotSettings(settings) } : chart) });
   }, [commit]);
   const step = useCallback((direction: -1 | 1) => { commit(stepTarget(current.current, direction)); }, [commit]);
+  const seek = useCallback((snapshot: EventSeekSnapshot, time: number) => {
+    const next = seekEvent(current.current, snapshot, time);
+    return next !== current.current && commit(next);
+  }, [commit]);
   const reset = useCallback(() => { commit(resetTarget(current.current)); }, [commit]);
   const selectUnit = useCallback((index: number) => {
     if (Number.isInteger(index)) commit(changeTarget(current.current, chart => ({ ...chart, unit: Math.max(0, Math.min(TIME_STEPS.length - 1, index)) })));
@@ -122,7 +126,7 @@ function useActiveState() {
     const calculation = calculations[chart.id];
     if (calculation) visibleCalculations[chart.id] = { ...calculation, status: calculation.requestedTime === chart.time && calculation.requestedSettings === chart.settings ? calculation.status : 'loading' };
   }
-  return { ...session, loaded, saveError, loadError, saving, calculations: visibleCalculations, saveChart, openSaved, addNow, remove, move, moveTo, selectTarget, updateInstanceSettings, step, reset, selectUnit, retryPersistence, retryLoad, publish };
+  return { ...session, loaded, saveError, loadError, saving, calculations: visibleCalculations, saveChart, openSaved, addNow, remove, move, moveTo, selectTarget, updateInstanceSettings, step, seek, reset, selectUnit, retryPersistence, retryLoad, publish };
 }
 const Context = createContext<Omit<ReturnType<typeof useActiveState>, 'publish'> | null>(null);
 export function ActiveChartsProvider({ children }: { children: ReactNode }) {

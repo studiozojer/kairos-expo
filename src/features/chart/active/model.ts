@@ -82,3 +82,19 @@ export const resetTarget = (state: ActiveSession, now = Date.now()) => changeTar
   const time = chart.kind === 'now' ? Math.max(MIN_TIME, Math.min(MAX_TIME, now)) : chart.origin;
   return { ...chart, time, origin: chart.kind === 'now' ? time : chart.origin };
 });
+
+/** A search result may only move the explicit target from the snapshot searched.
+ * Ring reordering is harmless; changed time/settings or a removed dependency is not. */
+export interface EventSeekSnapshot {
+  targetId: string;
+  charts: Pick<ActiveChart, 'id' | 'time' | 'settings'>[];
+}
+export function seekEvent(state: ActiveSession, snapshot: EventSeekSnapshot, time: number): ActiveSession {
+  if (!validTime(time) || state.targetId !== snapshot.targetId ||
+    !snapshot.charts.some(chart => chart.id === snapshot.targetId) ||
+    snapshot.charts.some(expected => {
+      const actual = state.active.find(chart => chart.id === expected.id);
+      return !actual || actual.time !== expected.time || actual.settings !== expected.settings;
+    })) return state;
+  return changeTarget(state, chart => ({ ...chart, time }));
+}

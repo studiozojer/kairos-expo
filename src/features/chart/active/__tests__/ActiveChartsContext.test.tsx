@@ -143,3 +143,30 @@ test('new Now charts retain defaults after session restoration; unavailable pref
   expect(state.loaded).toBe(true); expect(state.loadError).toBe(false);
   expect(state.active).toHaveLength(2);
 });
+
+test('event seeks are independent, persist, and reject stale target/time/settings/fixed dependencies', async () => {
+  await mount();
+  await act(async () => { const saved = state.saveChart(draft); state.openSaved(saved.id); });
+  const natal = state.active[1], originalSaved = state.saved[0], other = state.active[0];
+  const snapshot = () => ({ targetId: state.targetId!, charts: [...state.active] });
+  const initial = snapshot();
+  const eventTime = natal.time + 3600000;
+  await act(async () => { expect(state.seek(initial, eventTime)).toBe(true); });
+  expect(state.active[1].time).toBe(eventTime);
+  expect(state.active[0]).toEqual(other);
+  expect(state.saved[0]).toEqual(originalSaved);
+  await act(async () => { expect(state.seek(initial, eventTime + 1000)).toBe(false); });
+  const beforeSwitch = snapshot();
+  await act(async () => { state.selectTarget(other.id); expect(state.seek(beforeSwitch, eventTime + 1000)).toBe(false); });
+  await act(async () => { state.selectTarget(natal.id); });
+  const beforeSettings = snapshot();
+  await act(async () => { state.updateInstanceSettings(other.id, { ...DEFAULT_SETTINGS, houseSystem: 'Equal' }); expect(state.seek(beforeSettings, eventTime + 1000)).toBe(false); });
+  const beforeReorder = snapshot();
+  await act(async () => { state.move(natal.id, -1); expect(state.seek(beforeReorder, eventTime + 2000)).toBe(true); });
+  const beforeRemoval = snapshot();
+  await act(async () => { state.remove(other.id); expect(state.seek(beforeRemoval, eventTime + 3000)).toBe(false); });
+  await act(async () => { expect(state.seek(snapshot(), NaN)).toBe(false); expect(state.seek(snapshot(), Date.UTC(2200, 0, 1))).toBe(false); });
+  act(() => view.unmount()); await mount();
+  expect(state.active[0].time).toBe(eventTime + 2000);
+  expect(state.saved[0]).toEqual(originalSaved);
+});
