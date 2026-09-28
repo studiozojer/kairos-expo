@@ -59,7 +59,8 @@ export function EventTimeline({ slots, transition, loading, timezone, colors, as
   }, [offset]);
   return <View testID="event-symbol-timeline" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" onLayout={event => setWidth(event.nativeEvent.layout.width)} style={{ height: TIMELINE_HEIGHT, flex: 1, overflow: 'hidden' }}>
     {width > 0 && <Canvas style={{ width, height: TIMELINE_HEIGHT }}>
-      <Mask mode="alpha" clip={false} mask={<Rect x={0} y={0} width={width} height={TIMELINE_HEIGHT}><LinearGradient start={vec(0, 0)} end={vec(width, 0)} colors={['transparent', 'black', 'black', 'transparent']} positions={timelineFadeStops(width)} /></Rect>}>
+      {/* Clip to content alpha so the black mask never paints the gaps between symbols. */}
+      <Mask mode="alpha" mask={<Rect x={0} y={0} width={width} height={TIMELINE_HEIGHT}><LinearGradient start={vec(0, 0)} end={vec(width, 0)} colors={['transparent', 'black', 'black', 'transparent']} positions={timelineFadeStops(width)} /></Rect>}>
         <Group transform={transform}>
           {items.map((item, index) => {
             const x = width / 2 + (index - 2) * TIMELINE_PITCH;
