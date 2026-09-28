@@ -39,10 +39,9 @@ const CATALOG = join(IOS, 'kairos-swift', 'Assets.xcassets', 'glyphs');
 const OUT_ASSETS = join(ROOT, 'assets', 'chart-glyphs');
 const OUT_MAP = join(ROOT, 'src', 'features', 'chart', 'render', 'glyph-map.gen.ts');
 
-// The groups the chart renderer consumes (aspects/houses/rings subfolders are
-// deliberately NOT synced — nothing renders them yet; sync them with the task
-// that does). rx.imageset sits at the catalog root (iOS: "glyphs/rx").
-const GROUPS = ['celestials', 'signs', 'other'];
+// Chart wheel and event timeline groups. Houses/rings remain unused.
+// rx.imageset sits at the catalog root (iOS: "glyphs/rx").
+const GROUPS = ['celestials', 'signs', 'other', 'aspects'];
 
 function die(message) {
   // Fail loudly rather than emitting an empty map — a generator that silently
