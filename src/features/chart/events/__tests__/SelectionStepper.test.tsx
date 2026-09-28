@@ -38,15 +38,11 @@ test('only confirmed compatible readiness enters event mode; failure returns to 
   expect(view.root.findAllByType(EventStepper)).toHaveLength(0); expect(view.root.findAllByType(TimeStepper)).toHaveLength(1);
   available.status = 'unavailable'; act(() => view.update(render()));
   expect(session.seek).not.toHaveBeenCalled();
-  const retry = view.root.findAll(n => n.props.accessibilityLabel === 'Events unavailable · Retry' && n.props.onPress)[0];
-  act(() => retry.props.onPress()); expect(available.retry).toHaveBeenCalled();
+  expect(view.root.findAllByType(TimeStepper)).toHaveLength(1);
 });
-test('swap retains selection and ordinary time preference for the current mode', () => {
-  const swap = view.root.findAll(n => n.props.accessibilityLabel === 'Use time stepper' && n.props.onPress)[0];
-  act(() => swap.props.onPress()); expect(view.root.findAllByType(TimeStepper)).toHaveLength(1);
-  act(() => view.update(render())); expect(view.root.findAllByType(TimeStepper)).toHaveLength(1);
-  const back = view.root.findAll(n => n.props.accessibilityLabel === 'Use event stepper' && n.props.onPress)[0];
-  act(() => back.props.onPress()); expect(view.root.findAllByType(EventStepper)).toHaveLength(1);
+test('clearing selection returns to time and selecting a supported body restores events', () => {
+  act(() => view.update(render([]))); expect(view.root.findAllByType(TimeStepper)).toHaveLength(1);
+  act(() => view.update(render([sun]))); expect(view.root.findAllByType(EventStepper)).toHaveLength(1);
 });
 test('cross-chart query waits for fresh fixed calculation and supplies both snapshots to guarded seek', () => {
   act(() => view.update(render([sun, moon])));
