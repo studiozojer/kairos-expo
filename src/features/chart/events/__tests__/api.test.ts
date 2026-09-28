@@ -85,7 +85,7 @@ test('clips searches to service range and distinguishes exhausted from network f
   expect(await findEvent(query, anchor, 1, limited, signal())).toEqual({ event: null, boundary: anchor + DAY, exhausted: true });
   expect(fetchMock).toHaveBeenCalledTimes(1);
   fetchMock.mockRejectedValue(new Error('offline'));
-  await expect(findEvent(query, anchor, 1, limited, signal())).rejects.toThrow('offline');
+  await expect(findEvent(query, anchor, 1, limited, signal())).rejects.toMatchObject({ kind: 'network' });
 });
 
 test('unsupported query and pre-aborted search never contact server', async () => {
@@ -117,4 +117,35 @@ test('events use 45-second timeout and searches stop after cancellation between 
   });
   await expect(findEvent(query, anchor, 1, cap, controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
   expect(fetchMock).toHaveBeenCalledTimes(2);
+});
+
+test.each(['busy', 'computation_unavailable', 'unavailable', 'unsupported_query'])('HTTP failure preserves safe server code %s', async code => {
+  fetchMock.mockResolvedValue({ ok: false, status: 503, json: async () => ({ error: code }) });
+  await expect(fetchEventCapabilities(signal())).rejects.toMatchObject({ name: 'EventServiceError', kind: 'http', status: 503, code });
+});
+
+test('HTTP status survives malformed error bodies; unknown server text is not exposed', async () => {
+  fetchMock.mockResolvedValueOnce({ ok: false, status: 502, json: async () => { throw new Error('not JSON'); } })
+    .mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({ error: 'private server detail' }) });
+  await expect(fetchEventCapabilities(signal())).rejects.toMatchObject({ kind: 'http', status: 502, code: undefined });
+  await expect(fetchEventCapabilities(signal())).rejects.toMatchObject({ kind: 'http', status: 500, code: undefined });
+});
+
+test('stalled HTTP error body retains received status at deadline', async () => {
+  jest.useFakeTimers();
+  fetchMock.mockResolvedValue({ ok: false, status: 503, json: () => new Promise(() => {}) });
+  const check = expect(fetchEventCapabilities(signal())).rejects.toMatchObject({ kind: 'http', status: 503 });
+  await jest.advanceTimersByTimeAsync(8000); await check;
+});
+
+test('transport, timeout, malformed JSON, and incompatible coverage have distinct error kinds', async () => {
+  fetchMock.mockRejectedValueOnce(new TypeError('Network request failed'));
+  await expect(fetchEventCapabilities(signal())).rejects.toMatchObject({ kind: 'network' });
+  fetchMock.mockResolvedValueOnce({ ok: true, json: async () => { throw new SyntaxError('bad JSON'); } });
+  await expect(fetchEventCapabilities(signal())).rejects.toMatchObject({ kind: 'invalid_response' });
+  fetchMock.mockResolvedValueOnce(response({ schema_version: 9 }));
+  await expect(fetchEventCapabilities(signal())).rejects.toMatchObject({ kind: 'invalid_response' });
+  jest.useFakeTimers(); fetchMock.mockImplementation(() => new Promise(() => {}));
+  const check = expect(fetchEventCapabilities(signal())).rejects.toMatchObject({ kind: 'timeout' });
+  await jest.advanceTimersByTimeAsync(8000); await check;
 });

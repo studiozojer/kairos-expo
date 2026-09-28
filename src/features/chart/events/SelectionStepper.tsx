@@ -11,12 +11,12 @@ import { EventStepper } from './EventStepper';
 
 /** Keep the original 56pt stepper footprint in both time and event modes.
  * The server's capability response gates event mode; Wi-Fi alone never does. */
-export function SelectionStepper({ config, selectedIds, enabled }: {
-  config?: ChartRenderingConfiguration; selectedIds: string[]; enabled: boolean;
+export function SelectionStepper({ config, selectedIds, enabled, active }: {
+  config?: ChartRenderingConfiguration; selectedIds: string[]; enabled: boolean; active: boolean;
 }) {
   const session = useActiveCharts();
   const clock = useChartTime();
-  const availability = useEventAvailability(enabled && session.loaded && !!session.targetId);
+  const availability = useEventAvailability(active && session.loaded && !!session.targetId);
   const placements = config?.rings.flatMap(ring => ring.type.kind === 'planets' ? ring.type.placements : []) ?? [];
   const mode = eventMode(placements, selectedIds, session.targetId, config?.aspects.enabledTypes ?? []);
   const fixedIds = [...new Set(placements.filter(p => selectedIds.includes(p.id) && p.chartInstanceId !== session.targetId)
@@ -27,18 +27,18 @@ export function SelectionStepper({ config, selectedIds, enabled }: {
     supported_to: new Date(Math.min(MAX_TIME + 1, Date.parse(availability.capabilities.supported_to))).toISOString(),
   } : null, [availability.capabilities]);
   const supported = !!mode && !!capabilities && supportsMode(capabilities, mode, clock.time);
-  const eventEnabled = enabled && supported && fixedReady && availability.status === 'available';
+  const eventAvailable = active && supported && fixedReady && availability.status === 'available';
   const snapshot = { targetId: session.targetId ?? '', charts: session.active.filter(chart => chart.id === session.targetId || fixedIds.includes(chart.id)) };
   // Invalidate fixed-point requests even if a settings/time change happens to
   // produce the same longitude. Reordering alone leaves this key unchanged.
   const dependencyKey = JSON.stringify(snapshot.charts
     .map(chart => [chart.id, chart.id === session.targetId ? null : chart.time, chart.settings]).sort());
   return <TimeStepperSurface>
-    {eventEnabled && mode && capabilities ? <EventStepper key={`${mode.key}:${dependencyKey}`}
+    {eventAvailable && mode && capabilities ? <EventStepper key={`${mode.key}:${dependencyKey}`}
       colors={config!.colors} aspectHues={config!.aspectOverlayStyle.aspectHues}
       mode={mode} capabilities={capabilities} time={clock.time} timezone={clock.settings.location.timezone}
       origin={clock.origin} kind={clock.kind ?? 'now'} enabled={enabled}
-      onSeek={time => enabled && session.seek(snapshot, time)} onReset={clock.reset} onUnavailable={availability.markUnavailable} />
+      onSeek={time => enabled && session.seek(snapshot, time)} onReset={clock.reset} onRequestFailure={availability.reportFailure} />
       : <ChartTimeProvider enabled={enabled}><TimeStepper key={session.targetId ?? 'empty'} /></ChartTimeProvider>}
   </TimeStepperSurface>;
 }

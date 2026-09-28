@@ -2,7 +2,15 @@ import { EVENT_ASPECTS, EVENT_BODIES, type EventCapabilities, type EventQuery, t
 
 const DAY = 86_400_000;
 const baseURL = (process.env.EXPO_PUBLIC_KAIROS_API_URL ?? 'https://api.kairos.solar').replace(/\/$/, '');
-const invalid = () => new Error('The event service returned an incompatible or incomplete response.');
+export class EventServiceError extends Error {
+  constructor(
+    public readonly kind: 'network' | 'timeout' | 'http' | 'invalid_response',
+    message: string,
+    public readonly status?: number,
+    public readonly code?: string,
+  ) { super(message); this.name = 'EventServiceError'; }
+}
+const invalid = () => new EventServiceError('invalid_response', 'The event service returned an incompatible or incomplete response.');
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const date = (v: unknown) => typeof v === 'string' ? Date.parse(v) : NaN;
 const strings = (v: unknown): v is string[] => Array.isArray(v) && v.every(x => typeof x === 'string');
@@ -13,19 +21,38 @@ async function request(path: string, signal: AbortSignal, timeout: number, body?
   if (signal.aborted) throw aborted();
   const controller = new AbortController();
   let cancel!: (error: Error) => void;
+  let httpFailure: EventServiceError | undefined;
   const interrupted = new Promise<never>((_, reject) => { cancel = reject; });
   const onAbort = () => { controller.abort(); cancel(aborted()); };
   signal.addEventListener('abort', onAbort);
-  const timer = setTimeout(() => { controller.abort(); cancel(new Error('The event service took too long to respond.')); }, timeout);
+  const timer = setTimeout(() => { controller.abort(); cancel(httpFailure ?? new EventServiceError('timeout', 'The event service took too long to respond.')); }, timeout);
   try {
     return await Promise.race([interrupted, (async () => {
-      const response = await fetch(`${baseURL}${path}`, {
+      let response: Response;
+      try { response = await fetch(`${baseURL}${path}`, {
         method: body === undefined ? 'GET' : 'POST', signal: controller.signal,
         headers: { Accept: 'application/json', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-      });
-      if (!response.ok) throw new Error(`The event service could not complete this request (${response.status}).`);
-      return response.json() as Promise<unknown>;
+      }); } catch (error) {
+        if (signal.aborted || (error instanceof Error && error.name === 'AbortError')) throw aborted();
+        throw new EventServiceError('network', 'Could not connect to the event service.');
+      }
+      if (!response.ok) {
+        httpFailure = new EventServiceError('http', `The event service could not complete this request (${response.status}).`, response.status);
+        let code: string | undefined;
+        try {
+          const value: unknown = await response.json();
+          if (object(value) && typeof value.error === 'string'
+            && ['busy', 'computation_unavailable', 'unavailable', 'unsupported_query'].includes(value.error)) code = value.error;
+        } catch { /* HTTP status is still useful when an error body is not JSON. */ }
+        throw new EventServiceError('http', `The event service could not complete this request (${response.status}).`, response.status, code);
+      }
+      try { return await response.json() as unknown; }
+      catch (error) {
+        if (signal.aborted || (error instanceof Error && error.name === 'AbortError')) throw aborted();
+        if (error instanceof TypeError) throw new EventServiceError('network', 'Could not read the event service response.');
+        throw invalid();
+      }
     })()]);
   } finally { clearTimeout(timer); signal.removeEventListener('abort', onAbort); }
 }

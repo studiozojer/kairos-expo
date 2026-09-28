@@ -35,7 +35,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   props = { colors: bundledPreset('classic')!.preset.colors, aspectHues: bundledPreset('classic')!.preset.aspectOverlay.aspectHues, mode: { key: 'mercury', label: 'Mercury motion', kind: 'motion', query: { zodiac: 'tropical', bodies: ['Mercury'], kinds: ['ingress', 'station'], aspects: [] } },
     capabilities: { schema_version: 1, available: true, supported_from: '1900-02-04T00:00:00Z', supported_to: '2199-11-28T00:00:00Z', max_window_days: 31, max_events: 500, bodies: ['Mercury'], aspects: [], kinds: ['ingress', 'station'], modes: ['moving_moving'], zodiac: 'tropical', reason: 'available' },
-    time: now, origin: now, timezone: 'America/Los_Angeles', kind: 'saved', enabled: true, onSeek: jest.fn(() => true), onReset: jest.fn(), onUnavailable: jest.fn() };
+    time: now, origin: now, timezone: 'America/Los_Angeles', kind: 'saved', enabled: true, onSeek: jest.fn(() => true), onReset: jest.fn(), onRequestFailure: jest.fn() };
   mockedFind.mockImplementation(() => new Promise(resolve => { pending = resolve; }));
   act(() => { view = create(<EventStepper {...props} />); });
 });
@@ -72,8 +72,8 @@ test('motion filters cancel pending search and narrow query', async () => {
 test('service failure is distinct from empty and preserves chart time', async () => {
   mockedFind.mockRejectedValueOnce(new Error('network'));
   await act(async () => { surface().props.onAccessibilityAction({ nativeEvent: { actionName: 'increment' } }); });
-  expect(props.onUnavailable).toHaveBeenCalledTimes(1); expect(props.onSeek).not.toHaveBeenCalled();
-  expect(surface().props.accessibilityLabel).toContain('unavailable');
+  expect(props.onRequestFailure).toHaveBeenCalledTimes(1); expect(props.onSeek).not.toHaveBeenCalled();
+  expect(surface().props.accessibilityLabel).toContain('tap to retry');
 });
 test('disabled/unmounted controls reject late work', async () => {
   action('increment'); act(() => view.update(<EventStepper {...props} enabled={false} />));
@@ -142,4 +142,16 @@ test('accepted seeks signal direction while an unrelated external time cancels t
   expect(view.root.findByType(EventTimeline).props.transition.direction).toBe(1);
   act(() => view.update(<EventStepper {...props} time={now + 123000} />));
   expect(view.root.findByType(EventTimeline).props.transition.direction).toBe(0);
+});
+
+test('retry resumes the failed direction from the same chart time', async () => {
+  mockedFind.mockRejectedValueOnce(new Error('busy'));
+  await act(async () => { surface().props.onAccessibilityAction({ nativeEvent: { actionName: 'decrement' } }); });
+  expect(props.onSeek).not.toHaveBeenCalled();
+  action('retry');
+  expect(mockedFind.mock.calls[1][1]).toBe(now);
+  expect(mockedFind.mock.calls[1][2]).toBe(-1);
+  await resolve({ event: next, boundary: now, exhausted: false });
+  expect(props.onSeek).toHaveBeenCalledTimes(1);
+  expect(surface().props.accessibilityLabel).not.toContain('tap to retry');
 });
