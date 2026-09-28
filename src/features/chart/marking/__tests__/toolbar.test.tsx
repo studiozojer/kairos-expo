@@ -11,16 +11,21 @@ function Probe({ state }: { state: ActionContext }) {
   const actions = useActionRegistry(state);
   return <ChartToolbar title="Natal" topInset={40} actions={actions} />;
 }
-test('toolbar dispatches through the live registry and retains empty radial slots', async () => {
+test('toolbar dispatches through the live registry and supplies the iOS lock slots', async () => {
   const c = context(); let view!: ReturnType<typeof create>;
   act(() => { view = create(<Probe state={c} />); });
   const buttons = () => view.root.findAllByType(MarkingMenuButton);
   expect(buttons().map(n => n.props.label)).toEqual(['Chart settings', 'Unlock chart', 'Screenshot', 'Display settings']);
   for (const button of buttons()) {
-    expect(button.props.options).toBeUndefined();
+    if (button.props.id === 'lock') expect(button.props.options.map((o: {position: string}) => o.position)).toEqual(['se', 's', 'sw']);
+    else expect(button.props.options).toBeUndefined();
     await act(async () => button.props.onPress());
   }
   for (const action of [c.openSettings, c.toggleOrientation, c.screenshot, c.openDisplay]) expect(action).toHaveBeenCalledTimes(1);
+  for (const option of buttons()[1].props.options) await act(async () => option.onSelect());
+  expect(c.rotateOrientation).toHaveBeenNthCalledWith(1, 1);
+  expect(c.rotateOrientation).toHaveBeenNthCalledWith(2, -1);
+  expect(c.resetOrientation).toHaveBeenCalledTimes(1);
   const stalePress = buttons()[3].props.onPress;
   act(() => view.update(<Probe state={{ ...c, enabled: false, locked: false }} />));
   expect(buttons()[1].props.label).toBe('Lock chart');

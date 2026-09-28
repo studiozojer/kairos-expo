@@ -4,7 +4,8 @@ import { context } from '../testContext';
 test('every listed action has a working handler, with explicit arguments', async () => {
   const c = context(); const registry = createActionRegistry(() => c);
   for (const id of ACTION_IDS) expect(await registry.execute(id)).toEqual({ status: 'executed' });
-  for (const fn of [c.openLibrary, c.addNow, c.openSettings, c.openDisplay, c.toggleOrientation, c.screenshot, c.reset]) expect(fn).toHaveBeenCalledTimes(1);
+  for (const fn of [c.resetOrientation, c.openLibrary, c.addNow, c.openSettings, c.openDisplay, c.toggleOrientation, c.screenshot, c.reset]) expect(fn).toHaveBeenCalledTimes(1);
+  expect(c.rotateOrientation).toHaveBeenNthCalledWith(1, -1); expect(c.rotateOrientation).toHaveBeenNthCalledWith(2, 1);
   expect(c.step).toHaveBeenNthCalledWith(1, -1); expect(c.step).toHaveBeenNthCalledWith(2, 1);
   expect(c.toggleDisplay).toHaveBeenNthCalledWith(1, 'enabled');
   expect(c.toggleDisplay).toHaveBeenNthCalledWith(2, 'showPatterns');
