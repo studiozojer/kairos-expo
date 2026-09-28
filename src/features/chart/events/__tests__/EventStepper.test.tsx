@@ -3,8 +3,23 @@ import { AppState } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { EventStepper, type EventStepperProps } from '../EventStepper';
 import { findEvent } from '../api';
+import { EventTimeline } from '../EventTimeline';
+import { bundledPreset } from '../../display/presets';
 import type { EventSearchResult } from '../types';
 jest.mock('../api', () => ({ findEvent: jest.fn() }));
+jest.mock('../EventTimeline', () => ({ EventTimeline: jest.fn(() => null) }));
+jest.mock('../timeline', () => ({
+  ...jest.requireActual('../timeline'),
+  EventTimelineCache: class {
+    query: unknown; capabilities: unknown;
+    constructor(query: unknown, capabilities: unknown) { this.query = query; this.capabilities = capabilities; }
+    eventsAround() { return []; }
+    search(anchor: number, direction: number, signal: AbortSignal, skipCurrent: boolean, maxWindows = 12) {
+      if (maxWindows === 4) return Promise.resolve({ event: null, boundary: anchor, exhausted: false });
+      return jest.requireMock('../api').findEvent(this.query, anchor, direction, this.capabilities, signal, skipCurrent);
+    }
+  },
+}));
 jest.mock('../../time/TimeStepButton', () => ({ TimeStepButton: 'TimeStepButton' }));
 jest.mock('../../time/stepperHaptics', () => ({ stepperHaptic: jest.fn() }));
 jest.mock('../../components/ChartSheet', () => ({ ChartSheet: ({ visible, children }: any) => visible ? children : null, SheetHeader: 'SheetHeader' }));
@@ -18,7 +33,7 @@ const surface = () => view.root.findAll(n => n.props.testID === 'event-timeline'
 const action = (name: string) => act(() => surface().props.onAccessibilityAction({ nativeEvent: { actionName: name } }));
 beforeEach(() => {
   jest.clearAllMocks();
-  props = { mode: { key: 'mercury', label: 'Mercury motion', kind: 'motion', query: { zodiac: 'tropical', bodies: ['Mercury'], kinds: ['ingress', 'station'], aspects: [] } },
+  props = { colors: bundledPreset('classic')!.preset.colors, aspectHues: bundledPreset('classic')!.preset.aspectOverlay.aspectHues, mode: { key: 'mercury', label: 'Mercury motion', kind: 'motion', query: { zodiac: 'tropical', bodies: ['Mercury'], kinds: ['ingress', 'station'], aspects: [] } },
     capabilities: { schema_version: 1, available: true, supported_from: '1900-02-04T00:00:00Z', supported_to: '2199-11-28T00:00:00Z', max_window_days: 31, max_events: 500, bodies: ['Mercury'], aspects: [], kinds: ['ingress', 'station'], modes: ['moving_moving'], zodiac: 'tropical', reason: 'available' },
     time: now, origin: now, timezone: 'America/Los_Angeles', kind: 'saved', enabled: true, onSeek: jest.fn(() => true), onReset: jest.fn(), onUnavailable: jest.fn() };
   mockedFind.mockImplementation(() => new Promise(resolve => { pending = resolve; }));
@@ -107,4 +122,24 @@ test('arbitrary time searches do not skip close events; landed event skips itsel
   await resolve({ event: near, boundary: now, exhausted: false });
   act(() => view.update(<EventStepper {...props} time={now + 500} />));
   action('increment'); expect(mockedFind.mock.calls[1][5]).toBe(true);
+});
+
+test('landed event remains centered when the new filter excludes it; reset removes entry marker', async () => {
+  action('increment'); await resolve({ event: next, boundary: Date.parse(next.time), exhausted: false });
+  act(() => view.update(<EventStepper {...props} time={Date.parse(next.time)} />));
+  action('filters');
+  const ingress = view.root.findAll(n => n.props.accessibilityLabel === 'Ingress' && n.props.onPress)[0];
+  act(() => ingress.props.onPress());
+  expect(view.root.findByType(EventTimeline).props.slots[2].event.kind).toBe('station');
+  expect(view.root.findByType(EventTimeline).props.transition.direction).toBe(0);
+  action('reset');
+  expect(view.root.findByType(EventTimeline).props.transition.direction).toBe(0);
+  expect(view.root.findByType(EventTimeline).props.slots.filter(Boolean).some((n: any) => n.kind === 'entry')).toBe(false);
+});
+test('accepted seeks signal direction while an unrelated external time cancels travel', async () => {
+  action('increment'); await resolve({ event: next, boundary: Date.parse(next.time), exhausted: false });
+  act(() => view.update(<EventStepper {...props} time={Date.parse(next.time)} />));
+  expect(view.root.findByType(EventTimeline).props.transition.direction).toBe(1);
+  act(() => view.update(<EventStepper {...props} time={now + 123000} />));
+  expect(view.root.findByType(EventTimeline).props.transition.direction).toBe(0);
 });

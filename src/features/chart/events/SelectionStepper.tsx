@@ -35,6 +35,7 @@ export function SelectionStepper({ config, selectedIds, enabled }: {
     .map(chart => [chart.id, chart.id === session.targetId ? null : chart.time, chart.settings]).sort());
   return <TimeStepperSurface>
     {eventEnabled && mode && capabilities ? <EventStepper key={`${mode.key}:${dependencyKey}`}
+      colors={config!.colors} aspectHues={config!.aspectOverlayStyle.aspectHues}
       mode={mode} capabilities={capabilities} time={clock.time} timezone={clock.settings.location.timezone}
       origin={clock.origin} kind={clock.kind ?? 'now'} enabled={enabled}
       onSeek={time => enabled && session.seek(snapshot, time)} onReset={clock.reset} onUnavailable={availability.markUnavailable} />
