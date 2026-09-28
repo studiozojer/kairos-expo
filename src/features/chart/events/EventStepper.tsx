@@ -24,11 +24,11 @@ function localDate(time: number, timezone: string) {
 export interface EventStepperProps {
   colors: ChartColors; aspectHues: AspectHues;
   mode: EventMode; capabilities: EventCapabilities; time: number; timezone: string; origin: number;
-  kind: 'saved' | 'now'; enabled: boolean; onSeek: (time: number) => boolean; onReset: () => void; onUnavailable: () => void;
+  kind: 'saved' | 'now'; enabled: boolean; onSeek: (time: number) => boolean; onReset: () => void; onRequestFailure: (error: unknown) => void;
 }
 /** Bounded server navigation. The parent owns the guarded chart mutation. */
 export function EventStepper(props: EventStepperProps) {
-  const { mode, capabilities, time, timezone, enabled, onSeek, onReset, onUnavailable } = props;
+  const { mode, capabilities, time, timezone, enabled, onSeek, onReset, onRequestFailure } = props;
   const t = useTheme();
   const [filter, setFilter] = useState('All');
   const [sheet, setSheet] = useState(false);
@@ -43,11 +43,12 @@ export function EventStepper(props: EventStepperProps) {
   const expectedSeek = useRef<number | null>(null);
   const previousTime = useRef(time);
   const [message, setMessage] = useState('');
+  const [failure, setFailure] = useState<-1 | 1 | 'preview' | null>(null);
   const [ends, setEnds] = useState<Partial<Record<-1 | 1, boolean>>>({});
   const cursor = useRef<Partial<Record<-1 | 1, number>>>({});
   const request = useRef<AbortController | null>(null);
   const foreground = useRef(AppState.currentState !== 'background' && AppState.currentState !== 'inactive');
-  const latest = useRef({ enabled: false, time, onSeek, onReset, onUnavailable });
+  const latest = useRef({ enabled: false, time, onSeek, onReset, onRequestFailure });
   const query = useMemo(() => ({ ...mode.query,
     kinds: mode.kind === 'motion' && filter !== 'All' ? [filter === 'Ingress' ? 'ingress' as const : 'station' as const] : mode.query.kinds,
     aspects: mode.kind === 'aspect' && filter !== 'All' ? mode.query.aspects.filter(a => a === filter) : mode.query.aspects,
@@ -60,8 +61,8 @@ export function EventStepper(props: EventStepperProps) {
   const identity = JSON.stringify([mode.key, query, capabilities, time, enabled]);
   const cancel = useCallback(() => { request.current?.abort(); request.current = null; preview.current?.abort(); preview.current = null; }, []);
   useLayoutEffect(() => {
-    latest.current = { enabled: enabled && !sheet, time, onSeek, onReset, onUnavailable };
-  }, [enabled, sheet, time, onSeek, onReset, onUnavailable]);
+    latest.current = { enabled: enabled && !sheet, time, onSeek, onReset, onRequestFailure };
+  }, [enabled, sheet, time, onSeek, onReset, onRequestFailure]);
   useLayoutEffect(() => {
     cancel(); cursor.current = {};
     if (previousTime.current !== time) {
@@ -74,7 +75,7 @@ export function EventStepper(props: EventStepperProps) {
     expectedSeek.current = null;
     // A changed search context invalidates continuation and in-flight results.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setBusy(false); setEnds({}); setMessage('');
+    setBusy(false); setPreviewLoading(false); setEnds({}); setMessage(''); setFailure(null);
     return cancel;
   }, [identity, time, cancel]);
   useEffect(() => {
@@ -100,8 +101,12 @@ export function EventStepper(props: EventStepperProps) {
         if (!result.event) return;
         anchor = Date.parse(result.event.time);
       }
-    })).catch(() => {
-      if (!controller.signal.aborted && preview.current === controller) latest.current.onUnavailable();
+    })).catch(error => {
+      if (!controller.signal.aborted && preview.current === controller) {
+        controller.abort();
+        setFailure('preview'); setMessage('Couldn’t load events · tap to retry');
+        latest.current.onRequestFailure(error);
+      }
     }).finally(() => {
       if (preview.current === controller) { preview.current = null; setPreviewLoading(false); }
     });
@@ -124,7 +129,7 @@ export function EventStepper(props: EventStepperProps) {
     if (!latest.current.enabled || !foreground.current || request.current || ends[direction]) return;
     preview.current?.abort(); preview.current = null; setPreviewLoading(false);
     const controller = new AbortController(); request.current = controller;
-    setBusy(true); setMessage('Searching…');
+    setBusy(true); setFailure(null); setMessage('Searching…');
     try {
       const result = await cache.search(cursor.current[direction] ?? latest.current.time, direction, controller.signal, cursor.current[direction] === undefined && (slots[2]?.kind === 'event' || (event !== null && Date.parse(event.time) === latest.current.time)));
       if (controller.signal.aborted || request.current !== controller || !latest.current.enabled || !foreground.current) return;
@@ -147,9 +152,9 @@ export function EventStepper(props: EventStepperProps) {
         setEnds(previous => ({ ...previous, [direction]: result.exhausted }));
         setMessage(result.exhausted ? 'No events to the service limit' : `No events through ${localDate(result.boundary, timezone)}. Continue ${direction === 1 ? 'forward' : 'backward'}.`);
       }
-    } catch {
+    } catch (error) {
       if (!controller.signal.aborted && request.current === controller) {
-        setMessage('Event service unavailable'); latest.current.onUnavailable();
+        setFailure(direction); setMessage('Couldn’t load events · tap to retry'); latest.current.onRequestFailure(error);
       }
     } finally {
       if (request.current === controller) { request.current = null; setBusy(false); }
@@ -157,7 +162,7 @@ export function EventStepper(props: EventStepperProps) {
   }, [cache, timezone, ends, event, markers, slots]);
   const reset = useCallback(() => {
     if (!latest.current.enabled || !foreground.current) return;
-    cancel(); cursor.current = {}; setEnds({}); setMessage(''); setBusy(false); setEvent(null); setEntry(null);
+    cancel(); cursor.current = {}; setEnds({}); setMessage(''); setFailure(null); setBusy(false); setEvent(null); setEntry(null);
     expectedSeek.current = props.kind === 'saved' ? props.origin : null;
     setTransition(value => ({ sequence: value.sequence + 1, direction: 0 }));
     latest.current.onReset(); refreshPreviews(value => value + 1); stepperHaptic(true);
@@ -165,6 +170,13 @@ export function EventStepper(props: EventStepperProps) {
   const openFilters = useCallback(() => {
     if (latest.current.enabled && foreground.current) { cancel(); setBusy(false); setSheet(true); }
   }, [cancel]);
+  const retry = useCallback(() => {
+    if (!latest.current.enabled || !foreground.current || failure === null) return;
+    if (failure === 'preview') {
+      setFailure(null); setMessage(''); refreshPreviews(value => value + 1);
+    } else void navigate(failure);
+  }, [failure, navigate]);
+  const tapCenter = useCallback(() => { if (failure !== null) retry(); else openFilters(); }, [failure, retry, openFilters]);
   const gestures = useMemo(() => Gesture.Race(
     Gesture.Pan().enabled(enabled && !sheet).activeOffsetX([-12, 12]).failOffsetY([-12, 12]).runOnJS(true)
       // RNGH registers this callback; it does not invoke it during render.
@@ -174,9 +186,9 @@ export function EventStepper(props: EventStepperProps) {
       // eslint-disable-next-line react-hooks/refs
       Gesture.Tap().enabled(enabled && !sheet).numberOfTaps(2).maxDelay(350).runOnJS(true).onEnd((_, success) => { if (success) reset(); }),
       // eslint-disable-next-line react-hooks/refs
-      Gesture.Tap().enabled(enabled && !sheet).runOnJS(true).onEnd((_, success) => { if (success) openFilters(); }),
+      Gesture.Tap().enabled(enabled && !sheet).runOnJS(true).onEnd((_, success) => { if (success) tapCenter(); }),
     ),
-  ), [enabled, sheet, navigate, reset, openFilters]);
+  ), [enabled, sheet, navigate, reset, tapCenter]);
   const current = event && Date.parse(event.time) === time ? event : null;
   const title = current ? eventLabel(current) : mode.label;
   const detail = message || localDate(time, timezone);
@@ -187,15 +199,16 @@ export function EventStepper(props: EventStepperProps) {
       <GestureDetector gesture={gestures}>
         <View testID="event-timeline" collapsable={false} accessible accessibilityRole="adjustable"
           accessibilityLabel={`${title}. ${detail}. Filter: ${filter}`} accessibilityState={{ disabled: !enabled, busy }}
-          accessibilityHint="Swipe for the previous or next event. Tap for filters. Double-tap to reset time."
-          accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }, { name: 'filters', label: 'Event filters' }, { name: 'reset', label: props.kind === 'saved' ? 'Return to original time' : 'Return to now' }]}
+          accessibilityHint={failure !== null ? "Tap to retry loading events. Swipe to step. Double-tap to reset time." : "Swipe for the previous or next event. Tap for filters. Double-tap to reset time."}
+          accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }, { name: 'retry', label: 'Retry loading events' }, { name: 'filters', label: 'Event filters' }, { name: 'reset', label: props.kind === 'saved' ? 'Return to original time' : 'Return to now' }]}
           onAccessibilityAction={({ nativeEvent: { actionName } }) => {
+            if (actionName === 'retry') retry();
             if (actionName === 'increment') void navigate(1);
             if (actionName === 'decrement') void navigate(-1);
             if (actionName === 'reset') reset();
             if (actionName === 'filters') openFilters();
           }} style={{ flex: 1, minWidth: 0, height: 44, justifyContent: 'center', opacity: enabled ? 1 : .4 }}>
-          <EventTimeline slots={slots} transition={transition} loading={busy || previewLoading} timezone={timezone}
+          <EventTimeline slots={slots} transition={transition} loading={enabled && (busy || previewLoading)} timezone={timezone}
             colors={props.colors} aspectHues={props.aspectHues} enabled={enabled && !sheet} />
           {!!message && <Text pointerEvents="none" accessible={false} numberOfLines={1}
             style={[t.type.fraktionXxs, { position: 'absolute', bottom: 0, left: 0, right: 0, textAlign: 'center', color: t.color.txSecondary, backgroundColor: t.color.bgSolidBase }]}>

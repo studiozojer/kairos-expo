@@ -137,7 +137,7 @@ export default function ChartHome() {
       </View>
 
       <View onLayout={event => setStepperTop(event.nativeEvent.layout.y)} style={{ marginHorizontal: 16, marginBottom: insets.bottom + theme.space.sm }}>
-        <SelectionStepper config={config} selectedIds={selectedIds}
+        <SelectionStepper config={config} selectedIds={selectedIds} active={focused}
           enabled={focused && !sheetOpen && !settingsOpen && !replaceNow && !menuActive && !capturing && !previousArrangement} />
       </View>
 

@@ -22,7 +22,7 @@ function Harness({ enabled = true }: { enabled?: boolean }) {
   const [time, setTime] = useState(now);
   return <EventStepper mode={mode} capabilities={cap} time={time} origin={now - 3 * DAY} kind="saved" enabled={enabled}
     colors={preset.colors} aspectHues={preset.aspectOverlay.aspectHues} timezone="UTC" onSeek={next => { seek(next); setTime(next); return true; }}
-    onReset={() => setTime(now - 3 * DAY)} onUnavailable={unavailable} />;
+    onReset={() => setTime(now - 3 * DAY)} onRequestFailure={unavailable} />;
 }
 const timeline = () => view.root.findByType(EventTimeline).props;
 const action = async (name: string) => { await act(async () => view.root.findAll(n => n.props.testID === 'event-timeline')[0].props.onAccessibilityAction({ nativeEvent: { actionName: name } })); };
@@ -72,4 +72,17 @@ test('previews cannot turn a network failure into empty successful coverage', as
   jest.mocked(fetchEventWindow).mockRejectedValue(new Error('offline'));
   await act(async () => { view = create(<Harness />); });
   expect(unavailable).toHaveBeenCalled(); expect(seek).not.toHaveBeenCalled();
+});
+
+test('preview retry fills neighbors without seeking or changing the selected query', async () => {
+  const successfulFetch = jest.mocked(fetchEventWindow).getMockImplementation()!;
+  jest.mocked(fetchEventWindow).mockRejectedValue(new Error('busy'));
+  await act(async () => { view = create(<Harness />); });
+  expect(unavailable).toHaveBeenCalled();
+  jest.mocked(fetchEventWindow).mockImplementation(successfulFetch);
+  await action('retry');
+  expect(timeline().slots.map((n: any) => n?.time)).toEqual([-2, -1, 0, 1, 2].map(d => now + d * DAY));
+  expect(seek).not.toHaveBeenCalled();
+  await action('increment');
+  expect(seek).toHaveBeenLastCalledWith(now + DAY);
 });
