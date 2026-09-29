@@ -10,7 +10,7 @@
 
 import * as WebBrowser from 'expo-web-browser';
 
-import { API_BASE_URL, storeSession, type Account } from './session';
+import { API_BASE_URL, storeSession, beginSignIn, assertSignInCurrent, type Account } from './session';
 
 export class SignInError extends Error {}
 
@@ -18,6 +18,7 @@ export async function signIn(handle: string): Promise<Account> {
   const trimmed = handle.trim().replace(/^@/, '');
   if (!trimmed) throw new SignInError('enter your handle');
 
+  const attempt = beginSignIn();
   const startUrl = `${API_BASE_URL}/oauth/start?handle=${encodeURIComponent(trimmed)}`;
   const result = await WebBrowser.openAuthSessionAsync(startUrl, 'kairos://oauth/callback');
 
@@ -25,6 +26,7 @@ export async function signIn(handle: string): Promise<Account> {
     throw new SignInError('sign-in was cancelled');
   }
 
+  assertSignInCurrent(attempt);
   const callback = new URL(result.url);
   const errorCode = callback.searchParams.get('error');
   if (errorCode === 'handle_not_found') {
@@ -42,16 +44,21 @@ export async function signIn(handle: string): Promise<Account> {
     body: JSON.stringify({ code }),
   });
   if (!exchange.ok) throw new SignInError('sign-in failed at token exchange');
-  const { session_token } = (await exchange.json()) as { session_token: string };
+  const { session_token } = (await exchange.json()) as { session_token: unknown };
+  assertSignInCurrent(attempt);
+  if (typeof session_token !== 'string' || !session_token || /\s/.test(session_token)) {
+    throw new SignInError('sign-in returned invalid credentials');
+  }
 
   // Resolve the account behind the token.
   const session = await fetch(`${API_BASE_URL}/api/auth/session`, {
     headers: { Authorization: `Bearer ${session_token}` },
   });
   if (!session.ok) throw new SignInError('sign-in failed resolving the account');
-  const info = (await session.json()) as { did: string; handle: string };
+  const info = (await session.json()) as { did: string; handle: string; refreshed_token?: string };
+  assertSignInCurrent(attempt);
 
   const account: Account = { did: info.did, handle: info.handle };
-  await storeSession(session_token, account);
+  await storeSession(info.refreshed_token ?? session_token, account, attempt);
   return account;
 }

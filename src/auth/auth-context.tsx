@@ -1,6 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, useRef, type ReactNode } from 'react';
 
-import { clearSession, getAccount, type Account } from './session';
+import { AppState } from 'react-native';
+
+import { clearSession, captureSession, isCurrentSession, subscribeSession, type Account } from './session';
 import { signIn as runSignIn } from './signIn';
 
 type AuthValue = {
@@ -17,35 +19,44 @@ type AuthValue = {
 
 const AuthContext = createContext<AuthValue | null>(null);
 
-/**
- * The app's identity state. The journal is usable signed out — sign-in is for
- * sync (Stage 3), and signed out means ZERO network, a zhouyi law carried
- * here. This provider's only boot-time read is the Keychain.
- */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [account, setAccount] = useState<Account | null>(null);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  const operation = useRef(0);
   useEffect(() => {
-    void getAccount().then((stored) => {
-      setAccount(stored);
-      setReady(true);
-    });
+    let live = true;
+    let updateVersion = 0;
+    const update = async () => {
+      const own = ++updateVersion;
+      try {
+        const stored = await captureSession();
+        if (live && own === updateVersion && (!stored || isCurrentSession(stored))) setAccount(stored?.account ?? null);
+      } catch {
+        // Keychain may be unavailable before first unlock. Never erase it.
+        if (live && own === updateVersion) setAccount(null);
+      } finally {
+        if (live && own === updateVersion) setReady(true);
+      }
+    };
+    const unsubscribe = subscribeSession(() => { void update(); });
+    const foreground = AppState.addEventListener('change', (state) => { if (state === 'active') void update(); });
+    void update();
+    return () => { live = false; unsubscribe(); foreground.remove(); };
   }, []);
 
   const signIn = useCallback(async (handle: string) => {
+    const own = ++operation.current;
     setBusy(true);
-    try {
-      setAccount(await runSignIn(handle));
-    } finally {
-      setBusy(false);
-    }
+    try { await runSignIn(handle); }
+    finally { if (own === operation.current) setBusy(false); }
   }, []);
 
   const signOut = useCallback(async () => {
+    ++operation.current;
+    setBusy(false);
     await clearSession();
-    setAccount(null);
   }, []);
 
   const value = useMemo<AuthValue>(
@@ -60,4 +71,9 @@ export function useAuth(): AuthValue {
   const auth = useContext(AuthContext);
   if (!auth) throw new Error('useAuth outside AuthProvider');
   return auth;
+}
+
+/** Optional for isolated chart previews; the application always supplies AuthProvider. */
+export function useOptionalAuth(): AuthValue | null {
+  return useContext(AuthContext);
 }
