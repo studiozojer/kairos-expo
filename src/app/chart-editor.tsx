@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '@/theme';
@@ -23,9 +23,13 @@ export default function ChartEditorScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const state = useActiveCharts();
   const saved = state.saved.find(chart => chart.id === id);
+  const retained = useRef<{ id?: string; chart?: SavedChart }>({ id });
+  if (retained.current.id !== id) retained.current = { id };
+  if (saved) retained.current.chart = saved;
+  const editing = saved ?? retained.current.chart;
   return <><Stack.Screen options={{ title: id ? 'Edit chart' : 'Create chart' }} />
     {state.loadError ? <><Note>Couldn’t load saved charts.</Note><Action label="Retry loading" onPress={state.retryLoad} /></> : !state.loaded ? <ActivityIndicator accessibilityLabel="Loading chart" /> :
-      id && !saved ? <Note>This saved chart was not found.</Note> : <Editor key={id ?? 'new'} saved={saved} />}
+      id && !editing ? <Note>This saved chart was not found.</Note> : <Editor key={id ?? 'new'} saved={editing} />}
   </>;
 }
 function Editor({ saved }: { saved?: SavedChart }) {
@@ -55,6 +59,7 @@ function Editor({ saved }: { saved?: SavedChart }) {
   const [atlasAttempt, setAtlasAttempt] = useState(0);
   const [error, setError] = useState('');
   const [savedId, setSavedId] = useState(saved?.id);
+  const editBaseline = useRef(saved ? { name: saved.name, datetime: saved.datetime, settings: saved.settings } : undefined);
   const [savedSignature, setSavedSignature] = useState<string | null>(null);
   const draftSignature = JSON.stringify([name, date, clock, locationName, latitude, longitude, elevation, timezone, houseSystem, fold]);
   const savedMessage = savedSignature === draftSignature;
@@ -82,7 +87,9 @@ function Editor({ saved }: { saved?: SavedChart }) {
     if (state.openSaved(id, replaceId)) { setReplacement(null); router.dismissTo('/(tabs)/(chart)'); }
     else setReplacement(id);
   };
-  const save = (andOpen: boolean) => {
+  const [savingChart, setSavingChart] = useState(false);
+  const save = async (andOpen: boolean) => {
+    if (savingChart) return;
     setError(''); setSavedSignature(null);
     if (!name.trim()) { setError('Give this chart a name.'); return; }
     if (wall.error) { setError(wall.error); return; }
@@ -92,10 +99,13 @@ function Editor({ saved }: { saved?: SavedChart }) {
       setError('Enter a location name, latitude (−90 to 90), longitude (−180 to 180), elevation and valid timezone.'); return;
     }
     try {
-      const chart = state.saveChart({ name: name.trim(), datetime: new Date(wall.candidates[fold ?? 0]).toISOString(), settings: { location, houseSystem } }, savedId);
+      setSavingChart(true);
+      const chart = await state.saveChart({ name: name.trim(), datetime: new Date(wall.candidates[fold ?? 0]).toISOString(), settings: { location, houseSystem } }, savedId, editBaseline.current);
+      editBaseline.current = { name: chart.name, datetime: chart.datetime, settings: chart.settings };
       setSavedId(chart.id); setSavedSignature(draftSignature);
+      if (savedId && chart.id !== savedId) setError('Another edit arrived while this form was open. Your changes were saved as a conflict copy; the other version is unchanged.');
       if (andOpen) open(chart.id);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Couldn’t save the chart.'); }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Couldn’t save the chart.'); } finally { setSavingChart(false); }
   };
   return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: t.color.bgSolidBase }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ padding: t.space.lg, paddingBottom: 64 }}>
@@ -127,7 +137,7 @@ function Editor({ saved }: { saved?: SavedChart }) {
       {error && <Text accessibilityRole="alert" style={[t.type.whyteSm, { color: t.color.txAccent }]}>{error}</Text>}
       {state.saveError ? <><Text accessibilityRole="alert" style={{ color: t.color.txAccent }}>Changes are in memory but could not be saved on this device.</Text><Action label="Retry saving" onPress={state.retryPersistence} /></> :
         savedMessage && <Note>{state.saving ? 'Saving on this device…' : 'Saved on this device. Existing open copies keep their own settings and time.'}</Note>}
-      <Action label="Save chart" onPress={() => save(false)} /><Action label="Save and open" onPress={() => save(true)} />
+      <Action label={savingChart ? "Saving chart…" : "Save chart"} onPress={() => void save(false)} /><Action label="Save and open" onPress={() => void save(true)} />
       {saved && <Note>Original: {chartDateLabel(Date.parse(saved.datetime), saved.settings.location.timezone)}</Note>}
     </ScrollView>
     <ReplacementChooser active={state.active} visible={replacement !== null} onCancel={() => setReplacement(null)} onSelect={id => { if (replacement) open(replacement, id); }} />

@@ -30,7 +30,7 @@ function CardFace({ chart, index, count, selected, calculation }: {
     <Text numberOfLines={1} style={[t.type.fraktionXs, { color: t.color.txSecondary, marginTop: 4 }]}>{date}</Text>
     <Text numberOfLines={1} style={[t.type.fraktionXs, { color: t.color.txSecondary }]}>{time}</Text>
     <Text numberOfLines={1} style={[t.type.fraktionXs, { color: calculation?.status === 'error' ? t.color.txAccent : t.color.txTertiary }]}>
-      {calculation?.status === 'loading' ? 'Updating…' : calculation?.status === 'error' ? 'Calculation failed' : chart.settings.location.name}
+      {calculation?.status === 'loading' ? 'Updating…' : calculation?.status === 'error' ? 'Calculation failed' : chart.kind === 'snapshot' ? 'Unsaved snapshot' : chart.settings.location.name}
     </Text>
   </View>;
 }

@@ -24,7 +24,7 @@ export function isActionId(id: string): id is ActionId { return Object.hasOwn(AC
 export interface ActionContext {
   enabled: boolean; settingsEnabled: boolean; chartEnabled: boolean; capturing: boolean; locked: boolean;
   chartsLoaded: boolean; openLibrary: () => void; addNow: () => void;
-  hasTarget: boolean; targetKind?: 'saved' | 'now'; canStepBackward: boolean; canStepForward: boolean;
+  hasTarget: boolean; targetKind?: 'saved' | 'now' | 'snapshot'; canStepBackward: boolean; canStepForward: boolean;
   aspects: { enabled: boolean; showPatterns: boolean; showFalseAspects: boolean };
   openSettings: () => void; openDisplay: () => void; toggleOrientation: () => void;
   rotateOrientation: (direction: -1 | 1) => void; resetOrientation: () => void;

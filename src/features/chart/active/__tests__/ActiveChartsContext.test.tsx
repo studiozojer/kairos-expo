@@ -190,3 +190,19 @@ test('event seeks are independent, persist, and reject stale target/time/setting
   expect(state.active[0].time).toBe(eventTime + 2000);
   expect(state.saved[0]).toEqual(originalSaved);
 });
+
+test('deleting a source retains an unsaved instance, its stepped time and reset origin after relaunch', async () => {
+  await mount();
+  let sourceId = '';
+  await act(async () => { const saved = await state.saveChart(draft); sourceId = saved.id; state.openSaved(saved.id); state.step(1); });
+  const instance = state.active[1];
+  await act(async () => { await state.deleteSaved(sourceId); });
+  expect(state.saved).toHaveLength(0);
+  expect(state.active[1]).toEqual({ ...instance, kind: 'snapshot', sourceId: undefined });
+  expect(state.targetId).toBe(instance.id);
+  act(() => view.unmount()); await mount();
+  expect(state.active[1].kind).toBe('snapshot');
+  expect(state.active[1].time).toBe(instance.time);
+  await act(async () => state.reset());
+  expect(state.active[1].time).toBe(instance.origin);
+});

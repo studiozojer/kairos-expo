@@ -1,5 +1,6 @@
+import { LibrarySyncSettings } from '@/features/chart/library/LibrarySyncSettings';
 import { useState } from 'react';
-import { ActivityIndicator, ScrollView, Text } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, Text } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useTheme } from '@/theme';
 import { Action, LinkRow, Note, Section } from '@/features/chart/display/controls';
@@ -23,11 +24,13 @@ export default function SavedChartsScreen() {
         <Action label="Open a Now chart" onPress={() => open('now')} />
         <Note>{state.active.length} of 3 wheel slots in use. Open charts are independent copies; stepping never changes a saved original.</Note>
         {state.saveError && <><Text accessibilityRole="alert" style={{ color: t.color.txAccent }}>Changes haven’t been saved on this device.</Text><Action label="Retry saving" onPress={state.retryPersistence} /></>}
-        <Section title="Created on this device">
+        <LibrarySyncSettings />
+        <Section title="Saved charts">
           {!state.saved.length && <Note>No saved charts yet. Create one with a name, birth date and location.</Note>}
           {state.saved.map(chart => <Section key={chart.id} title={chart.name}>
             <LinkRow label={`Open ${chart.name}`} detail={`${chartDateLabel(Date.parse(chart.datetime), chart.settings.location.timezone)} · ${chart.settings.location.name}`}
               onPress={() => open(chart.id)} />
+            <Action label={`Delete ${chart.name}`} onPress={() => Alert.alert(`Delete ${chart.name}?`, "Open copies remain on the wheel as unsaved snapshots. For synced charts, deletion reaches other devices when sync next completes.", [{ text: "Cancel", style: "cancel" }, { text: "Delete chart", style: "destructive", onPress: () => { void state.deleteSaved(chart.id); } }])} />
             <Action label={`Edit ${chart.name}`} onPress={() => router.push({ pathname: '/chart-editor', params: { id: chart.id } })} />
           </Section>)}
         </Section>

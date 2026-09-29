@@ -24,7 +24,7 @@ function localDate(time: number, timezone: string) {
 export interface EventStepperProps {
   colors: ChartColors; aspectHues: AspectHues;
   mode: EventMode; capabilities: EventCapabilities; time: number; timezone: string; origin: number;
-  kind: 'saved' | 'now'; enabled: boolean; onSeek: (time: number) => boolean; onReset: () => void; onRequestFailure: (error: unknown) => void;
+  kind: 'saved' | 'now' | 'snapshot'; enabled: boolean; onSeek: (time: number) => boolean; onReset: () => void; onRequestFailure: (error: unknown) => void;
 }
 /** Bounded server navigation. The parent owns the guarded chart mutation. */
 export function EventStepper(props: EventStepperProps) {
