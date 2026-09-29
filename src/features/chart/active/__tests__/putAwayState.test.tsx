@@ -1,8 +1,14 @@
 import React from 'react';
+import { createChartLibraryStore, type ChartLibraryStore } from '../../library/store';
+import { testDatabase } from '../../library/test-support/sqlite';
+
+jest.mock('expo-sqlite', () => ({ openDatabaseAsync: jest.fn() }));
+let database: ReturnType<typeof testDatabase>;
+let library: ChartLibraryStore;
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ActiveChartsProvider, useActiveCharts } from '../ActiveChartsContext';
-import { ACTIVE_CHARTS_KEY, parseSession, removeInstance, type ActiveSession } from '../model';
+import { ACTIVE_CHARTS_KEY, removeInstance, type ActiveSession } from '../model';
 import { DEFAULT_SETTINGS } from '../../settings/chartSettings';
 import { calculateChart } from '../../data/calculateChart';
 import fixture from '../../fixtures/engine/seattle-2026.json';
@@ -44,14 +50,16 @@ describe('putting away open instances', () => {
     React.useLayoutEffect(() => { state = value; });
     return null;
   }
-  const mount = async () => { await act(async () => { view = create(<ActiveChartsProvider><Probe /></ActiveChartsProvider>); }); };
+  const mount = async () => { await act(async () => { view = create(<ActiveChartsProvider library={library}><Probe /></ActiveChartsProvider>); }); };
   beforeEach(async () => {
     await AsyncStorage.clear();
     await AsyncStorage.setItem(ACTIVE_CHARTS_KEY, JSON.stringify(session()));
+    database = testDatabase();
+    library = await createChartLibraryStore(database.db, () => AsyncStorage.getItem(ACTIVE_CHARTS_KEY));
     jest.clearAllMocks();
     jest.mocked(calculateChart).mockReset().mockResolvedValue(fixture);
   });
-  afterEach(() => { if (view) act(() => view.unmount()); });
+  afterEach(() => { if (view) act(() => view.unmount()); database.close(); });
 
   test('unselected removal preserves the target and independently explored duplicate, including after relaunch', async () => {
     await mount();
@@ -68,7 +76,7 @@ describe('putting away open instances', () => {
     expect(state.calculations.second).toEqual(selectedCalculation);
     expect(state.saved).toBe(saved);
     expect(calculateChart).not.toHaveBeenCalled();
-    const stored = parseSession((await AsyncStorage.getItem(ACTIVE_CHARTS_KEY))!);
+    const stored = (await library.load(null, DEFAULT_SETTINGS));
     expect(stored).toEqual({ version: 1, saved, active: survivors, targetId: 'second' });
     act(() => view.unmount());
     await mount();
@@ -89,7 +97,7 @@ describe('putting away open instances', () => {
     expect(state.targetId).toBeNull();
     expect(state.calculations).toEqual({});
     expect(state.saved).toEqual([saved]);
-    expect(parseSession((await AsyncStorage.getItem(ACTIVE_CHARTS_KEY))!)).toEqual({
+    expect((await library.load(null, DEFAULT_SETTINGS))).toEqual({
       version: 1, saved: [saved], active: [], targetId: null,
     });
     act(() => view.unmount());
@@ -117,8 +125,8 @@ describe('putting away open instances', () => {
     await act(async () => { expect(state.openSaved('source')).toBe(true); });
     const reopenedId = state.targetId!;
     const before = { active: state.active, saved: state.saved, calculations: state.calculations };
-    const storedBefore = await AsyncStorage.getItem(ACTIVE_CHARTS_KEY);
-    const writes = jest.mocked(AsyncStorage.setItem).mock.calls.length;
+    const storedBefore = await library.load(null, DEFAULT_SETTINGS);
+    const persist = jest.spyOn(library, 'saveSession');
     await act(async () => {
       if (outcome === 'resolve') resolve(fixture);
       else reject(new Error('Removed request failed'));
@@ -128,7 +136,8 @@ describe('putting away open instances', () => {
     expect(state.calculations[reopenedId].status).toBe('ready');
     expect(state.calculations[reopenedId].result?.datetime).toBe(new Date(originalTime).toISOString());
     expect(state.targetId).toBe(reopenedId);
-    expect(await AsyncStorage.getItem(ACTIVE_CHARTS_KEY)).toBe(storedBefore);
-    expect(AsyncStorage.setItem).toHaveBeenCalledTimes(writes);
+    expect(await library.load(null, DEFAULT_SETTINGS)).toEqual(storedBefore);
+    expect(persist).not.toHaveBeenCalled();
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,13 @@
 import React from 'react';
+import { createChartLibraryStore, type ChartLibraryStore } from '../../library/store';
+import { testDatabase } from '../../library/test-support/sqlite';
+
+jest.mock('expo-sqlite', () => ({ openDatabaseAsync: jest.fn() }));
+let database: ReturnType<typeof testDatabase>;
+let library: ChartLibraryStore;
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ACTIVE_CHARTS_KEY } from '../../active/model';
 import { ActiveChartsProvider, useActiveCharts } from '../../active/ActiveChartsContext';
 import { ChartTimeProvider, useChartTime } from '../ChartTimeContext';
 import { calculateChart } from '../../data/calculateChart';
@@ -20,14 +27,16 @@ function Probe() {
 }
 beforeEach(async () => {
   await AsyncStorage.clear();
+  database = testDatabase();
+  library = await createChartLibraryStore(database.db, () => AsyncStorage.getItem(ACTIVE_CHARTS_KEY));
   jest.useFakeTimers();
   jest.setSystemTime(new Date('2026-09-16T12:00:00Z'));
   calculate.mockReset().mockResolvedValue(fixture);
 });
-afterEach(() => { act(() => view.unmount()); jest.useRealTimers(); });
+afterEach(() => { act(() => view.unmount()); jest.useRealTimers(); database.close(); });
 
 test('rapid steps accumulate; unit changes preserve time; reset uses fresh Now and retains settings', async () => {
-  await act(async () => { view = create(<ActiveChartsProvider><ChartTimeProvider enabled><Probe /></ChartTimeProvider></ActiveChartsProvider>); });
+  await act(async () => { view = create(<ActiveChartsProvider library={library}><ChartTimeProvider enabled><Probe /></ChartTimeProvider></ActiveChartsProvider>); });
   await act(async () => { clock.step(1); clock.step(1); clock.step(1); });
   expect(clock.datetime).toBe('2026-09-19T12:00:00.000Z');
   await act(async () => { clock.selectUnit(0); });
@@ -45,12 +54,12 @@ test('rapid steps accumulate; unit changes preserve time; reset uses fresh Now a
 });
 
 test('leaving the chart disables controls without losing its selected time or unit', async () => {
-  await act(async () => { view = create(<ActiveChartsProvider><ChartTimeProvider enabled><Probe /></ChartTimeProvider></ActiveChartsProvider>); });
+  await act(async () => { view = create(<ActiveChartsProvider library={library}><ChartTimeProvider enabled><Probe /></ChartTimeProvider></ActiveChartsProvider>); });
   await act(async () => { clock.step(1); clock.selectUnit(3); });
-  await act(async () => { view.update(<ActiveChartsProvider><ChartTimeProvider enabled={false}><Probe /></ChartTimeProvider></ActiveChartsProvider>); });
+  await act(async () => { view.update(<ActiveChartsProvider library={library}><ChartTimeProvider enabled={false}><Probe /></ChartTimeProvider></ActiveChartsProvider>); });
   expect(clock.canStepForward).toBe(false);
   expect(clock.canStepBackward).toBe(false);
-  await act(async () => { view.update(<ActiveChartsProvider><ChartTimeProvider enabled><Probe /></ChartTimeProvider></ActiveChartsProvider>); });
+  await act(async () => { view.update(<ActiveChartsProvider library={library}><ChartTimeProvider enabled><Probe /></ChartTimeProvider></ActiveChartsProvider>); });
   expect(clock.datetime).toBe('2026-09-17T12:00:00.000Z');
   expect(clock.unit).toBe(3);
   expect(clock.canStepForward).toBe(true);
@@ -58,13 +67,13 @@ test('leaving the chart disables controls without losing its selected time or un
 
 
 test('glass controls step the explicit target through reorder and never mutate saved originals', async () => {
-  await act(async () => { view = create(<ActiveChartsProvider><ChartTimeProvider enabled><Probe /></ChartTimeProvider></ActiveChartsProvider>); });
+  await act(async () => { view = create(<ActiveChartsProvider library={library}><ChartTimeProvider enabled><Probe /></ChartTimeProvider></ActiveChartsProvider>); });
   const transitId = session.targetId!;
   const transitTime = clock.time;
   let natalId = '';
   let savedId = '';
   await act(async () => {
-    const saved = session.saveChart({ name: 'Natal', datetime: '1990-05-12T10:00:00.000Z', settings: DEFAULT_SETTINGS });
+    const saved = await session.saveChart({ name: 'Natal', datetime: '1990-05-12T10:00:00.000Z', settings: DEFAULT_SETTINGS });
     savedId = saved.id;
     session.openSaved(saved.id);
   });

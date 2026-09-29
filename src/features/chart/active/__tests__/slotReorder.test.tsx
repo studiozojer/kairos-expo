@@ -1,8 +1,14 @@
 import React from 'react';
+import { createChartLibraryStore, type ChartLibraryStore } from '../../library/store';
+import { testDatabase } from '../../library/test-support/sqlite';
+
+jest.mock('expo-sqlite', () => ({ openDatabaseAsync: jest.fn() }));
+let database: ReturnType<typeof testDatabase>;
+let library: ChartLibraryStore;
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ActiveChartsProvider, useActiveCharts } from '../ActiveChartsContext';
-import { ACTIVE_CHARTS_KEY, parseSession, reorderInstance, type ActiveSession } from '../model';
+import { ACTIVE_CHARTS_KEY, reorderInstance, type ActiveSession } from '../model';
 import { DEFAULT_SETTINGS } from '../../settings/chartSettings';
 import { calculateChart } from '../../data/calculateChart';
 import fixture from '../../fixtures/engine/seattle-2026.json';
@@ -45,18 +51,21 @@ describe('provider slot moves', () => {
   let state: ReturnType<typeof useActiveCharts>;
   let view: ReactTestRenderer;
   function Probe() { const value = useActiveCharts(); React.useLayoutEffect(() => { state = value; }); return null; }
-  const mount = async () => { await act(async () => { view = create(<ActiveChartsProvider><Probe /></ActiveChartsProvider>); }); };
+  const mount = async () => { await act(async () => { view = create(<ActiveChartsProvider library={library}><Probe /></ActiveChartsProvider>); }); };
   beforeEach(async () => {
     await AsyncStorage.clear();
     await AsyncStorage.setItem(ACTIVE_CHARTS_KEY, JSON.stringify(session()));
+    database = testDatabase();
+    library = await createChartLibraryStore(database.db, () => AsyncStorage.getItem(ACTIVE_CHARTS_KEY));
     jest.clearAllMocks();
     jest.mocked(calculateChart).mockReset().mockResolvedValue(fixture);
   });
-  afterEach(() => { if (view) act(() => view.unmount()); });
+  afterEach(() => { if (view) act(() => view.unmount()); database.close(); });
 
   test('same-event moves use current identity positions and persist complete session for relaunch', async () => {
     await mount();
     const before = state.active;
+    const persist = jest.spyOn(library, 'saveSession');
     await act(async () => {
       state.moveTo('first', 'third'); // second, third, first
       state.moveTo('third', 'second'); // third, second, first
@@ -64,22 +73,25 @@ describe('provider slot moves', () => {
     expect(state.active.map(chart => chart.id)).toEqual(['third', 'second', 'first']);
     expect(state.targetId).toBe('second');
     for (const chart of before) expect(state.active.find(item => item.id === chart.id)).toBe(chart);
-    const writes = jest.mocked(AsyncStorage.setItem).mock.calls;
+    const writes = persist.mock.calls;
     expect(writes).toHaveLength(2);
-    expect(writes.map(([key, raw]) => {
-      expect(key).toBe(ACTIVE_CHARTS_KEY);
-      return parseSession(raw).active.map(chart => chart.id);
+    expect(writes.map(([scope, snapshot]) => {
+      expect(scope).toBeNull();
+      return snapshot.active.map(chart => chart.id);
     })).toEqual([['second', 'third', 'first'], ['third', 'second', 'first']]);
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
     const snapshot = { active: state.active, saved: state.saved, targetId: state.targetId };
     act(() => view.unmount());
     await mount();
     expect({ active: state.active, saved: state.saved, targetId: state.targetId }).toEqual(snapshot);
-    expect(AsyncStorage.setItem).toHaveBeenCalledTimes(2);
+    expect(persist).toHaveBeenCalledTimes(3); // The restored session is checkpointed once.
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
   });
 
   test('same-slot and missing-identity drops do not persist or recalculate', async () => {
     await mount();
     const before = state.active;
+    const persist = jest.spyOn(library, 'saveSession');
     jest.mocked(calculateChart).mockClear();
     await act(async () => {
       state.moveTo('first', 'first');
@@ -89,5 +101,6 @@ describe('provider slot moves', () => {
     expect(state.active).toBe(before);
     expect(AsyncStorage.setItem).not.toHaveBeenCalled();
     expect(calculateChart).not.toHaveBeenCalled();
+    expect(persist).not.toHaveBeenCalled();
   });
 });
