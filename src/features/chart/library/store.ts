@@ -72,7 +72,19 @@ export class ChartLibraryStore {
   }
   saveSession(scope: string | null, session: ActiveSession): Promise<void> {
     const snapshot = JSON.parse(JSON.stringify(session)) as ActiveSession;
-    return this.serial(() => this.transaction(() => this.writeSession(ownerKey(scope), snapshot)));
+    return this.serial(() => this.transaction(async () => {
+      const owner = ownerKey(scope);
+      const unavailable = await this.db.getAllAsync<{ id: string }>(
+        'SELECT DISTINCT other.id FROM library_records other WHERE other.owner<>? AND other.owner<>? AND NOT EXISTS (SELECT 1 FROM library_records visible WHERE visible.id=other.id AND (visible.owner=? OR visible.owner=?))',
+        owner, '', owner, '',
+      );
+      const hidden = new Set(unavailable.map(row => row.id));
+      let safe = snapshot;
+      for (const chart of snapshot.active) {
+        if (chart.sourceId && hidden.has(chart.sourceId)) safe = removeInstance(safe, chart.id);
+      }
+      await this.writeSession(owner, safe);
+    }));
   }
   private async account(owner: string) {
     await this.db.runAsync('INSERT OR IGNORE INTO library_accounts(owner) VALUES (?)', owner);

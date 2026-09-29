@@ -164,3 +164,18 @@ it('rolls back session removal if adoption ownership transfer fails', async () =
   await expect(store.enableSync('did:a', true)).rejects.toThrow('disk full');
   expect(await store.load(null, DEFAULT_SETTINGS)).toEqual(anonymous);
 });
+
+it('rejects account-owned instances from a stale anonymous session write after adoption', async () => {
+  const store = await createChartLibraryStore(sql.db);
+  const chart = await store.saveChart(null, draft);
+  const stale = await store.load(null, DEFAULT_SETTINGS);
+  stale.active = [{ id: 'old-instance', kind: 'saved', sourceId: chart.id, name: chart.name, origin: Date.parse(chart.datetime), time: Date.parse(chart.datetime), unit: 2, settings: chart.settings }];
+  stale.targetId = 'old-instance';
+  await store.saveSession(null, stale);
+  await store.enableSync('did:a', true);
+  await store.saveSession(null, stale);
+  const signedOut = await store.load(null, DEFAULT_SETTINGS);
+  expect(signedOut.active).toEqual([]);
+  expect(signedOut.targetId).toBeNull();
+  expect(signedOut.saved).toEqual([]);
+});
