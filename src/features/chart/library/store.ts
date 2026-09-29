@@ -19,6 +19,20 @@ function validateRecord(record: SyncRecord) {
   if (!record || typeof record.id !== 'string' || typeof record.updatedAt !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(record.id) || !Number.isSafeInteger(record.revision) || record.revision < 1 || !Number.isFinite(Date.parse(record.updatedAt))) throw new Error('Invalid server chart record');
   if (record.chart !== null) validateDraft(record.chart);
 }
+
+function conflictName(name: string) {
+  let prefix = '';
+  for (const character of name) {
+    if (prefix.length + character.length > 184) break;
+    prefix += character;
+  }
+  return `${prefix} (conflict copy)`;
+}
+function sameChart(a: ChartDraft | null, b: ChartDraft) {
+  if (!a || a.name !== b.name || a.datetime !== b.datetime || a.settings.houseSystem !== b.settings.houseSystem) return false;
+  const left = a.settings.location, right = b.settings.location;
+  return left.name === right.name && left.latitude === right.latitude && left.longitude === right.longitude && left.elevation === right.elevation && left.timezone === right.timezone;
+}
 const schema = `
 PRAGMA journal_mode = WAL;
 CREATE TABLE IF NOT EXISTS library_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -62,7 +76,7 @@ export class ChartLibraryStore {
   load(scope: string | null, defaults: ChartSettings): Promise<ActiveSession> {
     return this.serial(async () => {
       const owner = ownerKey(scope);
-      const rows = await this.db.getAllAsync<Row>('SELECT * FROM library_records WHERE (owner = ? OR owner = ?) AND content IS NOT NULL ORDER BY rowid', '', owner);
+      const rows = await this.db.getAllAsync<Row>('SELECT visible.* FROM library_records visible WHERE (owner = ? OR owner = ?) AND content IS NOT NULL AND (owner = ? OR NOT EXISTS (SELECT 1 FROM library_records account WHERE account.owner = ? AND account.id = visible.id)) ORDER BY rowid', '', owner, owner, owner);
       const saved = rows.map(row => ({ ...JSON.parse(row.content!), id: row.id } as SavedChart));
       const stored = await this.db.getFirstAsync<{ session: string }>('SELECT session FROM library_sessions WHERE owner = ?', owner);
       const session: ActiveSession = stored ? { ...JSON.parse(stored.session), saved } : { ...initialSession(defaults), saved };
@@ -96,16 +110,26 @@ export class ChartLibraryStore {
     const operation: SyncOperation = { operationId: newChartId(), chartId: row.id, baseRevision: row.revision, chart: row.content === null ? null : JSON.parse(row.content) };
     await this.db.runAsync('INSERT OR IGNORE INTO library_outbox(owner,chart_id,operation) VALUES (?,?,?)', row.owner, row.id, JSON.stringify(operation));
   }
-  saveChart(scope: string | null, draft: ChartDraft, id?: string): Promise<SavedChart> {
+  saveChart(scope: string | null, draft: ChartDraft, id?: string, expected?: ChartDraft): Promise<SavedChart> {
     validateDraft(draft);
     if (draft.name.trim().length > 200 || draft.settings.location.name.length > 300 || draft.settings.location.timezone.length > 100) return Promise.reject(new Error('Chart or location name is too long'));
     const chart: SavedChart = { id: id ?? newChartId(), name: draft.name.trim(), datetime: new Date(draft.datetime).toISOString(), settings: snapshotSettings(draft.settings) };
     return this.serial(() => this.transaction(async () => {
       const owner = ownerKey(scope);
-      const existing = id ? await this.db.getFirstAsync<Row>('SELECT * FROM library_records WHERE id = ? AND (owner = ? OR owner = ?)', id, owner, '') : null;
-      if (id && (!existing || existing.content === null)) throw new Error('Saved chart is no longer available');
+      const existing = id ? await this.db.getFirstAsync<Row>('SELECT * FROM library_records WHERE id = ? AND (owner = ? OR owner = ?) ORDER BY (owner = ?) DESC LIMIT 1', id, owner, '', owner) : null;
+      if (id && !expected && (!existing || existing.content === null)) throw new Error('Saved chart is no longer available');
+      const stale = !!id && !!expected && !sameChart(!existing || existing.content === null ? null : JSON.parse(existing.content), expected);
+      if (stale) {
+        chart.id = newChartId();
+        chart.name = conflictName(chart.name);
+        const conflictOwner = existing?.owner ?? owner;
+        if (conflictOwner) {
+          await this.account(conflictOwner);
+          await this.db.runAsync('UPDATE library_accounts SET conflicts=conflicts+1 WHERE owner=?', conflictOwner);
+        }
+      }
       const { id: chartId, ...content } = chart;
-      const row: Row = { owner: existing?.owner ?? owner, id: chartId, content: JSON.stringify(content), revision: existing?.revision ?? 0, dirty: 1 };
+      const row: Row = { owner: existing?.owner ?? owner, id: chartId, content: JSON.stringify(content), revision: stale ? 0 : existing?.revision ?? 0, dirty: 1 };
       await this.db.runAsync('INSERT INTO library_records(owner,id,content,revision,dirty) VALUES (?,?,?,?,1) ON CONFLICT(owner,id) DO UPDATE SET content=excluded.content,dirty=1', row.owner, row.id, row.content, row.revision);
       await this.enqueue(row);
       return chart;
@@ -113,16 +137,28 @@ export class ChartLibraryStore {
   }
   deleteChart(scope: string | null, id: string): Promise<void> {
     return this.serial(() => this.transaction(async () => {
-      const row = await this.db.getFirstAsync<Row>('SELECT * FROM library_records WHERE id = ? AND (owner = ? OR owner = ?)', id, ownerKey(scope), '');
+      const row = await this.db.getFirstAsync<Row>('SELECT * FROM library_records WHERE id = ? AND (owner = ? OR owner = ?) ORDER BY (owner = ?) DESC LIMIT 1', id, ownerKey(scope), '', ownerKey(scope));
       if (!row || row.content === null) return;
       await this.db.runAsync('UPDATE library_records SET content=NULL,dirty=1 WHERE owner=? AND id=?', row.owner, id);
       await this.enqueue({ ...row, content: null, dirty: 1 });
     }));
   }
-  enableSync(did: string, includeAnonymous: boolean): Promise<void> {
+  enableSync(did: string, includeAnonymous: boolean, authorize: () => boolean = () => true): Promise<void> {
     return this.serial(() => this.transaction(async () => {
+      if (!authorize()) throw new Error('Account changed. Open sync settings again.');
+      // Old Expo storage had no length limits. Keep it readable offline, but
+      // never freeze an operation the server must reject into the retry outbox.
+      const candidates = await this.db.getAllAsync<Row>('SELECT * FROM library_records WHERE content IS NOT NULL AND (owner=? OR owner=?)', did, includeAnonymous ? '' : did);
+      for (const row of candidates) {
+        const chart = JSON.parse(row.content!) as ChartDraft;
+        if (chart.name.length > 200) throw new Error('Shorten chart names to 200 characters before enabling sync. Your charts remain saved locally.');
+        if (chart.settings.location.name.length > 300) throw new Error('Shorten location names to 300 characters before enabling sync. Your charts remain saved locally.');
+        if (chart.settings.location.timezone.length > 100) throw new Error('Choose a supported timezone before enabling sync. Your charts remain saved locally.');
+      }
       await this.account(did);
       if (includeAnonymous) {
+        const collision = await this.db.getFirstAsync('SELECT anonymous.id FROM library_records anonymous JOIN library_records account ON account.id=anonymous.id WHERE anonymous.owner=? AND account.owner=? LIMIT 1', '', did);
+        if (collision) throw new Error('Some local chart IDs already exist in this account. Enable sync without including local charts; both copies remain saved.');
         // Ownership transfer must also remove account data from the signed-out wheel.
         // The account's own session is independent and remains untouched.
         const adopted = await this.db.getAllAsync<{ id: string }>('SELECT id FROM library_records WHERE owner=?', '');
@@ -140,6 +176,7 @@ export class ChartLibraryStore {
       }
       await this.db.runAsync('UPDATE library_accounts SET enabled=1 WHERE owner=?', did);
       for (const row of await this.db.getAllAsync<Row>('SELECT * FROM library_records WHERE owner=? AND dirty=1', did)) await this.enqueue(row);
+      if (!authorize()) throw new Error('Account changed. Open sync settings again.');
     }));
   }
   disableSync(did: string): Promise<void> {
@@ -158,7 +195,7 @@ export class ChartLibraryStore {
   private async conflict(did: string, local: Row, remote: SyncRecord | null) {
     if (local.content !== null) {
       const content = JSON.parse(local.content) as ChartDraft;
-      content.name = `${content.name.slice(0, 184)} (conflict copy)`;
+      content.name = conflictName(content.name);
       const copy: Row = { owner: did, id: newChartId(), content: JSON.stringify(content), revision: 0, dirty: 1 };
       await this.db.runAsync('INSERT INTO library_records(owner,id,content,revision,dirty) VALUES (?,?,?,?,1)', did, copy.id, copy.content, 0);
       await this.enqueue(copy);

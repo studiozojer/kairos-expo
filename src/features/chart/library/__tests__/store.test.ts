@@ -179,3 +179,69 @@ it('rejects account-owned instances from a stale anonymous session write after a
   expect(signedOut.targetId).toBeNull();
   expect(signedOut.saved).toEqual([]);
 });
+it('keeps conflict-copy Unicode valid at the truncation boundary', async () => {
+  const store = await createChartLibraryStore(sql.db);
+  const chart = await store.saveChart('did:a', { ...draft, name: `${'a'.repeat(183)}🌙 tail` });
+  const sent = await store.pending('did:a');
+  await store.applyResults('did:a', sent, [{ operationId: sent[0].operationId, outcome: 'conflict', record: { ...remote(sent[0], 2), chart: draft } }]);
+  const copy = (await store.load('did:a', DEFAULT_SETTINGS)).saved.find(saved => saved.id !== chart.id)!;
+  expect(copy.name).toBe(`${'a'.repeat(183)} (conflict copy)`);
+  expect(() => encodeURIComponent(copy.name)).not.toThrow();
+});
+it('preserves oversized legacy charts offline and requires an edit before adopting them', async () => {
+  const oversized = { ...draft, name: 'a'.repeat(201), id: 'legacy-long-name' };
+  const session = { ...initialSession(), saved: [oversized] };
+  const store = await createChartLibraryStore(sql.db, async () => JSON.stringify(session));
+  expect((await store.load(null, DEFAULT_SETTINGS)).saved).toEqual([oversized]);
+  await expect(store.enableSync('did:a', true)).rejects.toThrow('Shorten chart names');
+  expect((await store.syncState('did:a')).enabled).toBe(false);
+  expect(await store.pending('did:a')).toEqual([]);
+  expect((await store.load(null, DEFAULT_SETTINGS)).saved).toEqual([oversized]);
+  await store.saveChart(null, draft, oversized.id);
+  await store.enableSync('did:a', true);
+  expect(await store.pending('did:a')).toHaveLength(1);
+});
+it('preserves a newer remote edit when an already-open editor saves its old baseline', async () => {
+  const store = await createChartLibraryStore(sql.db);
+  const chart = await store.saveChart('did:a', draft);
+  const sent = await store.pending('did:a');
+  await store.applyResults('did:a', sent, [{ operationId: sent[0].operationId, outcome: 'applied', record: remote(sent[0], 1) }]);
+  await store.applyChanges('did:a', [{ ...remote(sent[0], 2), chart: { ...draft, name: 'Remote edited' } }], 2);
+  const result = await store.saveChart('did:a', { ...draft, name: 'My editor draft' }, chart.id, draft);
+  expect(result.id).not.toBe(chart.id);
+  expect(result.name).toBe('My editor draft (conflict copy)');
+  expect((await store.load('did:a', DEFAULT_SETTINGS)).saved.find(saved => saved.id === chart.id)?.name).toBe('Remote edited');
+  expect((await store.pending('did:a'))[0]).toMatchObject({ chartId: result.id, baseRevision: 0 });
+});
+it('rolls back adoption when account authorization changes inside the transaction', async () => {
+  const store = await createChartLibraryStore(sql.db);
+  const chart = await store.saveChart(null, draft);
+  const authorize = jest.fn().mockReturnValueOnce(true).mockReturnValueOnce(false);
+  await expect(store.enableSync('did:a', true, authorize)).rejects.toThrow('Account changed');
+  expect((await store.load(null, DEFAULT_SETTINGS)).saved).toEqual([chart]);
+  expect((await store.syncState('did:a')).enabled).toBe(false);
+  expect(await store.pending('did:a')).toEqual([]);
+});
+it('shadows colliding anonymous IDs in the account view without overwriting anonymous originals', async () => {
+  const store = await createChartLibraryStore(sql.db);
+  const anonymous = await store.saveChart(null, draft);
+  await store.applyChanges('did:a', [{ id: anonymous.id, revision: 1, chart: { ...draft, name: 'Account copy' }, updatedAt: '2026-09-29T00:00:00Z' }], 1);
+  expect((await store.load('did:a', DEFAULT_SETTINGS)).saved.map(chart => chart.name)).toEqual(['Account copy']);
+  await store.saveChart('did:a', { ...draft, name: 'Account edit' }, anonymous.id);
+  expect((await store.load(null, DEFAULT_SETTINGS)).saved).toEqual([anonymous]);
+  await expect(store.enableSync('did:a', true)).rejects.toThrow('Enable sync without including local charts');
+  await store.deleteChart('did:a', anonymous.id);
+  expect((await store.load('did:a', DEFAULT_SETTINGS)).saved).toEqual([]);
+  expect((await store.load(null, DEFAULT_SETTINGS)).saved).toEqual([anonymous]);
+});
+it('saves an open editor draft as a copy after the source is deleted remotely', async () => {
+  const store = await createChartLibraryStore(sql.db);
+  const original = await store.saveChart('did:a', draft);
+  const sent = await store.pending('did:a');
+  await store.applyResults('did:a', sent, [{ operationId: sent[0].operationId, outcome: 'applied', record: remote(sent[0]) }]);
+  await store.applyChanges('did:a', [{ ...remote(sent[0], 2), chart: null }], 2);
+  const copy = await store.saveChart('did:a', draft, original.id, draft);
+  expect(copy.id).not.toBe(original.id);
+  expect((await store.load('did:a', DEFAULT_SETTINGS)).saved).toEqual([copy]);
+  expect(await sql.db.getFirstAsync('SELECT content,revision FROM library_records WHERE owner=? AND id=?', 'did:a', original.id)).toEqual({ content: null, revision: 2 });
+});
