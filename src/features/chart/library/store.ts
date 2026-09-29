@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { openDatabaseAsync } from 'expo-sqlite';
-import { ACTIVE_CHARTS_KEY, initialSession, newChartId, parseSession, snapshotSettings, validateDraft, type ActiveSession, type ChartDraft, type SavedChart } from '../active/model';
+import { ACTIVE_CHARTS_KEY, initialSession, newChartId, parseSession, removeInstance, snapshotSettings, validateDraft, type ActiveSession, type ChartDraft, type SavedChart } from '../active/model';
 import type { ChartSettings } from '../settings/chartSettings';
 import type { LibrarySyncState, SyncOperation, SyncRecord, SyncResult } from './types';
 
@@ -111,6 +111,18 @@ export class ChartLibraryStore {
     return this.serial(() => this.transaction(async () => {
       await this.account(did);
       if (includeAnonymous) {
+        // Ownership transfer must also remove account data from the signed-out wheel.
+        // The account's own session is independent and remains untouched.
+        const adopted = await this.db.getAllAsync<{ id: string }>('SELECT id FROM library_records WHERE owner=?', '');
+        const otherSessions = await this.db.getAllAsync<{ owner: string; session: string }>('SELECT owner,session FROM library_sessions WHERE owner<>?', did);
+        for (const other of otherSessions) {
+          let session = { ...JSON.parse(other.session), saved: [] } as ActiveSession;
+          const ids = new Set(adopted.map(row => row.id));
+          for (const instance of session.active) {
+            if (instance.sourceId && ids.has(instance.sourceId)) session = removeInstance(session, instance.id);
+          }
+          await this.writeSession(other.owner, session);
+        }
         // A collision must fail atomically, never overwrite either user's record.
         await this.db.runAsync('UPDATE library_records SET owner=? WHERE owner=?', did, '');
       }
@@ -186,6 +198,9 @@ export class ChartLibraryStore {
 export async function createChartLibraryStore(db: LibraryDatabase, readLegacy: () => Promise<string | null> = async () => null) { return new ChartLibraryStore(db, readLegacy).initialize(); }
 let singleton: Promise<ChartLibraryStore> | undefined;
 export function getChartLibrary(): Promise<ChartLibraryStore> {
-  if (!singleton) singleton = openDatabaseAsync('kairos-chart-library-v1.db').then(db => createChartLibraryStore(db, () => AsyncStorage.getItem(ACTIVE_CHARTS_KEY))).catch(error => { singleton = undefined; throw error; });
+  if (!singleton) singleton = openDatabaseAsync('kairos-chart-library-v1.db').then(async db => {
+    try { return await createChartLibraryStore(db, () => AsyncStorage.getItem(ACTIVE_CHARTS_KEY)); }
+    catch (error) { await db.closeAsync().catch(() => {}); throw error; }
+  }).catch(error => { singleton = undefined; throw error; });
   return singleton;
 }

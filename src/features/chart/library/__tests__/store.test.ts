@@ -132,3 +132,35 @@ it('restores exact pending operations after restart and rolls back partial ackno
   expect(await reopened.pending('did:a')).toEqual(sent);
   expect((await reopened.syncState('did:a')).pending).toBe(2);
 });
+it('removes adopted instances from the anonymous session without changing the account wheel', async () => {
+  const store = await createChartLibraryStore(sql.db);
+  const chart = await store.saveChart(null, draft);
+  const anonymous = await store.load(null, DEFAULT_SETTINGS);
+  const now = anonymous.active[0];
+  const adopted = { id: 'adopted-instance', kind: 'saved' as const, sourceId: chart.id, name: chart.name, origin: Date.parse(chart.datetime), time: Date.parse(chart.datetime), unit: 2, settings: chart.settings };
+  anonymous.active.push(adopted);
+  anonymous.targetId = adopted.id;
+  await store.saveSession(null, anonymous);
+  await store.saveSession('did:b', anonymous);
+  await store.saveSession('did:a', { ...anonymous, active: [adopted], targetId: adopted.id });
+  await store.enableSync('did:a', true);
+  const signedOut = await store.load(null, DEFAULT_SETTINGS);
+  expect(signedOut.saved).toEqual([]);
+  expect(signedOut.active).toEqual([now]);
+  expect(signedOut.targetId).toBe(now.id);
+  expect((await store.load('did:b', DEFAULT_SETTINGS)).active).toEqual([now]);
+  const account = await store.load('did:a', DEFAULT_SETTINGS);
+  expect(account.active).toEqual([adopted]);
+  expect(account.saved[0].id).toBe(chart.id);
+});
+it('rolls back session removal if adoption ownership transfer fails', async () => {
+  const store = await createChartLibraryStore(sql.db);
+  const chart = await store.saveChart(null, draft);
+  const anonymous = await store.load(null, DEFAULT_SETTINGS);
+  anonymous.active = [{ id: 'adopted-instance', kind: 'saved', sourceId: chart.id, name: chart.name, origin: Date.parse(chart.datetime), time: Date.parse(chart.datetime), unit: 2, settings: chart.settings }];
+  anonymous.targetId = 'adopted-instance';
+  await store.saveSession(null, anonymous);
+  await sql.db.execAsync("CREATE TRIGGER fail_adoption BEFORE UPDATE OF owner ON library_records BEGIN SELECT RAISE(ABORT, 'disk full'); END");
+  await expect(store.enableSync('did:a', true)).rejects.toThrow('disk full');
+  expect(await store.load(null, DEFAULT_SETTINGS)).toEqual(anonymous);
+});
