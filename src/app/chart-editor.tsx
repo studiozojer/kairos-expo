@@ -23,10 +23,9 @@ export default function ChartEditorScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const state = useActiveCharts();
   const saved = state.saved.find(chart => chart.id === id);
-  const retained = useRef<{ id?: string; chart?: SavedChart }>({ id });
-  if (retained.current.id !== id) retained.current = { id };
-  if (saved) retained.current.chart = saved;
-  const editing = saved ?? retained.current.chart;
+  const [retained, setRetained] = useState<{ id?: string; chart?: SavedChart }>({ id, chart: saved });
+  if (retained.id !== id || (saved && saved !== retained.chart)) setRetained({ id, chart: saved });
+  const editing = saved ?? (retained.id === id ? retained.chart : undefined);
   return <><Stack.Screen options={{ title: id ? 'Edit chart' : 'Create chart' }} />
     {state.loadError ? <><Note>Couldn’t load saved charts.</Note><Action label="Retry loading" onPress={state.retryLoad} /></> : !state.loaded ? <ActivityIndicator accessibilityLabel="Loading chart" /> :
       id && !editing ? <Note>This saved chart was not found.</Note> : <Editor key={id ?? 'new'} saved={editing} />}

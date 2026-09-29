@@ -43,6 +43,7 @@ function useActiveState(scope: string | null, library?: ChartLibraryStore) {
   const [anonymousCount, setAnonymousCount] = useState(0);
   const syncController = useRef<AbortController | null>(null);
   const syncAgain = useRef(false);
+  const [syncAttempt, setSyncAttempt] = useState(0);
   const persist = useCallback((value: ActiveSession) => {
     const generation = ++revision.current;
     const snapshot = JSON.parse(JSON.stringify(value)) as ActiveSession;
@@ -103,7 +104,6 @@ function useActiveState(scope: string | null, library?: ChartLibraryStore) {
     setSyncState(status); setAnonymousCount(anonymous.saved.length);
     if (detached) persist(current.current);
   // Read the current session ref so incoming sync never rewinds a time step.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope, persist]);
   const runSync = useCallback(async () => {
     if (!scope || !store.current || !hydrated.current || (AppState.currentState && AppState.currentState !== 'active')) return;
@@ -127,7 +127,7 @@ function useActiveState(scope: string | null, library?: ChartLibraryStore) {
       if (syncController.current === controller) syncController.current = null;
       if (mounted.current) {
         setSyncing(false); await refreshLibrary().catch(() => {});
-        if (controller.signal.aborted && syncAgain.current) { syncAgain.current = false; void runSync(); }
+        if (controller.signal.aborted && syncAgain.current) { syncAgain.current = false; setSyncAttempt(attempt => attempt + 1); }
       }
     }
   }, [scope, refreshLibrary]);
@@ -139,7 +139,7 @@ function useActiveState(scope: string | null, library?: ChartLibraryStore) {
     });
     const timer = setInterval(() => { if (AppState.currentState === 'active') void runSync(); }, 30000);
     return () => { clearInterval(timer); sub.remove(); syncController.current?.abort(); };
-  }, [loaded, refreshLibrary, runSync]);
+  }, [loaded, refreshLibrary, runSync, syncAttempt]);
   const saveChart = useCallback(async (draft: ChartDraft, id?: string, expected?: ChartDraft): Promise<SavedChart> => {
     if (!hydrated.current || !mounted.current || !store.current) throw new Error('Wait for charts to finish loading');
     setLibraryError(null);
