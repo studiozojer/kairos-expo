@@ -59,22 +59,22 @@ beforeEach(() => {
 });
 afterEach(() => { if (view) act(() => view.unmount()); });
 
-test('create validates input and saves the chosen local time as UTC before opening', () => {
+test('create validates input and saves the chosen local time as UTC before opening', async () => {
   act(() => { view = create(<ChartEditorScreen />); });
-  act(() => action('Save and open').props.onPress());
+  await act(async () => { action('Save and open').props.onPress(); });
   expect(mockState.saveChart).not.toHaveBeenCalled();
   field('Chart name', 'Natal'); field('Date · YYYY-MM-DD', '1990-07-05'); field('Time · HH:mm:ss (24-hour)', '14:30');
-  act(() => action('Save and open').props.onPress());
-  expect(mockState.saveChart).toHaveBeenCalledWith({ name: 'Natal', datetime: '1990-07-05T21:30:00.000Z', settings: DEFAULT_SETTINGS }, undefined);
+  await act(async () => { action('Save and open').props.onPress(); });
+  expect(mockState.saveChart).toHaveBeenCalledWith({ name: 'Natal', datetime: '1990-07-05T21:30:00.000Z', settings: DEFAULT_SETTINGS }, undefined, undefined);
   expect(mockState.openSaved).toHaveBeenCalledWith('saved-1', undefined);
   expect(mockRouter.dismissTo).toHaveBeenCalledWith('/(tabs)/(chart)');
 });
-test('ambiguous local time requires explicit occurrence; choosing later saves the later instant', () => {
+test('ambiguous local time requires explicit occurrence; choosing later saves the later instant', async () => {
   act(() => { view = create(<ChartEditorScreen />); });
   field('Chart name', 'Fold'); field('Date · YYYY-MM-DD', '2026-11-01'); field('Time · HH:mm:ss (24-hour)', '01:30');
-  act(() => action('Save chart').props.onPress()); expect(mockState.saveChart).not.toHaveBeenCalled();
+  await act(async () => { action('Save chart').props.onPress(); }); expect(mockState.saveChart).not.toHaveBeenCalled();
   act(() => button('This time occurs twice: Later · 2026-11-01T09:30:00.000Z').props.onPress());
-  act(() => action('Save chart').props.onPress());
+  await act(async () => { action('Save chart').props.onPress(); });
   expect(mockState.saveChart.mock.calls[0][0].datetime).toBe('2026-11-01T09:30:00.000Z');
 });
 test('fourth chart cannot open until an explicit existing instance is chosen', () => {
@@ -122,11 +122,26 @@ test('failed hydration exposes retry instead of an indefinite loading state', ()
   act(() => view.update(<SavedChartsScreen />));
   expect(action('Retry loading')).toBeDefined();
 });
-test('editing a saved fold chart preserves its occurrence when only the name changes', () => {
+test('editing a saved fold chart preserves its occurrence when only the name changes', async () => {
   mockParams = { id: 'fold' };
   mockState.saved = [{ id: 'fold', name: 'Fold', datetime: '2026-11-01T09:30:00.000Z', settings: DEFAULT_SETTINGS }];
   act(() => { view = create(<ChartEditorScreen />); });
   field('Chart name', 'Renamed');
-  act(() => action('Save chart').props.onPress());
-  expect(mockState.saveChart).toHaveBeenCalledWith({ name: 'Renamed', datetime: '2026-11-01T09:30:00.000Z', settings: DEFAULT_SETTINGS }, 'fold');
+  await act(async () => { action('Save chart').props.onPress(); });
+  expect(mockState.saveChart).toHaveBeenCalledWith({ name: 'Renamed', datetime: '2026-11-01T09:30:00.000Z', settings: DEFAULT_SETTINGS }, 'fold', { name: 'Fold', datetime: '2026-11-01T09:30:00.000Z', settings: DEFAULT_SETTINGS });
+});
+
+test('a remote deletion keeps the open editor draft and its original baseline', async () => {
+  mockParams = { id: 'editing' };
+  const original = { id: 'editing', name: 'Original', datetime: '1990-07-05T21:30:00.000Z', settings: DEFAULT_SETTINGS };
+  mockState.saved = [original];
+  act(() => { view = create(<ChartEditorScreen />); });
+  field('Chart name', 'My unsaved edit');
+  mockState.saved = [];
+  act(() => view.update(<ChartEditorScreen />));
+  expect(view.root.findAllByType(TextInput).find(node => node.props.accessibilityLabel === 'Chart name')!.props.value).toBe('My unsaved edit');
+  await act(async () => { action('Save chart').props.onPress(); });
+  expect(mockState.saveChart).toHaveBeenCalledWith(expect.objectContaining({ name: 'My unsaved edit' }), 'editing', {
+    name: original.name, datetime: original.datetime, settings: original.settings,
+  });
 });

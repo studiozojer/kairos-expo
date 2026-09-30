@@ -1,8 +1,15 @@
 import React from 'react';
+import { createChartLibraryStore, getChartLibrary, type ChartLibraryStore } from '../../library/store';
+import { testDatabase } from '../../library/test-support/sqlite';
+
+jest.mock('../../library/store', () => ({ ...jest.requireActual('../../library/store'), getChartLibrary: jest.fn() }));
+jest.mock('expo-sqlite', () => ({ openDatabaseAsync: jest.fn() }));
+let database: ReturnType<typeof testDatabase>;
+let library: ChartLibraryStore;
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ActiveChartsProvider, useActiveCharts } from '../ActiveChartsContext';
-import { ACTIVE_CHARTS_KEY, parseSession } from '../model';
+import { ACTIVE_CHARTS_KEY } from '../model';
 import { DEFAULT_SETTINGS, SETTINGS_KEY } from '../../settings/chartSettings';
 import { calculateChart } from '../../data/calculateChart';
 import fixture from '../../fixtures/engine/seattle-2026.json';
@@ -13,29 +20,31 @@ let state: ReturnType<typeof useActiveCharts>;
 let view: ReactTestRenderer;
 const draft = { name: 'Natal', datetime: '1990-06-01T12:00:00.000Z', settings: DEFAULT_SETTINGS };
 function Probe() { const value = useActiveCharts(); React.useLayoutEffect(() => { state = value; }); return null; }
-const mount = async () => { await act(async () => { view = create(<ActiveChartsProvider><Probe /></ActiveChartsProvider>); }); };
+const mount = async (injected = true) => { await act(async () => { view = create(<ActiveChartsProvider library={injected ? library : undefined}><Probe /></ActiveChartsProvider>); }); };
 beforeEach(async () => {
-  await AsyncStorage.clear(); jest.clearAllMocks();
+  await AsyncStorage.clear();
+  database = testDatabase();
+  library = await createChartLibraryStore(database.db, () => AsyncStorage.getItem(ACTIVE_CHARTS_KEY)); jest.clearAllMocks();
   calculate.mockReset().mockResolvedValue(fixture);
 });
-afterEach(() => { if (view) act(() => view.unmount()); });
+afterEach(() => { if (view) act(() => view.unmount()); database.close(); });
 
 test('saved snapshots stay unchanged through independent stepping, reordering, settings edits, and source edits', async () => {
   await mount();
   const now = state.active[0];
-  await act(async () => { const saved = state.saveChart(draft); state.openSaved(saved.id); });
+  await act(async () => { const saved = await state.saveChart(draft); state.openSaved(saved.id); });
   const natal = state.active[1];
   await act(async () => { state.step(1); state.step(1); state.move(natal.id, -1); });
   expect(state.targetId).toBe(natal.id);
   expect(state.active[0].time).toBe(natal.time + 2 * 86400000);
   expect(state.active[1]).toEqual(now);
   expect(state.saved[0].datetime).toBe(draft.datetime);
-  await act(async () => { state.saveChart({ ...draft, name: 'Edited' }, state.saved[0].id); state.updateInstanceSettings(natal.id, { ...DEFAULT_SETTINGS, houseSystem: 'Whole Sign' }); });
+  await act(async () => { await state.saveChart({ ...draft, name: 'Edited' }, state.saved[0].id); state.updateInstanceSettings(natal.id, { ...DEFAULT_SETTINGS, houseSystem: 'Whole Sign' }); });
   expect(state.active[0].name).toBe('Natal');
   expect(state.saved[0].settings.houseSystem).toBe('Placidus');
   await act(async () => { state.reset(); });
   expect(state.active[0].time).toBe(natal.origin);
-  expect(parseSession((await AsyncStorage.getItem(ACTIVE_CHARTS_KEY))!).active).toEqual(state.active);
+  expect((await library.load(null, DEFAULT_SETTINGS)).active).toEqual(state.active);
   const snapshot = { active: state.active, saved: state.saved, targetId: state.targetId };
   act(() => view.unmount()); await mount();
   expect({ active: state.active, saved: state.saved, targetId: state.targetId }).toEqual(snapshot);
@@ -43,7 +52,7 @@ test('saved snapshots stay unchanged through independent stepping, reordering, s
 
 test('fourth chart requires explicit replacement and removal chooses deterministic neighbor without deleting source', async () => {
   await mount();
-  await act(async () => { const saved = state.saveChart(draft); state.openSaved(saved.id); state.addNow(); });
+  await act(async () => { const saved = await state.saveChart(draft); state.openSaved(saved.id); state.addNow(); });
   const before = state.active;
   await act(async () => { expect(state.addNow()).toBe(false); expect(state.addNow('missing')).toBe(false); });
   expect(state.active).toEqual(before);
@@ -59,9 +68,11 @@ test('fourth chart requires explicit replacement and removal chooses determinist
 });
 
 test('malformed or unreadable storage is not overwritten and retry can recover', async () => {
+  database.close(); database = testDatabase();
+  jest.mocked(getChartLibrary).mockImplementation(() => createChartLibraryStore(database.db, () => AsyncStorage.getItem(ACTIVE_CHARTS_KEY)));
   await AsyncStorage.setItem(ACTIVE_CHARTS_KEY, '{broken');
   jest.mocked(AsyncStorage.setItem).mockClear();
-  await mount();
+  await mount(false);
   expect(state.loadError).toBe(true); expect(state.loaded).toBe(false);
   await act(async () => { expect(state.addNow()).toBe(false); state.retryPersistence(); });
   expect(AsyncStorage.setItem).not.toHaveBeenCalled();
@@ -73,20 +84,22 @@ test('malformed or unreadable storage is not overwritten and retry can recover',
 test('writes are serialized, failures visible, retry persists the latest session', async () => {
   await mount();
   let release!: () => void;
-  jest.mocked(AsyncStorage.setItem).mockImplementationOnce(() => new Promise<void>(resolve => { release = resolve; }));
+  const save = library.saveSession.bind(library);
+  const persist = jest.spyOn(library, 'saveSession');
+  persist.mockImplementationOnce((scope, snapshot) => new Promise<void>(resolve => { release = () => { void save(scope, snapshot).then(resolve); }; }));
   await act(async () => { state.step(1); });
-  const calls = jest.mocked(AsyncStorage.setItem).mock.calls.length;
+  const calls = persist.mock.calls.length;
   await act(async () => { state.step(1); });
-  expect(AsyncStorage.setItem).toHaveBeenCalledTimes(calls);
+  expect(persist).toHaveBeenCalledTimes(calls);
   expect(state.saving).toBe(true);
   await act(async () => { release(); });
   expect(state.saving).toBe(false);
-  jest.mocked(AsyncStorage.setItem).mockRejectedValueOnce(new Error('disk full'));
+  persist.mockRejectedValueOnce(new Error('disk full'));
   await act(async () => { state.step(1); });
   expect(state.saveError).toBe(true);
   await act(async () => { state.retryPersistence(); });
   expect(state.saveError).toBe(false);
-  expect(parseSession((await AsyncStorage.getItem(ACTIVE_CHARTS_KEY))!).active[0].time).toBe(state.active[0].time);
+  expect((await library.load(null, DEFAULT_SETTINGS)).active[0].time).toBe(state.active[0].time);
 });
 
 test('independent calculation workers discard stale results after stepping and replacement', async () => {
@@ -95,7 +108,7 @@ test('independent calculation workers discard stale results after stepping and r
   let resolveOld!: (value: typeof fixture) => void;
   calculate.mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve; }));
   await act(async () => { state.step(1); });
-  await act(async () => { state.step(1); const saved = state.saveChart(draft); state.openSaved(saved.id); });
+  await act(async () => { state.step(1); const saved = await state.saveChart(draft); state.openSaved(saved.id); });
   const natalId = state.active[1].id;
   expect(state.calculations[natalId].status).toBe('ready');
   await act(async () => { resolveOld(fixture); });
@@ -110,22 +123,30 @@ test('independent calculation workers discard stale results after stepping and r
 });
 
 test('pending hydration blocks mutations and read failures preserve stored data', async () => {
-  let resolveRead!: (value: string | null) => void;
-  jest.mocked(AsyncStorage.getItem).mockImplementationOnce(() => new Promise(resolve => { resolveRead = resolve; }));
+  const stored = await library.load(null, DEFAULT_SETTINGS);
+  let resolveRead!: (value: typeof stored) => void;
+  const load = jest.spyOn(library, 'load').mockImplementationOnce(() => new Promise(resolve => { resolveRead = resolve; }));
+  const persist = jest.spyOn(library, 'saveSession');
   await mount();
   expect(state.loaded).toBe(false);
-  await act(async () => { expect(state.addNow()).toBe(false); expect(() => state.saveChart(draft)).toThrow('finish loading'); state.step(1); });
-  expect(AsyncStorage.setItem).not.toHaveBeenCalled();
-  await act(async () => { resolveRead(null); });
+  await act(async () => {
+    expect(state.addNow()).toBe(false);
+    await expect(state.saveChart(draft)).rejects.toThrow('finish loading');
+    state.step(1);
+  });
+  expect(persist).not.toHaveBeenCalled();
+  await act(async () => { resolveRead(stored); });
   expect(state.loaded).toBe(true);
   act(() => view.unmount());
-  jest.mocked(AsyncStorage.setItem).mockClear();
-  jest.mocked(AsyncStorage.getItem).mockRejectedValueOnce(new Error('storage unavailable'));
+  persist.mockClear();
+  load.mockRejectedValueOnce(new Error('storage unavailable'));
   await mount();
   expect(state.loadError).toBe(true);
-  expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+  expect(persist).not.toHaveBeenCalled();
   await act(async () => { state.retryLoad(); });
   expect(state.loaded).toBe(true);
+  expect((await library.load(null, DEFAULT_SETTINGS)).active).toEqual(stored.active);
+  expect(AsyncStorage.setItem).not.toHaveBeenCalled();
 });
 
 
@@ -136,9 +157,8 @@ test('new Now charts retain defaults after session restoration; unavailable pref
   act(() => view.unmount()); await mount();
   await act(async () => { state.addNow(); });
   expect(state.active[1].settings).toEqual(preferences);
-  const stored = await AsyncStorage.getItem(ACTIVE_CHARTS_KEY);
   act(() => view.unmount());
-  jest.mocked(AsyncStorage.getItem).mockResolvedValueOnce(stored).mockRejectedValueOnce(new Error('preferences unavailable'));
+  jest.mocked(AsyncStorage.getItem).mockRejectedValueOnce(new Error('preferences unavailable'));
   await mount();
   expect(state.loaded).toBe(true); expect(state.loadError).toBe(false);
   expect(state.active).toHaveLength(2);
@@ -146,7 +166,7 @@ test('new Now charts retain defaults after session restoration; unavailable pref
 
 test('event seeks are independent, persist, and reject stale target/time/settings/fixed dependencies', async () => {
   await mount();
-  await act(async () => { const saved = state.saveChart(draft); state.openSaved(saved.id); });
+  await act(async () => { const saved = await state.saveChart(draft); state.openSaved(saved.id); });
   const natal = state.active[1], originalSaved = state.saved[0], other = state.active[0];
   const snapshot = () => ({ targetId: state.targetId!, charts: [...state.active] });
   const initial = snapshot();
@@ -169,4 +189,20 @@ test('event seeks are independent, persist, and reject stale target/time/setting
   act(() => view.unmount()); await mount();
   expect(state.active[0].time).toBe(eventTime + 2000);
   expect(state.saved[0]).toEqual(originalSaved);
+});
+
+test('deleting a source retains an unsaved instance, its stepped time and reset origin after relaunch', async () => {
+  await mount();
+  let sourceId = '';
+  await act(async () => { const saved = await state.saveChart(draft); sourceId = saved.id; state.openSaved(saved.id); state.step(1); });
+  const instance = state.active[1];
+  await act(async () => { await state.deleteSaved(sourceId); });
+  expect(state.saved).toHaveLength(0);
+  expect(state.active[1]).toEqual({ ...instance, kind: 'snapshot', sourceId: undefined });
+  expect(state.targetId).toBe(instance.id);
+  act(() => view.unmount()); await mount();
+  expect(state.active[1].kind).toBe('snapshot');
+  expect(state.active[1].time).toBe(instance.time);
+  await act(async () => state.reset());
+  expect(state.active[1].time).toBe(instance.origin);
 });

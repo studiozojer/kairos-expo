@@ -4,7 +4,7 @@ import { MAX_TIME, MIN_TIME, stepTime, TIME_STEPS } from '../time/timeSteps';
 export interface SavedChart { id: string; name: string; datetime: string; settings: ChartSettings }
 export type ChartDraft = Omit<SavedChart, 'id'>;
 export interface ActiveChart {
-  id: string; sourceId?: string; kind: 'saved' | 'now'; name: string;
+  id: string; sourceId?: string; kind: 'saved' | 'now' | 'snapshot'; name: string;
   origin: number; time: number; settings: ChartSettings; unit: number;
 }
 export interface ActiveSession { version: 1; saved: SavedChart[]; active: ActiveChart[]; targetId: string | null }
@@ -36,7 +36,7 @@ export function parseSession(raw: string): ActiveSession {
   }
   ids.clear();
   for (const chart of value.active) {
-    if (!chart || typeof chart.id !== 'string' || !chart.id || ids.has(chart.id) || !['now', 'saved'].includes(chart.kind) || typeof chart.name !== 'string' || !chart.name.trim() || !validTime(chart.time) || !validTime(chart.origin) || !validSettings(chart.settings) || !Number.isInteger(chart.unit) || chart.unit < 0 || chart.unit >= TIME_STEPS.length || (chart.kind === 'saved' && (typeof chart.sourceId !== 'string' || !value.saved.some(saved => saved.id === chart.sourceId)))) throw new Error('Invalid open chart');
+    if (!chart || typeof chart.id !== 'string' || !chart.id || ids.has(chart.id) || !['now', 'saved', 'snapshot'].includes(chart.kind) || typeof chart.name !== 'string' || !chart.name.trim() || !validTime(chart.time) || !validTime(chart.origin) || !validSettings(chart.settings) || !Number.isInteger(chart.unit) || chart.unit < 0 || chart.unit >= TIME_STEPS.length || (chart.kind === 'saved' && (typeof chart.sourceId !== 'string' || !value.saved.some(saved => saved.id === chart.sourceId)))) throw new Error('Invalid open chart');
     ids.add(chart.id);
   }
   if (value.active.length ? !ids.has(value.targetId as string) : value.targetId !== null) throw new Error('Invalid stepper target');

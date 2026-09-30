@@ -1,6 +1,13 @@
 import React from 'react';
+import { createChartLibraryStore, type ChartLibraryStore } from '../../library/store';
+import { testDatabase } from '../../library/test-support/sqlite';
+
+jest.mock('expo-sqlite', () => ({ openDatabaseAsync: jest.fn() }));
+let database: ReturnType<typeof testDatabase>;
+let library: ChartLibraryStore;
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ACTIVE_CHARTS_KEY } from '../../active/model';
 import { ActiveChartsProvider, useActiveCharts } from '../ActiveChartsContext';
 import { ChartTimeProvider, useChartTime } from '../../time/ChartTimeContext';
 import { buildMultiConfiguration } from '../../config/buildConfiguration';
@@ -20,7 +27,7 @@ function Probe() {
   return null;
 }
 async function mount() {
-  await act(async () => { view = create(<ActiveChartsProvider><ChartTimeProvider enabled><Probe /></ChartTimeProvider></ActiveChartsProvider>); });
+  await act(async () => { view = create(<ActiveChartsProvider library={library}><ChartTimeProvider enabled><Probe /></ChartTimeProvider></ActiveChartsProvider>); });
 }
 function configuration() {
   return buildMultiConfiguration(session.active.map(item => ({ instanceId: item.id, name: item.name,
@@ -28,18 +35,20 @@ function configuration() {
 }
 beforeEach(async () => {
   await AsyncStorage.clear();
+  database = testDatabase();
+  library = await createChartLibraryStore(database.db, () => AsyncStorage.getItem(ACTIVE_CHARTS_KEY));
   jest.mocked(calculateChart).mockImplementation(async (datetime, settings = DEFAULT_SETTINGS) => ({
     ...fixture, chart_metadata: { ...fixture.chart_metadata, datetime, coordinates: settings.location },
   }));
 });
-afterEach(() => { if (view) act(() => view.unmount()); });
+afterEach(() => { if (view) act(() => view.unmount()); database.close(); });
 
 test('create, explore three charts, reorder, remove, and relaunch preserve saved originals and render identities', async () => {
   await mount();
   const transitId = session.targetId!;
   const transitTime = clock.time;
   await act(async () => {
-    const natal = session.saveChart({ name: 'Natal', datetime: '1990-06-01T12:00:00.000Z', settings: DEFAULT_SETTINGS });
+    const natal = await session.saveChart({ name: 'Natal', datetime: '1990-06-01T12:00:00.000Z', settings: DEFAULT_SETTINGS });
     session.openSaved(natal.id);
   });
   const natalId = session.targetId!;

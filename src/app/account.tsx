@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 
 import { useAuth } from '@/auth/auth-context';
 import { SignInError } from '@/auth/signIn';
@@ -14,9 +14,7 @@ import { useTheme } from '@/theme';
  * the OAuth dance, and only a session token ever touches this device (Keychain
  * via expo-secure-store). One account across Kairos and zhouyi.
  *
- * Nothing is gated on sign-in yet — the journal is usable signed out. This
- * screen is identity plumbing made visible: what it unlocks arrives with the
- * Stage 3 sync conversation.
+ * Local charts are usable signed out. Account chart sync requires separate opt-in.
  */
 export default function AccountScreen() {
   const theme = useTheme();
@@ -73,16 +71,20 @@ export default function AccountScreen() {
             </Text>
           </View>
           <Text style={{ ...theme.type.whyteSm, color: theme.color.txSecondary }}>
-            Sign-out clears the session on this device. Your record is never touched.
+            Signing out stops chart sync and hides this account’s charts on this device. Local charts outside the account remain available.
           </Text>
-          <Pressable onPress={() => void signOut()} style={buttonStyle(true)}>
+          <Pressable onPress={() => router.push('/charts')} style={buttonStyle(true)}>
+            <Text style={{ ...theme.type.whyteSm, color: theme.color.txButton }}>Saved charts and sync</Text>
+          </Pressable>
+          {error && <Text accessibilityRole="alert" style={{ color: theme.color.txError }}>{error}</Text>}
+          <Pressable onPress={() => { void signOut().catch(() => Alert.alert('Could not finish signing out', 'The saved session could not be cleared from this device. Please try again.', [{ text: 'Retry', onPress: () => { void signOut().catch(() => Alert.alert('Sign-out failed', 'Device storage is unavailable. Try again when it is available.')); } }])); }} style={buttonStyle(true)}>
             <Text style={{ ...theme.type.whyteSm, color: theme.color.txButton }}>Sign out</Text>
           </Pressable>
         </>
       ) : (
         <>
           <Text style={{ ...theme.type.whyteSm, color: theme.color.txSecondary }}>
-            Your ATProto handle is your Kairos identity — one account across the ecosystem.
+            Sign in with your ATProto handle. Your permanent account identity is its DID; changing your handle keeps the same account.
           </Text>
           <TextInput
             style={fieldStyle}
