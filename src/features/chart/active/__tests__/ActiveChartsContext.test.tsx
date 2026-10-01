@@ -206,3 +206,26 @@ test('deleting a source retains an unsaved instance, its stepped time and reset 
   await act(async () => state.reset());
   expect(state.active[1].time).toBe(instance.origin);
 });
+
+test('recency updates only for successful openings and restores with local sort', async () => {
+  await mount();
+  let first = '', second = '';
+  await act(async () => {
+    first = (await state.saveChart(draft)).id;
+    second = (await state.saveChart({ ...draft, name: 'Second' })).id;
+    state.openSaved(first);
+    state.addNow();
+    await state.setLibrarySort('name-asc');
+  });
+  expect(state.libraryPreferences.opened[first]).toEqual(expect.any(Number));
+  await act(async () => { expect(state.openSaved(second)).toBe(false); expect(state.openSaved(second, 'missing')).toBe(false); });
+  expect(state.libraryPreferences.opened[second]).toBeUndefined();
+  await act(async () => { expect(state.openSaved(second, state.active[0].id)).toBe(true); });
+  expect(state.libraryPreferences.opened[second]).toEqual(expect.any(Number));
+  const preferences = state.libraryPreferences;
+  act(() => view.unmount()); await mount();
+  expect(state.libraryPreferences).toEqual(preferences);
+  expect(state.libraryPreferences.sort).toBe('name-asc');
+  await act(async () => { await state.setFavorite(first, true); });
+  expect(state.saved.find(chart => chart.id === first)?.metadata?.favorite).toBe(true);
+});

@@ -1,3 +1,5 @@
+import { normalizeMetadata, sameMetadata, type ChartTag } from './metadata';
+import { LIBRARY_SORTS, parseLibraryPreferences, type LibraryPreferences, type LibrarySort } from './preferences';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { openDatabaseAsync } from 'expo-sqlite';
 import { ACTIVE_CHARTS_KEY, initialSession, newChartId, parseSession, removeInstance, snapshotSettings, validateDraft, type ActiveSession, type ChartDraft, type SavedChart } from '../active/model';
@@ -29,7 +31,7 @@ function conflictName(name: string) {
   return `${prefix} (conflict copy)`;
 }
 function sameChart(a: ChartDraft | null, b: ChartDraft) {
-  if (!a || a.name !== b.name || a.datetime !== b.datetime || a.settings.houseSystem !== b.settings.houseSystem) return false;
+  if (!a || a.name !== b.name || a.datetime !== b.datetime || a.settings.houseSystem !== b.settings.houseSystem || !sameMetadata(a.metadata, b.metadata)) return false;
   const left = a.settings.location, right = b.settings.location;
   return left.name === right.name && left.latitude === right.latitude && left.longitude === right.longitude && left.elevation === right.elevation && left.timezone === right.timezone;
 }
@@ -113,7 +115,7 @@ export class ChartLibraryStore {
   saveChart(scope: string | null, draft: ChartDraft, id?: string, expected?: ChartDraft): Promise<SavedChart> {
     validateDraft(draft);
     if (draft.name.trim().length > 200 || draft.settings.location.name.length > 300 || draft.settings.location.timezone.length > 100) return Promise.reject(new Error('Chart or location name is too long'));
-    const chart: SavedChart = { id: id ?? newChartId(), name: draft.name.trim(), datetime: new Date(draft.datetime).toISOString(), settings: snapshotSettings(draft.settings) };
+    const chart: SavedChart = { id: id ?? newChartId(), name: draft.name.trim(), datetime: new Date(draft.datetime).toISOString(), settings: snapshotSettings(draft.settings), ...(draft.metadata === undefined ? {} : { metadata: normalizeMetadata(draft.metadata) }) };
     return this.serial(() => this.transaction(async () => {
       const owner = ownerKey(scope);
       const existing = id ? await this.db.getFirstAsync<Row>('SELECT * FROM library_records WHERE id = ? AND (owner = ? OR owner = ?) ORDER BY (owner = ?) DESC LIMIT 1', id, owner, '', owner) : null;
@@ -128,11 +130,62 @@ export class ChartLibraryStore {
           await this.db.runAsync('UPDATE library_accounts SET conflicts=conflicts+1 WHERE owner=?', conflictOwner);
         }
       }
+      if (chart.metadata === undefined && existing?.content) {
+        const metadata = normalizeMetadata(JSON.parse(existing.content).metadata);
+        if (metadata !== undefined) chart.metadata = metadata;
+      }
       const { id: chartId, ...content } = chart;
       const row: Row = { owner: existing?.owner ?? owner, id: chartId, content: JSON.stringify(content), revision: stale ? 0 : existing?.revision ?? 0, dirty: 1 };
       await this.db.runAsync('INSERT INTO library_records(owner,id,content,revision,dirty) VALUES (?,?,?,?,1) ON CONFLICT(owner,id) DO UPDATE SET content=excluded.content,dirty=1', row.owner, row.id, row.content, row.revision);
       await this.enqueue(row);
       return chart;
+    }));
+  }
+  setFavorite(scope: string | null, id: string, favorite: boolean): Promise<void> {
+    return this.serial(() => this.transaction(async () => {
+      const owner = ownerKey(scope);
+      const row = await this.db.getFirstAsync<Row>('SELECT * FROM library_records WHERE id=? AND (owner=? OR owner=?) ORDER BY (owner=?) DESC LIMIT 1', id, owner, '', owner);
+      if (!row?.content) throw new Error('Saved chart is no longer available');
+      const chart = JSON.parse(row.content) as ChartDraft;
+      chart.metadata = { tags: normalizeMetadata(chart.metadata)?.tags ?? [], favorite };
+      const content = JSON.stringify(chart);
+      await this.db.runAsync('UPDATE library_records SET content=?,dirty=1 WHERE owner=? AND id=?', content, row.owner, id);
+      await this.enqueue({ ...row, content, dirty: 1 });
+    }));
+  }
+  tagSuggestions(scope: string | null, id?: string): Promise<ChartTag[]> {
+    return this.serial(async () => {
+      const viewer = ownerKey(scope);
+      const existing = id ? await this.db.getFirstAsync<Row>('SELECT * FROM library_records WHERE id=? AND (owner=? OR owner=?) ORDER BY (owner=?) DESC LIMIT 1', id, viewer, '', viewer) : null;
+      const rows = await this.db.getAllAsync<Row>('SELECT * FROM library_records WHERE owner=? AND content IS NOT NULL ORDER BY id', existing?.owner ?? viewer);
+      const names = new Set<string>();
+      return rows.flatMap(row => normalizeMetadata(JSON.parse(row.content!).metadata)?.tags ?? []).filter(tag => {
+        const name = tag.name.toLowerCase();
+        if (names.has(name)) return false;
+        names.add(name); return true;
+      });
+    });
+  }
+  private async preferences(scope: string | null): Promise<LibraryPreferences> {
+    const row = await this.db.getFirstAsync<{ value: string }>('SELECT value FROM library_meta WHERE key=?', `libraryPreferences:${ownerKey(scope)}`);
+    return parseLibraryPreferences(row?.value);
+  }
+  loadPreferences(scope: string | null) { return this.serial(() => this.preferences(scope)); }
+  private async writePreferences(scope: string | null, value: LibraryPreferences) {
+    await this.db.runAsync('INSERT INTO library_meta(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', `libraryPreferences:${ownerKey(scope)}`, JSON.stringify(value));
+    return value;
+  }
+  setLibrarySort(scope: string | null, sort: LibrarySort): Promise<LibraryPreferences> {
+    return this.serial(() => this.transaction(async () => {
+      if (!LIBRARY_SORTS.includes(sort)) throw new Error('Invalid library sort');
+      return this.writePreferences(scope, { ...await this.preferences(scope), sort });
+    }));
+  }
+  markOpened(scope: string | null, id: string, time: number): Promise<LibraryPreferences> {
+    return this.serial(() => this.transaction(async () => {
+      if (!Number.isFinite(time) || time < 0) throw new Error('Invalid opened time');
+      const previous = await this.preferences(scope);
+      return this.writePreferences(scope, { ...previous, opened: { ...previous.opened, [id]: time } });
     }));
   }
   deleteChart(scope: string | null, id: string): Promise<void> {
@@ -221,8 +274,13 @@ export class ChartLibraryStore {
         const changed = local.content !== (operation.chart === null ? null : JSON.stringify(operation.chart));
         // An acknowledged delete cannot be revived under its old ID.
         if (changed && record.chart === null) { await this.conflict(did, local, record); continue; }
-        await this.db.runAsync('UPDATE library_records SET revision=?,dirty=? WHERE owner=? AND id=?', record.revision, changed ? 1 : 0, did, local.id);
-        if (changed) await this.enqueue({ ...local, revision: record.revision, dirty: 1 });
+        let content = changed ? local.content : record.chart === null ? null : JSON.stringify(record.chart);
+        if (changed && content && operation.chart?.metadata === undefined && record.chart?.metadata !== undefined) {
+          const latest = JSON.parse(content) as ChartDraft;
+          if (latest.metadata === undefined) content = JSON.stringify({ ...latest, metadata: normalizeMetadata(record.chart.metadata) });
+        }
+        await this.db.runAsync('UPDATE library_records SET content=?,revision=?,dirty=? WHERE owner=? AND id=?', content, record.revision, changed ? 1 : 0, did, local.id);
+        if (changed) await this.enqueue({ ...local, content, revision: record.revision, dirty: 1 });
       }
     }));
   }
