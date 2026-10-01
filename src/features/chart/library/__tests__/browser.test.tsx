@@ -1,5 +1,5 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { ActivityIndicator, Alert, FlatList, TextInput } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Text, TextInput } from 'react-native';
 import { MenuView } from '@react-native-menu/menu';
 import SavedChartsScreen from '@/app/charts';
 import { LibraryRow } from '../LibraryRow';
@@ -10,7 +10,7 @@ const mockRouter = { push: jest.fn(), back: jest.fn(), dismissTo: jest.fn() };
 const mockState = {
   scope: null, loaded: true, saved: [] as SavedChart[], active: [] as any[], loadError: false, saveError: false, libraryError: null,
   libraryPreferences: { sort: 'recent', opened: {} }, syncing: false, syncState: null,
-  openSaved: jest.fn(), addNow: jest.fn(), setFavorite: jest.fn().mockResolvedValue(undefined), setLibrarySort: jest.fn().mockResolvedValue(undefined), deleteSaved: jest.fn(),
+  reloadLibrary: jest.fn().mockResolvedValue(undefined), openSaved: jest.fn(), addNow: jest.fn(), setFavorite: jest.fn().mockResolvedValue(undefined), setLibrarySort: jest.fn().mockResolvedValue(undefined), deleteSaved: jest.fn(),
 };
 jest.mock('expo-router', () => ({ Stack: { Screen: () => null }, useRouter: () => mockRouter }));
 jest.mock('../../active/ActiveChartsContext', () => ({ useActiveCharts: () => mockState }));
@@ -68,8 +68,8 @@ test('background sync keeps cached rows visible without a sheet-level refresh sp
   act(() => view.update(<SavedChartsScreen />));
   expect(view.root.findAllByType(LibraryRow)).toHaveLength(2);
   expect(view.root.findAllByType(ActivityIndicator)).toHaveLength(0);
-  expect(view.root.findByType(FlatList).props.refreshing).toBeUndefined();
-  expect(view.root.findByType(FlatList).props.onRefresh).toBeUndefined();
+  expect(view.root.findByType(FlatList).props.refreshing).toBe(false);
+  expect(view.root.findByType(FlatList).props.onRefresh).toEqual(expect.any(Function));
 });
 test('initial loading belongs to the list status row below the sticky header', () => {
   mockState.loaded = false;
@@ -79,4 +79,28 @@ test('initial loading belongs to the list status row below the sticky header', (
   expect(list.props.stickyHeaderIndices).toEqual([0]);
   expect(view.root.findByType(ActivityIndicator).props.accessibilityLabel).toBe('Loading charts');
   expect(view.root.findAllByType(LibraryRow)).toHaveLength(0);
+});
+
+test('pull refresh reloads the library and stops its indicator after completion', async () => {
+  let complete!: () => void;
+  mockState.reloadLibrary.mockImplementationOnce(() => new Promise<void>(resolve => { complete = resolve; }));
+  act(() => view.root.findByType(FlatList).props.onRefresh());
+  expect(mockState.reloadLibrary).toHaveBeenCalledTimes(1);
+  expect(view.root.findByType(FlatList).props.refreshing).toBe(true);
+  expect(view.root.findAllByType(LibraryRow)).toHaveLength(2);
+  await act(async () => complete());
+  expect(view.root.findByType(FlatList).props.refreshing).toBe(false);
+});
+test('failed pull refresh stops the indicator and keeps cached charts', async () => {
+  mockState.reloadLibrary.mockRejectedValueOnce(new Error('storage unavailable'));
+  await act(async () => view.root.findByType(FlatList).props.onRefresh());
+  expect(view.root.findByType(FlatList).props.refreshing).toBe(false);
+  expect(view.root.findAllByType(LibraryRow)).toHaveLength(2);
+  expect(view.root.findAllByType(Text).some(node => node.props.children === 'Couldn’t reload charts. Please try again.')).toBe(true);
+});
+
+test('refresh indicator follows the measured sticky header height', () => {
+  const header = view.root.findByType(FlatList).props.ListHeaderComponent;
+  act(() => header.props.onLayout({ nativeEvent: { layout: { height: 172 } } }));
+  expect(view.root.findByType(FlatList).props.progressViewOffset).toBe(172);
 });
