@@ -3,6 +3,7 @@ import { GestureDetector } from 'react-native-gesture-handler';
 import { TimeStepper } from '../TimeStepper';
 import { IntervalCarousel } from '../IntervalCarousel';
 import { TimeStepButton } from '../TimeStepButton';
+import { AppState, type AppStateStatus } from 'react-native';
 // Exercise the real gesture definitions; native delivery remains a device check.
 jest.mock('react-native-gesture-handler', () => ({
   ...jest.requireActual('react-native-gesture-handler'), GestureDetector: 'GestureDetector',
@@ -75,4 +76,69 @@ test('unmounted target rejects a late carousel release and reset', () => {
   act(() => pan.handlers.onEnd({ translationX: -100, translationY: 0, velocityX: -100 }, true));
   act(() => reset.handlers.onEnd({}, true));
   expect(mockClock.selectUnit).not.toHaveBeenCalled(); expect(mockClock.reset).not.toHaveBeenCalled();
+});
+
+test('gestures recover after controls are temporarily disabled and re-enabled', () => {
+  act(() => { view = create(<TimeStepper />); });
+  for (let cycle = 0; cycle < 2; cycle++) {
+    mockClock.canStepBackward = mockClock.canStepForward = false;
+    act(() => view.update(<TimeStepper />));
+    mockClock.canStepBackward = mockClock.canStepForward = true;
+    act(() => view.update(<TimeStepper />));
+    const [pan, reset] = gestures();
+    const manager = { activate: jest.fn(), fail: jest.fn() };
+    act(() => pan.handlers.onTouchesDown({ allTouches: [{ absoluteX: 0, absoluteY: 0 }] }));
+    act(() => pan.handlers.onTouchesMove({ numberOfTouches: 1, allTouches: [{ absoluteX: -60, absoluteY: 0 }] }, manager));
+    expect(manager.activate).toHaveBeenCalledTimes(1);
+    expect(manager.fail).not.toHaveBeenCalled();
+    act(() => {
+      pan.handlers.onStart();
+      pan.handlers.onEnd({ translationX: -60, translationY: 0, velocityX: -100 }, true);
+      pan.handlers.onFinalize();
+      reset.handlers.onEnd({}, true);
+    });
+    expect(mockClock.selectUnit).toHaveBeenCalledTimes(cycle + 1);
+    expect(mockClock.reset).toHaveBeenCalledTimes(cycle + 1);
+  }
+});
+
+test('backgrounding gates gestures through enabled changes and foregrounding restores them', () => {
+  const listeners = new Set<(state: AppStateStatus) => void>();
+  const appStateChanged = (state: AppStateStatus) => listeners.forEach(listener => listener(state));
+  const remove = jest.fn();
+  const subscription = jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, listener) => {
+    listeners.add(listener);
+    return { remove: () => { listeners.delete(listener); remove(); } };
+  });
+  try {
+    act(() => { view = create(<TimeStepper />); });
+    const subscriptions = subscription.mock.calls.length;
+    act(() => appStateChanged('background'));
+    mockClock.canStepBackward = mockClock.canStepForward = false;
+    act(() => view.update(<TimeStepper />));
+    mockClock.canStepBackward = mockClock.canStepForward = true;
+    act(() => view.update(<TimeStepper />));
+    const [pan, reset] = gestures();
+    act(() => {
+      pan.handlers.onStart();
+      pan.handlers.onEnd({ translationX: -60, translationY: 0, velocityX: -100 }, true);
+      pan.handlers.onFinalize();
+      reset.handlers.onEnd({}, true);
+    });
+    expect(mockClock.selectUnit).not.toHaveBeenCalled();
+    expect(mockClock.reset).not.toHaveBeenCalled();
+    act(() => appStateChanged('active'));
+    act(() => {
+      pan.handlers.onStart();
+      pan.handlers.onEnd({ translationX: -60, translationY: 0, velocityX: -100 }, true);
+      pan.handlers.onFinalize();
+      reset.handlers.onEnd({}, true);
+    });
+    expect(mockClock.selectUnit).toHaveBeenCalledWith(3);
+    expect(mockClock.reset).toHaveBeenCalledTimes(1);
+    expect(subscription).toHaveBeenCalledTimes(subscriptions);
+    act(() => view.unmount());
+    expect(remove).toHaveBeenCalledTimes(subscriptions);
+    expect(listeners.size).toBe(0);
+  } finally { subscription.mockRestore(); }
 });

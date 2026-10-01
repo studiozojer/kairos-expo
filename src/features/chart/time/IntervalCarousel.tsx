@@ -25,18 +25,21 @@ export function IntervalCarousel({ unit, onChange, onReset, enabled, offsetLabel
   const selected = useSharedValue(unit), offset = useSharedValue(0), dragging = useSharedValue(false);
   const initial = useSharedValue({ x: 0, y: 0 });
   const hovered = useSharedValue<number | null>(null), allowed = useSharedValue(enabled);
+  const foreground = useSharedValue(AppState.currentState !== 'background' && AppState.currentState !== 'inactive');
   useLayoutEffect(() => { selected.value = unit; }, [unit, selected]);
   useLayoutEffect(() => {
     allowed.value = enabled;
     if (!enabled) { cancelAnimation(offset); offset.value = 0; dragging.value = false; hovered.value = null; }
   }, [enabled, allowed, offset, dragging, hovered]);
   useEffect(() => {
+    // Subscribe for the mounted carousel's lifetime. Cleaning up an enabled
+    // change after its layout effect used to leave allowed=false on reopening.
     const subscription = AppState.addEventListener('change', state => {
-      allowed.value = enabled && state === 'active';
+      foreground.value = state === 'active';
       if (state !== 'active') { cancelAnimation(offset); offset.value = 0; dragging.value = false; hovered.value = null; }
     });
     return () => { allowed.value = false; dragging.value = false; subscription.remove(); cancelAnimation(offset); };
-  }, [enabled, allowed, offset, dragging, hovered]);
+  }, [allowed, foreground, offset, dragging, hovered]);
   const gesture = useMemo(() => {
     const pan = Gesture.Pan().enabled(enabled).maxPointers(1).manualActivation(true)
       .onTouchesDown(event => {
@@ -44,7 +47,7 @@ export function IntervalCarousel({ unit, onChange, onReset, enabled, offsetLabel
         if (touch) initial.value = { x: touch.absoluteX, y: touch.absoluteY };
       })
       .onTouchesMove((event, manager) => {
-        if (!allowed.value || event.numberOfTouches !== 1) { manager.fail(); return; }
+        if (!allowed.value || !foreground.value || event.numberOfTouches !== 1) { manager.fail(); return; }
         const touch = event.allTouches[0];
         if (!touch || dragging.value) return;
         const x = Math.abs(touch.absoluteX - initial.value.x), y = Math.abs(touch.absoluteY - initial.value.y);
@@ -52,13 +55,13 @@ export function IntervalCarousel({ unit, onChange, onReset, enabled, offsetLabel
       })
       .onStart(() => { cancelAnimation(offset); dragging.value = true; hovered.value = null; })
       .onUpdate(event => {
-        if (!allowed.value || !dragging.value) return;
+        if (!allowed.value || !foreground.value || !dragging.value) return;
         offset.value = resistedOffset(selected.value, event.translationX, TIME_STEPS.length);
         const preview = previewUnit(selected.value, event.translationX, TIME_STEPS.length);
         if (preview !== hovered.value) { hovered.value = preview; runOnJS(stepperHaptic)(); }
       })
       .onEnd((event, success) => {
-        if (!success || !allowed.value || !dragging.value) return;
+        if (!success || !allowed.value || !foreground.value || !dragging.value) return;
         const next = releasedUnit(selected.value, event.translationX, event.translationY, event.velocityX, TIME_STEPS.length);
         // Compensate when the selected index changes so labels spring from
         // their current on-screen positions, with no intermediate jump.
@@ -70,9 +73,9 @@ export function IntervalCarousel({ unit, onChange, onReset, enabled, offsetLabel
         offset.value = withSpring(0, { duration: 300, dampingRatio: .85, reduceMotion: ReduceMotion.System });
       });
     const reset = Gesture.Tap().enabled(enabled).numberOfTaps(2).maxDelay(350).maxDistance(10)
-      .onEnd((_event, success) => { if (success && allowed.value) { runOnJS(onReset)(); runOnJS(stepperHaptic)(true); } });
+      .onEnd((_event, success) => { if (success && allowed.value && foreground.value) { runOnJS(onReset)(); runOnJS(stepperHaptic)(true); } });
     return Gesture.Race(pan, reset);
-  }, [enabled, selected, offset, dragging, hovered, allowed, initial, onChange, onReset]);
+  }, [enabled, selected, offset, dragging, hovered, allowed, foreground, initial, onChange, onReset]);
   return <GestureDetector gesture={gesture}>
     <View testID="time-interval-carousel" collapsable={false} accessible accessibilityRole="adjustable"
       accessibilityLabel="Time step size" accessibilityState={{ disabled: !enabled }}
