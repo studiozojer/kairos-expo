@@ -1,4 +1,5 @@
 import type { SavedChart } from '../active/model';
+import { localFields } from '../active/wallTime';
 import type { LibraryPreferences } from './preferences';
 
 /** Tags are ORed; text search is intersected with the tag selection. */
@@ -35,8 +36,16 @@ export function libraryTags(charts: SavedChart[]) {
 }
 
 export function rowDate(datetime: string, timezone: string) {
-  const date = new Date(datetime);
-  const format = new Intl.DateTimeFormat('en-US', { timeZone: timezone, month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZoneName: 'shortOffset' });
-  const p = Object.fromEntries(format.formatToParts(date).map(part => [part.type, part.value]));
-  return { date: `${p.month}/${p.day}/${p.year}`, time: `${p.hour}:${p.minute}`, offset: p.timeZoneName.replace('GMT', 'UTC') };
+  const instant = Date.parse(datetime);
+  // Hermes/iOS does not reliably honor en-US hourCycle or shortOffset together.
+  // Use the same explicit civil-time parts as the editor, then derive the offset.
+  const wall = localFields(instant, timezone);
+  const [year, month, day] = wall.date.split('-');
+  const seconds = (Date.parse(`${wall.date}T${wall.clock}Z`) - Math.floor(instant / 1000) * 1000) / 1000;
+  const absolute = Math.abs(seconds);
+  const hours = Math.floor(absolute / 3600);
+  const minutes = Math.floor(absolute % 3600 / 60);
+  const remainder = absolute % 60;
+  const offset = seconds === 0 ? 'UTC' : `UTC${seconds < 0 ? '−' : '+'}${hours}${minutes || remainder ? `:${String(minutes).padStart(2, '0')}` : ''}${remainder ? `:${String(remainder).padStart(2, '0')}` : ''}`;
+  return { date: `${month}/${day}/${year}`, time: wall.clock.slice(0, 5), offset };
 }

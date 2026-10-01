@@ -27,10 +27,10 @@ test('legacy charts without metadata remain visible, catalog follows edits and d
   expect(libraryTags([old])).toEqual([]);
 });
 test('rows format in chart timezone with DST and fractional offsets', () => {
-  expect(rowDate('2026-07-01T00:15:00Z', 'America/Los_Angeles')).toEqual({ date: '06/30/2026', time: '17:15', offset: 'UTC-7' });
-  expect(rowDate('2026-01-01T00:15:00Z', 'America/Los_Angeles').offset).toBe('UTC-8');
+  expect(rowDate('2026-07-01T00:15:00Z', 'America/Los_Angeles')).toEqual({ date: '06/30/2026', time: '17:15', offset: 'UTC−7' });
+  expect(rowDate('2026-01-01T00:15:00Z', 'America/Los_Angeles').offset).toBe('UTC−8');
   expect(rowDate('2026-01-01T00:15:00Z', 'Asia/Kathmandu').offset).toBe('UTC+5:45');
-  expect(rowDate('2026-01-01T00:15:00Z', 'America/St_Johns').offset).toBe('UTC-3:30');
+  expect(rowDate('2026-01-01T00:15:00Z', 'America/St_Johns').offset).toBe('UTC−3:30');
 });
 
 test('independently created tags with the same name form one filter matching both identities', () => {
@@ -41,4 +41,20 @@ test('independently created tags with the same name form one filter matching bot
   expect(groups).toHaveLength(1);
   expect(groups[0].ids).toEqual(['device-a', 'device-b']);
   expect(ids(browseCharts([a, b], '', groups[0].ids, preferences))).toEqual(['b', 'a']);
+});
+
+test('does not depend on native shortOffset or en-US 24-hour formatting support', () => {
+  const Original = Intl.DateTimeFormat;
+  const format = jest.spyOn(Intl, 'DateTimeFormat').mockImplementation((locale, options) => {
+    // Reproduce the iOS runtime observed in EAS: en-US stayed 12-hour and GMT lost its offset.
+    if (locale === 'en-US' && options?.timeZoneName === 'shortOffset') {
+      const broken = new Original(locale, { ...options, hourCycle: undefined, hour12: true });
+      const parts = broken.formatToParts.bind(broken);
+      broken.formatToParts = value => parts(value).map(part => part.type === 'timeZoneName' ? { ...part, value: 'GMT' } : part);
+      return broken;
+    }
+    return new Original(locale, options);
+  });
+  try { expect(rowDate('2026-10-01T02:13:11Z', 'America/Los_Angeles')).toEqual({ date: '09/30/2026', time: '19:13', offset: 'UTC−7' }); }
+  finally { format.mockRestore(); }
 });
