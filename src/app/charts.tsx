@@ -130,7 +130,7 @@ export default function SavedChartsScreen() {
       {header}
       <FlatList data={rows} keyExtractor={row => row.type === 'status' ? 'status' : `chart:${row.chart.id}`} style={{ flex: 1, backgroundColor: t.color.bgSolidBase }}
         refreshing={refreshing} onRefresh={() => void refresh()} alwaysBounceVertical
-        contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} automaticallyAdjustKeyboardInsets
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} automaticallyAdjustKeyboardInsets
         renderItem={({ item }) => item.type === 'status' ? <View>{beforeRows}</View> : <LibraryRow chart={item.chart} onOpen={() => open(item.chart.id)} onAction={choice => action(item.chart, choice)} />}
         ListFooterComponent={state.loaded && !state.loadError && !charts.length ? <View style={{ padding: 24 }}>
           <Text style={[t.type.whyteSm, { color: t.color.txSecondary }]}>{query || selected.length ? 'No charts match these filters.' : 'No saved charts yet.'}</Text>
