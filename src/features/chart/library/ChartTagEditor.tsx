@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Text, TextInput, View } from 'react-native';
 import { useTheme } from '@/theme';
 import { newChartId, type ChartDraft } from '../active/model';
 import { Action, Note } from '../display/controls';
+
+import { LibraryTagChip } from './LibraryTagChip';
 
 type Tag = NonNullable<ChartDraft['metadata']>['tags'][number];
 
@@ -23,10 +25,9 @@ export function ChartTagEditor({ tags, suggestions, onChange }: { tags: Tag[]; s
     if (!name || Array.from(name).length > 60) { setError('Use a tag name between 1 and 60 characters.'); return; }
     add(suggestions.find(tag => tag.name.toLowerCase() === key) ?? { id: newChartId(), name });
   };
-  const chip = (tag: Tag, selected: boolean) => <Pressable key={tag.id} accessibilityRole="button" accessibilityLabel={`${selected ? 'Remove' : 'Add'} tag ${tag.name}`} onPress={() => selected ? onChange(tags.filter(item => item.id !== tag.id)) : add(tag)}
-    style={{ minHeight: 44, paddingHorizontal: 12, justifyContent: 'center', borderRadius: t.radius.md, backgroundColor: t.color.bgSolidCardSecondary }}>
-    <Text style={[t.type.whyteSm, { color: t.color.txPrimary }]}>{tag.name}{selected ? ' ×' : ' +'}</Text>
-  </Pressable>;
+  const chip = (tag: Tag, selected: boolean) => <LibraryTagChip key={tag.id} label={tag.name}
+    accessibilityLabel={`${selected ? 'Remove' : 'Add'} tag ${tag.name}`} accessory={selected ? '×' : '+'}
+    onPress={() => selected ? onChange(tags.filter(item => item.id !== tag.id)) : add(tag)} />;
   return <View style={{ gap: 8 }}>
     {!!tags.length && <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{tags.map(tag => chip(tag, true))}</View>}
     <TextInput accessibilityLabel="Tag name" placeholder="Find or create a tag" placeholderTextColor={t.color.txSecondary} value={query} onChangeText={value => { setQuery(value); setError(''); }} onSubmitEditing={create} returnKeyType="done" autoCorrect={false}

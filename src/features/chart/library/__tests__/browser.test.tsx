@@ -1,5 +1,5 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Alert, TextInput } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, TextInput } from 'react-native';
 import { MenuView } from '@react-native-menu/menu';
 import SavedChartsScreen from '@/app/charts';
 import { LibraryRow } from '../LibraryRow';
@@ -18,7 +18,7 @@ jest.mock('../LibrarySyncSettings', () => ({ LibrarySyncSettings: () => null }))
 let view: ReactTestRenderer;
 const press = (label: string) => act(() => view.root.findAll(node => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')[0].props.onPress());
 const chart = (id: string, name: string, tag?: string): SavedChart => ({ id, name, datetime: '2000-01-01T12:00:00Z', settings: DEFAULT_SETTINGS, metadata: { favorite: false, tags: tag ? [{ id: tag, name: tag }] : [] } });
-beforeEach(() => { jest.clearAllMocks(); mockState.saved = [chart('a', 'Alice', 'Family'), chart('b', 'Bob', 'Work')]; mockState.openSaved.mockReturnValue(true); act(() => { view = create(<SavedChartsScreen />); }); });
+beforeEach(() => { jest.clearAllMocks(); mockState.loaded = true; mockState.syncing = false; mockState.saved = [chart('a', 'Alice', 'Family'), chart('b', 'Bob', 'Work')]; mockState.openSaved.mockReturnValue(true); act(() => { view = create(<SavedChartsScreen />); }); });
 afterEach(() => act(() => view.unmount()));
 test('search intersects tags and cancels without losing tag selection', () => {
   press('Filter: Family');
@@ -61,4 +61,22 @@ test('favorite and sort controls call persistence; empty library still offers No
   act(() => view.update(<SavedChartsScreen />));
   press('Open a Now chart');
   expect(mockState.addNow).toHaveBeenCalled();
+});
+
+test('background sync keeps cached rows visible without a sheet-level refresh spinner', () => {
+  mockState.syncing = true;
+  act(() => view.update(<SavedChartsScreen />));
+  expect(view.root.findAllByType(LibraryRow)).toHaveLength(2);
+  expect(view.root.findAllByType(ActivityIndicator)).toHaveLength(0);
+  expect(view.root.findByType(FlatList).props.refreshing).toBeUndefined();
+  expect(view.root.findByType(FlatList).props.onRefresh).toBeUndefined();
+});
+test('initial loading belongs to the list status row below the sticky header', () => {
+  mockState.loaded = false;
+  act(() => view.update(<SavedChartsScreen />));
+  const list = view.root.findByType(FlatList);
+  expect(list.props.data).toEqual([{ type: 'status' }]);
+  expect(list.props.stickyHeaderIndices).toEqual([0]);
+  expect(view.root.findByType(ActivityIndicator).props.accessibilityLabel).toBe('Loading charts');
+  expect(view.root.findAllByType(LibraryRow)).toHaveLength(0);
 });
