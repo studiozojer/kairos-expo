@@ -11,9 +11,9 @@ import { Action } from '../../display/controls';
 import { DEFAULT_SETTINGS } from '../../settings/chartSettings';
 
 let mockParams: { id?: string } = {};
-const mockRouter = { push: jest.fn(), dismissTo: jest.fn() };
+const mockRouter = { back: jest.fn(), push: jest.fn(), dismissTo: jest.fn() };
 const mockState = {
-  loaded: true, loadError: false, saveError: false, saving: false,
+  tagSuggestionsFor: jest.fn().mockResolvedValue([]), loaded: true, loadError: false, saveError: false, saving: false,
   saved: [] as any[], active: [] as any[], targetId: 'a', calculations: {},
   saveChart: jest.fn(), openSaved: jest.fn(), addNow: jest.fn(), remove: jest.fn(), move: jest.fn(), moveTo: jest.fn(),
   selectTarget: jest.fn(), reset: jest.fn(), retryLoad: jest.fn(), retryPersistence: jest.fn(),
