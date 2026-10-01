@@ -101,13 +101,14 @@ export default function SavedChartsScreen() {
         <LibraryIcon name="clock" color={t.color.icAccent} /><View><Text style={[t.type.whyteSm, { color: t.color.txPrimary }]}>Current Transits</Text><Text style={[t.type.whyteXs, { color: t.color.txTertiary }]}>Now · current chart location</Text></View>
       </Pressable>}
   </>;
+  const rows: ({ type: 'status' } | { type: 'chart'; chart: SavedChart })[] = [{ type: 'status' }, ...(state.loaded ? charts.map(chart => ({ type: 'chart' as const, chart })) : [])];
   return <><Stack.Screen options={{ headerShown: false }} />
     {/* Native form-sheet owns drag/back/dismissal. The list is the first native child for scroll coordination. */}
-    <FlatList data={state.loaded ? charts : []} keyExtractor={chart => chart.id} style={{ flex: 1, backgroundColor: t.color.bgSolidBase }}
+    <FlatList data={rows} keyExtractor={row => row.type === 'status' ? 'status' : `chart:${row.chart.id}`} stickyHeaderIndices={[0]} style={{ flex: 1, backgroundColor: t.color.bgSolidBase }}
       contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} automaticallyAdjustKeyboardInsets
-      ListHeaderComponent={<>{header}{beforeRows}</>} renderItem={({ item }) => <LibraryRow chart={item} onOpen={() => open(item.id)} onAction={choice => action(item, choice)} />}
+      ListHeaderComponent={header} renderItem={({ item }) => item.type === 'status' ? <View>{beforeRows}</View> : <LibraryRow chart={item.chart} onOpen={() => open(item.chart.id)} onAction={choice => action(item.chart, choice)} />}
       refreshing={state.syncing} onRefresh={state.scope && state.syncState?.enabled ? () => void state.runSync() : undefined}
-      ListEmptyComponent={state.loaded && !state.loadError ? <View style={{ padding: 24 }}>
+      ListFooterComponent={state.loaded && !state.loadError && !charts.length ? <View style={{ padding: 24 }}>
         <Text style={[t.type.whyteSm, { color: t.color.txSecondary }]}>{query || selected.length ? 'No charts match these filters.' : 'No saved charts yet.'}</Text>
         {query || selected.length ? <Action label="Clear filters" onPress={() => { setQuery(''); setTagIds([]); }} /> : <Action label="Create your first chart" onPress={() => edit()} />}
       </View> : null} />
