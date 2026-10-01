@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Canvas, Fill, LinearGradient, vec } from '@shopify/react-native-skia';
 import { ActivityIndicator, Alert, FlatList, Keyboard, Platform, Pressable, ScrollView, Text, TextInput, View, type ViewProps } from 'react-native';
 import { MenuView } from '@react-native-menu/menu';
 import { Stack, useRouter } from 'expo-router';
@@ -7,6 +8,7 @@ import { Action, Note } from '@/features/chart/display/controls';
 import { useActiveCharts } from '@/features/chart/active/ActiveChartsContext';
 import type { SavedChart } from '@/features/chart/active/model';
 import { ReplacementChooser } from '@/features/chart/active/ReplacementChooser';
+import { LibraryTagChip } from '@/features/chart/library/LibraryTagChip';
 import { LibraryIcon } from '@/features/chart/library/LibraryIcon';
 import { LibraryRow, type LibraryRowAction } from '@/features/chart/library/LibraryRow';
 import { LibrarySyncSettings } from '@/features/chart/library/LibrarySyncSettings';
@@ -78,11 +80,20 @@ export default function SavedChartsScreen() {
         }} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
         <LibraryIcon name="sort" color={t.color.icSecondary} />
       </MenuView>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={{ alignItems: 'center', gap: 8, paddingVertical: 12, paddingRight: 16 }}>
-        <TagChip label="All" selected={!selected.length} onPress={() => setTagIds([])} />
-        {tags.map(tag => <TagChip key={tag.id} label={tag.name} selected={selected.includes(tag.id)} onPress={() => setTagIds(selected.includes(tag.id) ? selected.filter(id => id !== tag.id) : [...selected, tag.id])} />)}
+      <View style={{ flex: 1 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={{ alignItems: 'center', gap: 8, paddingVertical: 4, paddingHorizontal: 16 }}>
+        <LibraryTagChip accessibilityLabel="Filter: All" label="All" selected={!selected.length} onPress={() => setTagIds([])} />
+        {tags.map(tag => <LibraryTagChip accessibilityLabel={`Filter: ${tag.name}`} key={tag.id} label={tag.name} selected={selected.includes(tag.id)} onPress={() => setTagIds(selected.includes(tag.id) ? selected.filter(id => id !== tag.id) : [...selected, tag.id])} />)}
         {!tags.length && <Text style={[t.type.whyteXs, { color: t.color.txTertiary }]}>Add tags when editing a chart</Text>}
       </ScrollView>
+      {(['left', 'right'] as const).map(edge => <Canvas key={edge} pointerEvents="none" accessible={false}
+        style={{ position: 'absolute', top: 0, bottom: 0, width: 16, [edge]: 0 }}>
+        <Fill>
+          <LinearGradient start={vec(edge === 'left' ? 0 : 16, 0)} end={vec(edge === 'left' ? 16 : 0, 0)}
+            colors={[t.color.bgSolidCard, `${t.color.bgSolidCard.slice(0, 7)}00`]} />
+        </Fill>
+      </Canvas>)}
+      </View>
     </View>
     <Pressable accessibilityRole="button" accessibilityLabel={`Chart sync: ${syncLabel}`} accessibilityState={{ expanded: syncDetails }} onPress={() => setSyncDetails(!syncDetails)}
       style={{ minHeight: 44, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -107,7 +118,6 @@ export default function SavedChartsScreen() {
     <FlatList data={rows} keyExtractor={row => row.type === 'status' ? 'status' : `chart:${row.chart.id}`} stickyHeaderIndices={[0]} style={{ flex: 1, backgroundColor: t.color.bgSolidBase }}
       contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} automaticallyAdjustKeyboardInsets
       ListHeaderComponent={header} renderItem={({ item }) => item.type === 'status' ? <View>{beforeRows}</View> : <LibraryRow chart={item.chart} onOpen={() => open(item.chart.id)} onAction={choice => action(item.chart, choice)} />}
-      refreshing={state.syncing} onRefresh={state.scope && state.syncState?.enabled ? () => void state.runSync() : undefined}
       ListFooterComponent={state.loaded && !state.loadError && !charts.length ? <View style={{ padding: 24 }}>
         <Text style={[t.type.whyteSm, { color: t.color.txSecondary }]}>{query || selected.length ? 'No charts match these filters.' : 'No saved charts yet.'}</Text>
         {query || selected.length ? <Action label="Clear filters" onPress={() => { setQuery(''); setTagIds([]); }} /> : <Action label="Create your first chart" onPress={() => edit()} />}
@@ -118,11 +128,4 @@ export default function SavedChartsScreen() {
 function IconButton({ name, label, onPress }: { name: 'search' | 'plus' | 'close'; label: string; onPress: () => void }) {
   const t = useTheme();
   return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => ({ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: pressed ? t.color.bgPressed : 'transparent' })}><LibraryIcon name={name} color={t.color.icPrimary} /></Pressable>;
-}
-function TagChip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
-  const t = useTheme();
-  return <Pressable accessibilityRole="button" accessibilityLabel={`Filter: ${label}`} accessibilityState={{ selected }} onPress={onPress}
-    style={({ pressed }) => ({ minHeight: 44, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 22, justifyContent: 'center', backgroundColor: selected ? t.color.bgSolidButton : t.color.bgPrimary, opacity: pressed ? .65 : 1 })}>
-    <Text style={[t.type.fraktionXs, { color: selected ? t.color.txButton : t.color.txSecondary }]}>{label}</Text>
-  </Pressable>;
 }
