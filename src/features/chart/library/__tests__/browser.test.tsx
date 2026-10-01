@@ -70,13 +70,17 @@ test('background sync keeps cached rows visible without a sheet-level refresh sp
   expect(view.root.findAllByType(ActivityIndicator)).toHaveLength(0);
   expect(view.root.findByType(FlatList).props.refreshing).toBe(false);
   expect(view.root.findByType(FlatList).props.onRefresh).toEqual(expect.any(Function));
+  act(() => view.unmount());
+  act(() => { view = create(<SavedChartsScreen />); });
+  expect(view.root.findByType(FlatList).props.refreshing).toBe(false);
 });
-test('initial loading belongs to the list status row below the sticky header', () => {
+test('initial loading belongs to the list status row below the fixed header', () => {
   mockState.loaded = false;
   act(() => view.update(<SavedChartsScreen />));
   const list = view.root.findByType(FlatList);
   expect(list.props.data).toEqual([{ type: 'status' }]);
-  expect(list.props.stickyHeaderIndices).toEqual([0]);
+  expect(list.props.ListHeaderComponent).toBeUndefined();
+  expect(list.props.stickyHeaderIndices).toBeUndefined();
   expect(view.root.findByType(ActivityIndicator).props.accessibilityLabel).toBe('Loading charts');
   expect(view.root.findAllByType(LibraryRow)).toHaveLength(0);
 });
@@ -99,8 +103,14 @@ test('failed pull refresh stops the indicator and keeps cached charts', async ()
   expect(view.root.findAllByType(Text).some(node => node.props.children === 'Couldn’t reload charts. Please try again.')).toBe(true);
 });
 
-test('refresh indicator follows the measured sticky header height', () => {
-  const header = view.root.findByType(FlatList).props.ListHeaderComponent;
-  act(() => header.props.onLayout({ nativeEvent: { layout: { height: 172 } } }));
-  expect(view.root.findByType(FlatList).props.progressViewOffset).toBe(172);
+test('title and filters are outside the refreshable list', () => {
+  const list = view.root.findByType(FlatList);
+  expect(list.props.ListHeaderComponent).toBeUndefined();
+  expect(list.props.progressViewOffset).toBeUndefined();
+  expect(list.findAll(node => node.props.accessibilityRole === 'header')).toHaveLength(0);
+  expect(list.findAll(node => node.props.accessibilityLabel === 'Filter: Family')).toHaveLength(0);
+  expect(list.findAll(node => typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityLabel.startsWith('Chart sync:'))).toHaveLength(0);
+  expect(view.root.findAll(node => node.props.accessibilityRole === 'header').some(node => node.props.children === 'Saved Charts')).toBe(true);
+  press('Filter: Family');
+  expect(view.root.findAllByType(LibraryRow).map(row => row.props.chart.id)).toEqual(['a']);
 });
