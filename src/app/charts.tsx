@@ -8,7 +8,7 @@ import { Action, Note } from '@/features/chart/display/controls';
 import { useActiveCharts } from '@/features/chart/active/ActiveChartsContext';
 import type { SavedChart } from '@/features/chart/active/model';
 import { ReplacementChooser } from '@/features/chart/active/ReplacementChooser';
-import { LibraryTagChip } from '@/features/chart/library/LibraryTagChip';
+import { LibraryFilterChip } from '@/features/chart/library/LibraryFilterChip';
 import { LibraryIcon } from '@/features/chart/library/LibraryIcon';
 import { LibraryRow, type LibraryRowAction } from '@/features/chart/library/LibraryRow';
 import { LibrarySyncSettings } from '@/features/chart/library/LibrarySyncSettings';
@@ -72,7 +72,7 @@ export default function SavedChartsScreen() {
         <IconButton name="close" label="Close saved charts" onPress={() => router.back()} />
       </>}
     </View>
-    <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 16, gap: 8 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 16, paddingVertical: 12, gap: 6 }}>
       <MenuView {...menuAccessibility} title="Sort charts" themeVariant={t.scheme} shouldOpenOnLongPress={false}
         actions={SORTS.map(([id, title]) => ({ id, title, state: id === preferences.sort ? 'on' : 'off' }))}
         onPressAction={({ nativeEvent: { event } }) => {
@@ -81,15 +81,15 @@ export default function SavedChartsScreen() {
         <LibraryIcon name="sort" color={t.color.icSecondary} />
       </MenuView>
       <View style={{ flex: 1 }}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={{ alignItems: 'center', gap: 8, paddingVertical: 4, paddingHorizontal: 16 }}>
-        <LibraryTagChip accessibilityLabel="Filter: All" label="All" selected={!selected.length} onPress={() => setTagIds([])} />
-        {tags.map(tag => <LibraryTagChip accessibilityLabel={`Filter: ${tag.name}`} key={tag.id} label={tag.name} selected={selected.includes(tag.id)} onPress={() => setTagIds(selected.includes(tag.id) ? selected.filter(id => id !== tag.id) : [...selected, tag.id])} />)}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={{ alignItems: 'center', gap: 6, paddingVertical: 8, paddingLeft: 12, paddingRight: 16 }}>
+        <LibraryFilterChip active={!selected.length} label="All" selected={!selected.length} onPress={() => setTagIds([])} />
+        {tags.map(tag => <LibraryFilterChip active={!selected.length || selected.includes(tag.id)} key={tag.id} label={tag.name} selected={selected.includes(tag.id)} onPress={() => setTagIds(selected.includes(tag.id) ? selected.filter(id => id !== tag.id) : [...selected, tag.id])} />)}
         {!tags.length && <Text style={[t.type.whyteXs, { color: t.color.txTertiary }]}>Add tags when editing a chart</Text>}
       </ScrollView>
-      {(['left', 'right'] as const).map(edge => <Canvas key={edge} pointerEvents="none" accessible={false}
-        style={{ position: 'absolute', top: 0, bottom: 0, width: 16, [edge]: 0 }}>
+      {(['left'] as const).map(edge => <Canvas key={edge} pointerEvents="none" accessible={false}
+        style={{ position: 'absolute', top: 0, bottom: 0, width: 24, [edge]: 0 }}>
         <Fill>
-          <LinearGradient start={vec(edge === 'left' ? 0 : 16, 0)} end={vec(edge === 'left' ? 16 : 0, 0)}
+          <LinearGradient start={vec(0, 0)} end={vec(24, 0)}
             colors={[t.color.bgSolidCard, `${t.color.bgSolidCard.slice(0, 7)}00`]} />
         </Fill>
       </Canvas>)}
