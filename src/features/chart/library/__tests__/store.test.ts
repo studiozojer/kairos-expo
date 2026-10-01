@@ -245,3 +245,79 @@ it('saves an open editor draft as a copy after the source is deleted remotely', 
   expect((await store.load('did:a', DEFAULT_SETTINGS)).saved).toEqual([copy]);
   expect(await sql.db.getFirstAsync('SELECT content,revision FROM library_records WHERE owner=? AND id=?', 'did:a', original.id)).toEqual({ content: null, revision: 2 });
 });
+
+const metadata = { favorite: true, tags: [{ id: 'family', name: 'Family' }] };
+it('preserves metadata on legacy edits and duplicate/conflict copies and accepts explicit clears', async () => {
+  const store = await createChartLibraryStore(sql.db);
+  const saved = await store.saveChart(null, { ...draft, metadata });
+  expect((await store.saveChart(null, { ...draft, name: 'Legacy' }, saved.id)).metadata).toEqual(metadata);
+  const duplicate = await store.saveChart(null, saved);
+  expect(duplicate.id).not.toBe(saved.id);
+  expect(duplicate.metadata).toEqual(metadata);
+  const stale = await store.saveChart(null, { ...saved, name: 'Draft' }, saved.id, saved);
+  expect(stale.id).not.toBe(saved.id);
+  expect(stale.metadata).toEqual(metadata);
+  expect((await store.saveChart(null, { ...draft, metadata: { tags: [], favorite: false } }, saved.id)).metadata).toEqual({ tags: [], favorite: false });
+});
+it('detects a metadata-only editor conflict and favorites the current record without overwriting edits', async () => {
+  const store = await createChartLibraryStore(sql.db);
+  const saved = await store.saveChart(null, draft);
+  await store.saveChart(null, { ...saved, name: 'Latest', metadata }, saved.id);
+  await store.setFavorite(null, saved.id, false);
+  expect((await store.load(null, DEFAULT_SETTINGS)).saved[0]).toMatchObject({ name: 'Latest', metadata: { ...metadata, favorite: false } });
+  const current = (await store.load(null, DEFAULT_SETTINGS)).saved[0];
+  await store.setFavorite(null, saved.id, true);
+  const conflict = await store.saveChart(null, { ...current, name: 'Unsaved' }, saved.id, current);
+  expect(conflict.id).not.toBe(saved.id);
+  expect(conflict.metadata?.favorite).toBe(false);
+});
+it.each([false, true])('takes acknowledged preserved metadata into legacy writes (newer local edit: %s)', async newer => {
+  const store = await createChartLibraryStore(sql.db);
+  const chart = await store.saveChart('did:a', draft);
+  const sent = await store.pending('did:a');
+  if (newer) await store.saveChart('did:a', { ...draft, name: 'Newer' }, chart.id);
+  await store.applyResults('did:a', sent, [{ operationId: sent[0].operationId, outcome: 'applied', record: { ...remote(sent[0]), chart: { ...draft, metadata } } }]);
+  const saved = (await store.load('did:a', DEFAULT_SETTINGS)).saved[0];
+  expect(saved.metadata).toEqual(metadata);
+  expect(saved.name).toBe(newer ? 'Newer' : draft.name);
+  if (newer) expect((await store.pending('did:a'))[0].chart?.metadata).toEqual(metadata);
+  else expect(await store.pending('did:a')).toEqual([]);
+  expect(sent[0].chart?.metadata).toBeUndefined();
+});
+it('does not replace an explicit local metadata clear with an older acknowledgement', async () => {
+  const store = await createChartLibraryStore(sql.db);
+  const chart = await store.saveChart('did:a', draft);
+  const sent = await store.pending('did:a');
+  await store.saveChart('did:a', { ...draft, metadata: { tags: [], favorite: false } }, chart.id);
+  await store.applyResults('did:a', sent, [{ operationId: sent[0].operationId, outcome: 'applied', record: { ...remote(sent[0]), chart: { ...draft, metadata } } }]);
+  expect((await store.pending('did:a'))[0].chart?.metadata).toEqual({ tags: [], favorite: false });
+});
+it('stores sort and opened history per viewer without adding them to chart payloads', async () => {
+  const store = await createChartLibraryStore(sql.db);
+  const chart = await store.saveChart('did:a', draft);
+  await Promise.all([store.setLibrarySort('did:a', 'name-desc'), store.markOpened('did:a', chart.id, 10)]);
+  expect(await store.loadPreferences('did:a')).toEqual({ sort: 'name-desc', opened: { [chart.id]: 10 } });
+  expect(await store.loadPreferences(null)).toEqual({ sort: 'recent', opened: {} });
+  expect(await store.loadPreferences('did:b')).toEqual({ sort: 'recent', opened: {} });
+  const reopened = await createChartLibraryStore(sql.db);
+  expect(await reopened.loadPreferences('did:a')).toEqual(await store.loadPreferences('did:a'));
+  expect((await store.pending('did:a'))[0].chart).toEqual(draft);
+});
+it('suggests tags only from the destination chart ownership scope', async () => {
+  const store = await createChartLibraryStore(sql.db);
+  const anonymous = await store.saveChart(null, { ...draft, metadata });
+  await store.saveChart('did:a', { ...draft, metadata: { favorite: false, tags: [{ id: 'work', name: 'Work' }] } });
+  expect(await store.tagSuggestions('did:a', anonymous.id)).toEqual(metadata.tags);
+  expect(await store.tagSuggestions('did:a')).toEqual([{ id: 'work', name: 'Work' }]);
+  expect(await store.tagSuggestions('did:b')).toEqual([]);
+});
+it('validates metadata on save and rolls back malformed incoming pages', async () => {
+  const store = await createChartLibraryStore(sql.db);
+  const invalid = [null, { favorite: true, tags: [{ id: 'a', name: ' Family ' }, { id: 'b', name: 'family' }] }, { favorite: true, tags: [{ id: 'bad id', name: 'Tag' }] }];
+  for (const value of invalid) {
+    expect(() => store.saveChart(null, { ...draft, metadata: value as never })).toThrow();
+    await expect(store.applyChanges('did:a', [{ id: 'remote', revision: 1, updatedAt: '2026-09-30T00:00:00Z', chart: { ...draft, metadata: value as never } }], 1)).rejects.toThrow();
+  }
+  expect((await store.syncState('did:a')).cursor).toBe(0);
+  expect((await store.load('did:a', DEFAULT_SETTINGS)).saved).toEqual([]);
+});

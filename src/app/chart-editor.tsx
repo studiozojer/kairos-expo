@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View } from 'react-native';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '@/theme';
 import { Action, Choices, LinkRow, Note, Section } from '@/features/chart/display/controls';
 import { useActiveCharts } from '@/features/chart/active/ActiveChartsContext';
-import type { SavedChart } from '@/features/chart/active/model';
+import type { ChartDraft, SavedChart } from '@/features/chart/active/model';
+import type { ChartTag } from '@/features/chart/library/metadata';
+import { ChartTagEditor } from '@/features/chart/library/ChartTagEditor';
 import { ReplacementChooser } from '@/features/chart/active/ReplacementChooser';
 import { chartDateLabel, localFields, resolveWallTime } from '@/features/chart/active/wallTime';
 import { DEFAULT_SETTINGS, HOUSE_SYSTEMS, isLocation, type ChartLocation } from '@/features/chart/settings/chartSettings';
@@ -20,24 +22,30 @@ function Field({ label, value, onChange, numeric = false }: { label: string; val
 }
 
 export default function ChartEditorScreen() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, duplicate, fromLibrary } = useLocalSearchParams<{ id?: string; duplicate?: string; fromLibrary?: string }>();
+  const sourceId = id ?? duplicate;
+  const router = useRouter();
+  const t = useTheme();
   const state = useActiveCharts();
-  const saved = state.saved.find(chart => chart.id === id);
-  const [retained, setRetained] = useState<{ id?: string; chart?: SavedChart }>({ id, chart: saved });
-  if (retained.id !== id || (saved && saved !== retained.chart)) setRetained({ id, chart: saved });
-  const editing = saved ?? (retained.id === id ? retained.chart : undefined);
-  return <><Stack.Screen options={{ title: id ? 'Edit chart' : 'Create chart' }} />
+  const saved = state.saved.find(chart => chart.id === sourceId);
+  const [retained, setRetained] = useState<{ id?: string; chart?: SavedChart }>({ id: sourceId, chart: saved });
+  if (retained.id !== sourceId || (saved && saved !== retained.chart)) setRetained({ id: sourceId, chart: saved });
+  const editing = saved ?? (retained.id === sourceId ? retained.chart : undefined);
+  return <><Stack.Screen options={{ title: id ? 'Edit chart' : duplicate ? 'Duplicate chart' : 'Create chart', headerLeft: () => <Pressable accessibilityRole="button" accessibilityLabel="Cancel chart editing" onPress={() => router.back()} style={{ minWidth: 44, minHeight: 44, justifyContent: 'center' }}><Text style={[t.type.whyteSm, { color: t.color.txAccent }]}>Cancel</Text></Pressable> }} />
     {state.loadError ? <><Note>Couldn’t load saved charts.</Note><Action label="Retry loading" onPress={state.retryLoad} /></> : !state.loaded ? <ActivityIndicator accessibilityLabel="Loading chart" /> :
-      id && !editing ? <Note>This saved chart was not found.</Note> : <Editor key={id ?? 'new'} saved={editing} />}
+      sourceId && !editing ? <Note>This saved chart was not found.</Note> : <Editor key={`${state.scope ?? 'anonymous'}:${id ?? `copy:${duplicate ?? 'new'}`}`} saved={editing} duplicate={!!duplicate && !id} fromLibrary={fromLibrary === '1'} />}
   </>;
 }
-function Editor({ saved }: { saved?: SavedChart }) {
+function Editor({ saved, duplicate, fromLibrary }: { saved?: SavedChart; duplicate: boolean; fromLibrary: boolean }) {
   const state = useActiveCharts();
   const t = useTheme();
   const router = useRouter();
   const initialSettings = saved?.settings ?? DEFAULT_SETTINGS;
   const [initialFields] = useState(() => localFields(saved ? Date.parse(saved.datetime) : Date.now(), initialSettings.location.timezone));
-  const [name, setName] = useState(saved?.name ?? '');
+  const [name, setName] = useState(saved ? `${saved.name}${duplicate ? ' copy' : ''}` : '');
+  const [metadata, setMetadata] = useState<ChartDraft['metadata']>(() => saved?.metadata ? { favorite: saved.metadata.favorite, tags: saved.metadata.tags.map(tag => ({ ...tag })) } : undefined);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const [date, setDate] = useState(initialFields.date);
   const [clock, setClock] = useState(initialFields.clock);
   const [locationName, setLocationName] = useState(initialSettings.location.name);
@@ -57,10 +65,19 @@ function Editor({ saved }: { saved?: SavedChart }) {
   const [atlasStatus, setAtlasStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [atlasAttempt, setAtlasAttempt] = useState(0);
   const [error, setError] = useState('');
-  const [savedId, setSavedId] = useState(saved?.id);
-  const editBaseline = useRef(saved ? { name: saved.name, datetime: saved.datetime, settings: saved.settings } : undefined);
+  const [savedId, setSavedId] = useState(duplicate ? undefined : saved?.id);
+  const [tagSuggestions, setTagSuggestions] = useState<ChartTag[]>([]);
+  const { tagSuggestionsFor, saved: visibleCharts } = state;
+  useEffect(() => {
+    let current = true;
+    void tagSuggestionsFor(savedId).then(tags => { if (current) setTagSuggestions(tags); }, () => { if (current) setTagSuggestions([]); });
+    return () => { current = false; };
+  }, [savedId, tagSuggestionsFor, visibleCharts]);
+  const editBaseline = useRef<ChartDraft | undefined>(saved && !duplicate ? { name: saved.name, datetime: saved.datetime, settings: saved.settings, ...(saved.metadata ? { metadata: saved.metadata } : {}) } : undefined);
   const [savedSignature, setSavedSignature] = useState<string | null>(null);
-  const draftSignature = JSON.stringify([name, date, clock, locationName, latitude, longitude, elevation, timezone, houseSystem, fold]);
+  const draftSignature = JSON.stringify([name, date, clock, locationName, latitude, longitude, elevation, timezone, houseSystem, fold, metadata]);
+  const latestDraftSignature = useRef(draftSignature);
+  useLayoutEffect(() => { latestDraftSignature.current = draftSignature; }, [draftSignature]);
   const savedMessage = savedSignature === draftSignature;
   const [replacement, setReplacement] = useState<string | null>(null);
   const wall = useMemo(() => {
@@ -99,16 +116,25 @@ function Editor({ saved }: { saved?: SavedChart }) {
     }
     try {
       setSavingChart(true);
-      const chart = await state.saveChart({ name: name.trim(), datetime: new Date(wall.candidates[fold ?? 0]).toISOString(), settings: { location, houseSystem } }, savedId, editBaseline.current);
-      editBaseline.current = { name: chart.name, datetime: chart.datetime, settings: chart.settings };
-      setSavedId(chart.id); setSavedSignature(draftSignature);
-      if (savedId && chart.id !== savedId) setError('Another edit arrived while this form was open. Your changes were saved as a conflict copy; the other version is unchanged.');
+      const chart = await state.saveChart({ name: name.trim(), datetime: new Date(wall.candidates[fold ?? 0]).toISOString(), settings: { location, houseSystem }, ...(metadata ? { metadata } : {}) }, savedId, editBaseline.current);
+      if (!mounted.current) return;
+      editBaseline.current = { name: chart.name, datetime: chart.datetime, settings: chart.settings, ...(chart.metadata ? { metadata: chart.metadata } : {}) };
+      setSavedId(chart.id);
+      const hasNewerDraft = latestDraftSignature.current !== draftSignature;
+      setSavedSignature(hasNewerDraft ? null : draftSignature);
+      if (savedId && chart.id !== savedId) {
+        setError('Another edit arrived while this form was open. Your changes were saved as a conflict copy; the other version is unchanged.');
+        return;
+      }
+      if (hasNewerDraft) { setError('The earlier version was saved. Your newer changes are still here; save again when ready.'); return; }
       if (andOpen) open(chart.id);
+      else if (fromLibrary) router.back();
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Couldn’t save the chart.'); } finally { setSavingChart(false); }
   };
   return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: t.color.bgSolidBase }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ padding: t.space.lg, paddingBottom: 64 }}>
       <Section title="Identity"><Field label="Chart name" value={name} onChange={setName} /></Section>
+      <Section title="Tags"><ChartTagEditor tags={metadata?.tags ?? []} suggestions={tagSuggestions} onChange={tags => setMetadata({ tags, favorite: metadata?.favorite ?? false })} /></Section>
       <Section title="Local date and time">
         <Field label="Date · YYYY-MM-DD" value={date} onChange={value => { setDate(value); setFold(null); }} />
         <Field label="Time · HH:mm:ss (24-hour)" value={clock} onChange={value => { setClock(value); setFold(null); }} />
@@ -139,6 +165,14 @@ function Editor({ saved }: { saved?: SavedChart }) {
       <Action label={savingChart ? "Saving chart…" : "Save chart"} onPress={() => void save(false)} /><Action label="Save and open" onPress={() => void save(true)} />
       {saved && <Note>Original: {chartDateLabel(Date.parse(saved.datetime), saved.settings.location.timezone)}</Note>}
     </ScrollView>
-    <ReplacementChooser active={state.active} visible={replacement !== null} onCancel={() => setReplacement(null)} onSelect={id => { if (replacement) open(replacement, id); }} />
+    <ReplacementChooser active={state.active} visible={replacement !== null} onCancel={() => setReplacement(null)} onSelect={id => {
+      if (!replacement) return;
+      if (!state.saved.some(chart => chart.id === replacement)) {
+        setReplacement(null);
+        setError('This saved chart is no longer available. Your draft is still here; save it again to open a new copy.');
+        return;
+      }
+      open(replacement, id);
+    }} />
   </KeyboardAvoidingView>;
 }

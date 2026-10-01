@@ -1,3 +1,4 @@
+import { DEFAULT_LIBRARY_PREFERENCES, type LibraryPreferences, type LibrarySort } from '../library/preferences';
 import { AppState } from 'react-native';
 import { captureSession, isCurrentSession, type SessionSnapshot } from '@/auth/session';
 import { useOptionalAuth } from '@/auth/auth-context';
@@ -21,6 +22,7 @@ function CalculationWorker({ chart, publish }: { chart: ActiveChart; publish: (i
 }
 
 function useActiveState(scope: string | null, library?: ChartLibraryStore) {
+  const [libraryPreferences, setLibraryPreferences] = useState<LibraryPreferences>(DEFAULT_LIBRARY_PREFERENCES);
   const [session, setSession] = useState<ActiveSession>({ version: 1, saved: [], active: [], targetId: null });
   const current = useRef(session);
   const [loaded, setLoaded] = useState(false);
@@ -63,10 +65,12 @@ function useActiveState(scope: string | null, library?: ChartLibraryStore) {
         const repository = library ?? await getChartLibrary();
         store.current = repository;
         const value = await repository.load(scope, defaults.current);
+        const libraryPrefs = await repository.loadPreferences(scope);
         if (!alive) return;
         current.current = value;
         hydrated.current = true;
         setSession(value);
+        setLibraryPreferences(libraryPrefs);
         setLoaded(true);
         persist(value);
       } catch {
@@ -150,6 +154,23 @@ function useActiveState(scope: string | null, library?: ChartLibraryStore) {
       return chart;
     } catch (error) { if (mounted.current) setLibraryError('Could not save this chart. Your previous saved version is unchanged.'); throw error; }
   }, [scope, refreshLibrary, runSync]);
+  const setFavorite = useCallback(async (id: string, value: boolean) => {
+    if (!hydrated.current || !mounted.current || !store.current) throw new Error('Wait for charts to finish loading');
+    setLibraryError(null);
+    try { await store.current.setFavorite(scope, id, value); await refreshLibrary(); void runSync(); }
+    catch (error) { if (mounted.current) setLibraryError('Could not update favorite. Please try again.'); throw error; }
+  }, [scope, refreshLibrary, runSync]);
+  const tagSuggestionsFor = useCallback(async (id?: string) => {
+    if (!store.current) return [];
+    return store.current.tagSuggestions(scope, id);
+  }, [scope]);
+  const setLibrarySort = useCallback(async (sort: LibrarySort) => {
+    if (!hydrated.current || !mounted.current || !store.current) return;
+    try {
+      const value = await store.current.setLibrarySort(scope, sort);
+      if (mounted.current) setLibraryPreferences(previous => ({ ...previous, sort: value.sort }));
+    } catch (error) { if (mounted.current) setLibraryError('Could not save library sorting. Please try again.'); throw error; }
+  }, [scope]);
   const deleteSaved = useCallback(async (id: string) => {
     if (!hydrated.current || !mounted.current || !store.current) return;
     setLibraryError(null);
@@ -179,8 +200,16 @@ function useActiveState(scope: string | null, library?: ChartLibraryStore) {
     const saved = current.current.saved.find(chart => chart.id === savedId);
     if (!saved) return false;
     const time = Date.parse(saved.datetime);
-    return open({ id: newChartId(), sourceId: saved.id, kind: 'saved', name: saved.name, origin: time, time, settings: snapshotSettings(saved.settings), unit: 2 }, replaceId);
-  }, [open]);
+    const opened = open({ id: newChartId(), sourceId: saved.id, kind: 'saved', name: saved.name, origin: time, time, settings: snapshotSettings(saved.settings), unit: 2 }, replaceId);
+    if (opened) {
+      const timestamp = Date.now();
+      setLibraryPreferences(previous => ({ ...previous, opened: { ...previous.opened, [savedId]: timestamp } }));
+      void store.current!.markOpened(scope, savedId, timestamp).catch(() => {
+        if (mounted.current) setLibraryError('Chart opened, but its recent-open time could not be saved.');
+      });
+    }
+    return opened;
+  }, [open, scope]);
   const addNow = useCallback((replaceId?: string) => open(nowInstance(defaults.current), replaceId), [open]);
   const remove = useCallback((id: string) => { commit(removeInstance(current.current, id)); setCalculations(previous => { const next = { ...previous }; delete next[id]; return next; }); }, [commit]);
   const move = useCallback((id: string, direction: -1 | 1) => { commit(moveInstance(current.current, id, direction)); }, [commit]);
@@ -210,7 +239,7 @@ function useActiveState(scope: string | null, library?: ChartLibraryStore) {
     const calculation = calculations[chart.id];
     if (calculation) visibleCalculations[chart.id] = { ...calculation, status: calculation.requestedTime === chart.time && calculation.requestedSettings === chart.settings ? calculation.status : 'loading' };
   }
-  return { ...session, scope, syncState, syncing, syncError, libraryError, anonymousCount, runSync, setSyncEnabled, deleteSaved, loaded, saveError, loadError, saving, calculations: visibleCalculations, saveChart, openSaved, addNow, remove, move, moveTo, selectTarget, updateInstanceSettings, step, seek, reset, selectUnit, retryPersistence, retryLoad, publish };
+  return { ...session, libraryPreferences, setLibrarySort, setFavorite, tagSuggestionsFor, scope, syncState, syncing, syncError, libraryError, anonymousCount, runSync, setSyncEnabled, deleteSaved, loaded, saveError, loadError, saving, calculations: visibleCalculations, saveChart, openSaved, addNow, remove, move, moveTo, selectTarget, updateInstanceSettings, step, seek, reset, selectUnit, retryPersistence, retryLoad, publish };
 }
 const Context = createContext<Omit<ReturnType<typeof useActiveState>, 'publish'> | null>(null);
 export function ActiveChartsProvider({ children, library }: { children: ReactNode; library?: ChartLibraryStore }) {
