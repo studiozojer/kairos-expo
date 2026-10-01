@@ -22,6 +22,8 @@ export default function SavedChartsScreen() {
   // The provider remounts on account changes; browser selections never cross accounts.
   const router = useRouter();
   const t = useTheme();
+  const [refreshing, setRefreshing] = useState(false);
+  const [headerHeight, setHeaderHeight] = useState(0);
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [tagIds, setTagIds] = useState<string[]>([]);
@@ -56,7 +58,15 @@ export default function SavedChartsScreen() {
   };
   const syncLabel = !state.scope ? 'On this device' : !state.syncState?.enabled ? 'Sync paused' : state.syncing ? 'Syncing…' : state.syncError ? 'Sync needs attention' : state.syncState.pending ? `${state.syncState.pending} waiting to sync` : state.syncState.lastSyncedAt ? 'Synced' : 'Waiting to sync';
   const menuAccessibility: Pick<ViewProps, 'accessible' | 'accessibilityRole' | 'accessibilityLabel'> = { accessible: true, accessibilityRole: 'button', accessibilityLabel: 'Sort saved charts' };
-  const header = <View style={{ backgroundColor: t.color.bgSolidCard }}>
+  const refresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    setError(null);
+    try { await state.reloadLibrary(); }
+    catch { setError('Couldn’t reload charts. Please try again.'); }
+    finally { setRefreshing(false); }
+  };
+  const header = <View onLayout={event => setHeaderHeight(event.nativeEvent.layout.height)} style={{ backgroundColor: t.color.bgSolidCard }}>
     <View style={{ paddingHorizontal: 16, paddingTop: 24, paddingBottom: 8, minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
       {searching ? <>
         <TextInput accessibilityLabel="Search charts" placeholder="Search charts…" placeholderTextColor={t.color.txTertiary} value={query} onChangeText={setQuery}
@@ -72,7 +82,7 @@ export default function SavedChartsScreen() {
         <IconButton name="close" label="Close saved charts" onPress={() => router.back()} />
       </>}
     </View>
-    <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 16, paddingVertical: 12, gap: 6 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 16, paddingVertical: 4, gap: 6 }}>
       <MenuView {...menuAccessibility} title="Sort charts" themeVariant={t.scheme} shouldOpenOnLongPress={false}
         actions={SORTS.map(([id, title]) => ({ id, title, state: id === preferences.sort ? 'on' : 'off' }))}
         onPressAction={({ nativeEvent: { event } }) => {
@@ -81,7 +91,7 @@ export default function SavedChartsScreen() {
         <LibraryIcon name="sort" color={t.color.icSecondary} />
       </MenuView>
       <View style={{ flex: 1 }}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={{ alignItems: 'center', gap: 6, paddingVertical: 8, paddingLeft: 12, paddingRight: 16 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={{ alignItems: 'center', gap: 6, paddingLeft: 12, paddingRight: 16 }}>
         <LibraryFilterChip active={!selected.length} label="All" selected={!selected.length} onPress={() => setTagIds([])} />
         {tags.map(tag => <LibraryFilterChip active={!selected.length || selected.includes(tag.id)} key={tag.id} label={tag.name} selected={selected.includes(tag.id)} onPress={() => setTagIds(selected.includes(tag.id) ? selected.filter(id => id !== tag.id) : [...selected, tag.id])} />)}
         {!tags.length && <Text style={[t.type.whyteXs, { color: t.color.txTertiary }]}>Add tags when editing a chart</Text>}
@@ -116,6 +126,7 @@ export default function SavedChartsScreen() {
   return <><Stack.Screen options={{ headerShown: false }} />
     {/* Native form-sheet owns drag/back/dismissal. The list is the first native child for scroll coordination. */}
     <FlatList data={rows} keyExtractor={row => row.type === 'status' ? 'status' : `chart:${row.chart.id}`} stickyHeaderIndices={[0]} style={{ flex: 1, backgroundColor: t.color.bgSolidBase }}
+      refreshing={refreshing} onRefresh={() => void refresh()} progressViewOffset={headerHeight} alwaysBounceVertical
       contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} automaticallyAdjustKeyboardInsets
       ListHeaderComponent={header} renderItem={({ item }) => item.type === 'status' ? <View>{beforeRows}</View> : <LibraryRow chart={item.chart} onOpen={() => open(item.chart.id)} onAction={choice => action(item.chart, choice)} />}
       ListFooterComponent={state.loaded && !state.loadError && !charts.length ? <View style={{ padding: 24 }}>

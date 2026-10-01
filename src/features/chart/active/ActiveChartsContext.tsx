@@ -135,6 +135,11 @@ function useActiveState(scope: string | null, library?: ChartLibraryStore) {
       }
     }
   }, [scope, refreshLibrary]);
+  const reloadLibrary = useCallback(async () => {
+    await refreshLibrary();
+    if (mounted.current) setLibraryError(null);
+    await runSync();
+  }, [refreshLibrary, runSync]);
   useEffect(() => {
     if (!loaded) return;
     void refreshLibrary().then(() => runSync()).catch(() => { if (mounted.current) setLibraryError('Could not read chart library.'); });
@@ -239,7 +244,7 @@ function useActiveState(scope: string | null, library?: ChartLibraryStore) {
     const calculation = calculations[chart.id];
     if (calculation) visibleCalculations[chart.id] = { ...calculation, status: calculation.requestedTime === chart.time && calculation.requestedSettings === chart.settings ? calculation.status : 'loading' };
   }
-  return { ...session, libraryPreferences, setLibrarySort, setFavorite, tagSuggestionsFor, scope, syncState, syncing, syncError, libraryError, anonymousCount, runSync, setSyncEnabled, deleteSaved, loaded, saveError, loadError, saving, calculations: visibleCalculations, saveChart, openSaved, addNow, remove, move, moveTo, selectTarget, updateInstanceSettings, step, seek, reset, selectUnit, retryPersistence, retryLoad, publish };
+  return { ...session, libraryPreferences, setLibrarySort, setFavorite, tagSuggestionsFor, scope, syncState, syncing, syncError, libraryError, anonymousCount, runSync, reloadLibrary, setSyncEnabled, deleteSaved, loaded, saveError, loadError, saving, calculations: visibleCalculations, saveChart, openSaved, addNow, remove, move, moveTo, selectTarget, updateInstanceSettings, step, seek, reset, selectUnit, retryPersistence, retryLoad, publish };
 }
 const Context = createContext<Omit<ReturnType<typeof useActiveState>, 'publish'> | null>(null);
 export function ActiveChartsProvider({ children, library }: { children: ReactNode; library?: ChartLibraryStore }) {
