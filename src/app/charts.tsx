@@ -65,7 +65,7 @@ export default function SavedChartsScreen() {
     catch { setError('Couldn’t reload charts. Please try again.'); }
     finally { setRefreshing(false); }
   };
-  const header = <View style={{ backgroundColor: t.color.bgSolidCard }}>
+  const header = <View collapsable={false} style={{ backgroundColor: t.color.bgSolidCard }}>
     <View style={{ paddingHorizontal: 16, paddingTop: 24, paddingBottom: 8, minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
       {searching ? <>
         <TextInput accessibilityLabel="Search charts" placeholder="Search charts…" placeholderTextColor={t.color.txTertiary} value={query} onChangeText={setQuery}
@@ -123,10 +123,11 @@ export default function SavedChartsScreen() {
   </>;
   const rows: ({ type: 'status' } | { type: 'chart'; chart: SavedChart })[] = [{ type: 'status' }, ...(state.loaded ? charts.map(chart => ({ type: 'chart' as const, chart })) : [])];
   return <><Stack.Screen options={{ headerShown: false }} />
-    {/* The header is outside the refreshable list. Reverse layout places it above
-        the list while keeping the list first in the native child chain, which
-        react-native-screens uses to coordinate form-sheet scrolling/dismissal. */}
-    <View collapsable={false} style={{ flex: 1, flexDirection: 'column-reverse', backgroundColor: t.color.bgSolidBase }}>
+    {/* Keep this root layout-only so Fabric flattens it: the native form-sheet
+        content wrapper detects header + list siblings and sizes the list below
+        the header. The header must remain one native view for that calculation. */}
+    <View style={{ flex: 1 }}>
+      {header}
       <FlatList data={rows} keyExtractor={row => row.type === 'status' ? 'status' : `chart:${row.chart.id}`} style={{ flex: 1, backgroundColor: t.color.bgSolidBase }}
         refreshing={refreshing} onRefresh={() => void refresh()} alwaysBounceVertical
         contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} automaticallyAdjustKeyboardInsets
@@ -135,7 +136,6 @@ export default function SavedChartsScreen() {
           <Text style={[t.type.whyteSm, { color: t.color.txSecondary }]}>{query || selected.length ? 'No charts match these filters.' : 'No saved charts yet.'}</Text>
           {query || selected.length ? <Action label="Clear filters" onPress={() => { setQuery(''); setTagIds([]); }} /> : <Action label="Create your first chart" onPress={() => edit()} />}
         </View> : null} />
-      {header}
     </View>
     <ReplacementChooser active={state.active} visible={pending !== null} onCancel={() => setPending(null)} onSelect={id => { if (pending) open(pending, id); }} />
   </>;
