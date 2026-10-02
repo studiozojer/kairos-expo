@@ -32,6 +32,7 @@ export function LibrarySyncSettings() {
           { text: 'Cancel', style: 'cancel' }, { text: 'Pause sync', onPress: () => { void state.setSyncEnabled(false); } },
         ])} />
       </> : <Action label="Enable chart sync" onPress={enable} />}
+      <Action label="Charts transferred from the old app" onPress={() => router.push('/chart-transfers')} />
       {!!state.syncState?.conflicts && <Note>Conflicting changes were preserved. Look for charts named “(conflict copy)”. A conflicting deletion keeps the other device’s version.</Note>}
       {state.syncError && <Note>{state.syncError} Your charts remain available on this device. Sync retries while the app is open.</Note>}
     </>}
