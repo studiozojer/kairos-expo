@@ -86,5 +86,7 @@ export const conversionReason = (reason: string): string => ({
   unreadable_source: 'The original source data could not be read.',
   unknown_source_version: 'The source format needs additional support.',
   unknown_chart_kind: 'The chart type needs additional compatibility support.',
+  unknown_timezone: 'The saved timezone is not supported.',
+  invalid_destination: 'The saved fields cannot be represented in Saved Charts.',
   invalid_favorite: 'The stored favorite flag is invalid.',
 }[reason] ?? 'This record needs additional compatibility support.');
