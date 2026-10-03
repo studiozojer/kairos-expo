@@ -76,6 +76,9 @@ export default function AccountScreen() {
           <Pressable onPress={() => router.push('/charts')} style={buttonStyle(true)}>
             <Text style={{ ...theme.type.whyteSm, color: theme.color.txButton }}>Saved charts and sync</Text>
           </Pressable>
+          <Pressable onPress={() => router.push('/chart-transfers')} style={buttonStyle(true)}>
+            <Text style={{ ...theme.type.whyteSm, color: theme.color.txButton }}>Charts transferred from the old app</Text>
+          </Pressable>
           {error && <Text accessibilityRole="alert" style={{ color: theme.color.txError }}>{error}</Text>}
           <Pressable onPress={() => { void signOut().catch(() => Alert.alert('Could not finish signing out', 'The saved session could not be cleared from this device. Please try again.', [{ text: 'Retry', onPress: () => { void signOut().catch(() => Alert.alert('Sign-out failed', 'Device storage is unavailable. Try again when it is available.')); } }])); }} style={buttonStyle(true)}>
             <Text style={{ ...theme.type.whyteSm, color: theme.color.txButton }}>Sign out</Text>

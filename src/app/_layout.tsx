@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, type ReactNode } from 'react';
 
 import { ActiveChartsProvider } from '@/features/chart/active/ActiveChartsContext';
+import { ArchiveProvider } from '@/features/chart/transfers/ArchiveContext';
 import { AuthProvider } from '@/auth/auth-context';
 import { navThemeFor, useTheme } from '@/theme';
 import { fontMap } from '@/theme/fonts.gen';
@@ -64,14 +65,17 @@ export default function RootLayout() {
       <NavigationChrome>
         <AuthProvider>
           <ActiveChartsProvider>
+          <ArchiveProvider>
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             {/* Account is a modal on the ROOT stack: an occasional act that
                 leaves the tabs behind, reachable from the journal home. */}
             <Stack.Screen name="charts" options={{ presentation: 'formSheet', headerShown: false, sheetAllowedDetents: [1], sheetGrabberVisible: true, contentStyle: { backgroundColor: 'transparent' } }} />
             <Stack.Screen name="chart-editor" options={{ title: 'Chart', presentation: 'modal' }} />
+            <Stack.Screen name="chart-transfers" options={{ title: 'Transferred charts' }} />
             <Stack.Screen name="account" options={{ title: 'Account', presentation: 'modal' }} />
           </Stack>
+          </ArchiveProvider>
           </ActiveChartsProvider>
         </AuthProvider>
       </NavigationChrome>
