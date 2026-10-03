@@ -1,9 +1,12 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Text, TextInput } from 'react-native';
+import { Alert, Text, TextInput } from 'react-native';
 import ChartTransfersScreen from '@/app/chart-transfers';
 import { ReplacementChooser } from '../../active/ReplacementChooser';
 import { DEFAULT_SETTINGS } from '../../settings/chartSettings';
+import type { ConversionPreview } from '../conversion';
 import type { ArchivedChart } from '../types';
+const mockConversions = { previews: [] as ConversionPreview[], busy: false, error: null, progress: null, check: jest.fn(), add: jest.fn() };
+jest.mock('../useConversions', () => ({ useConversions: () => mockConversions }));
 const mockRouter = { push: jest.fn(), back: jest.fn(), dismissTo: jest.fn() };
 const mockArchive = { scope: 'did:plc:a', records: [] as ArchivedChart[], downloading: false, error: null, refresh: jest.fn() };
 const mockActive = { scope: 'did:plc:a', saved: [{ id: 'destination', name: 'Ready', datetime: '2000-01-01T00:00:00Z', settings: DEFAULT_SETTINGS }], active: [], openSaved: jest.fn() };
@@ -14,7 +17,7 @@ function row(state: ArchivedChart['compatibility']['state']): ArchivedChart {
   return { transferId: state, name: state, sourceNamespace: 'fixture', sourceRecordId: state, snapshotId: state, payloadDigest: '', payloadEncoding: 'fixture', revision: 1, receivedAt: '', compatibility: { state, reasons: [], classifierVersion: 'fixture' }, destinationChartId: 'destination', parentSourceRecordId: null, parentTransferId: null, tombstone: false };
 }
 let view: ReactTestRenderer;
-beforeEach(() => { jest.clearAllMocks(); mockArchive.records = [row('unsupported'), row('needs_review'), row('ready')]; mockActive.openSaved.mockReturnValue(true); act(() => { view = create(<ChartTransfersScreen />); }); });
+beforeEach(() => { jest.clearAllMocks(); mockConversions.previews = []; mockArchive.records = [row('unsupported'), row('needs_review'), row('ready')]; mockActive.openSaved.mockReturnValue(true); act(() => { view = create(<ChartTransfersScreen />); }); });
 afterEach(() => act(() => view.unmount()));
 const openButtons = () => view.root.findAll(node => typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityLabel.startsWith('Open ') && typeof node.props.onPress === 'function');
 it('lists received records and opening support separately, with no open button for unsupported records', () => {
@@ -39,4 +42,19 @@ it('rechecks compatibility after a pending open before changing the wheel', () =
   act(() => view.update(<ChartTransfersScreen />));
   act(() => view.root.findByType(ReplacementChooser).props.onSelect('existing-instance'));
   expect(mockActive.openSaved).toHaveBeenCalledTimes(1); expect(mockRouter.dismissTo).not.toHaveBeenCalled();
+});
+
+it('requires an explicit compatibility action and review confirmation before adding charts', () => {
+  expect(mockConversions.check).not.toHaveBeenCalled(); expect(mockConversions.add).not.toHaveBeenCalled();
+  const review = { transferId: 'needs_review', snapshotId: 'needs_review', profileVersion: 'swift-tropical-mean-v1', state: 'needs_review', reasons: ['confirm_ordinary_chart'], chart: mockActive.saved[0], destinationChartId: null, record: null } as ConversionPreview;
+  mockConversions.previews = [review, { ...review, transferId: 'unsupported', state: 'unsupported', chart: null }];
+  act(() => view.update(<ChartTransfersScreen />));
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  const button = view.root.findAll(node => node.props.accessibilityRole === 'button' && typeof node.props.onPress === 'function').find(node => node.findAllByType(Text).some(text => [text.props.children].flat().join('') === 'Review and add 1 charts'))!;
+  act(() => button.props.onPress());
+  expect(mockConversions.add).not.toHaveBeenCalled();
+  expect(alert.mock.calls[0][1]).toContain('No saved source setting');
+  act(() => alert.mock.calls[0][2]!.find(button => button.text === 'Confirm and add')!.onPress!());
+  expect(mockConversions.add).toHaveBeenCalledWith([review], true);
+  alert.mockRestore();
 });

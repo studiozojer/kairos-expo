@@ -5,6 +5,9 @@ import { captureSession, subscribeSession } from '@/auth/session';
 import { getChartArchive } from './store';
 import { ArchiveDownloadError, retrieveArchive } from './sync';
 import type { ArchivedChart } from './types';
+import { retrieveConvertedDestinations } from './conversion';
+import { getChartLibrary } from '../library/store';
+import { useActiveCharts } from '../active/ActiveChartsContext';
 
 interface ArchiveState { scope: string | null; records: ArchivedChart[]; downloading: boolean; error: string | null; refresh: () => Promise<void> }
 const Context = createContext<ArchiveState | null>(null);
@@ -14,6 +17,7 @@ export function ArchiveProvider({ children }: { children: ReactNode }) {
   return <ScopedArchive key={account?.did ?? 'anonymous'} did={account?.did ?? null}>{children}</ScopedArchive>;
 }
 function ScopedArchive({ did, children }: { did: string | null; children: ReactNode }) {
+  const { reloadLibrary } = useActiveCharts();
   const [records, setRecords] = useState<ArchivedChart[]>([]);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,11 +37,16 @@ function ScopedArchive({ did, children }: { did: string | null; children: ReactN
       const session = await captureSession();
       if (!live() || session?.account.did !== did) return;
       await retrieveArchive(store, did, controller.signal, publish, session);
+      const records = await store.list(did);
+      if (live() && records.some(record => record.destinationChartId)) {
+        await retrieveConvertedDestinations(records, session, controller.signal, await getChartLibrary());
+        if (live()) await reloadLibrary();
+      }
     } catch (error) {
       if (live()) setError(`${error instanceof ArchiveDownloadError ? error.message : 'Could not refresh transferred charts.'} Previously downloaded records remain available.`);
     }
     finally { if (mounted.current && active.current === controller) setDownloading(false); }
-  }, [did]);
+  }, [did, reloadLibrary]);
   useEffect(() => {
     mounted.current = true;
     // Begin retrieval when the external storage connection becomes available.

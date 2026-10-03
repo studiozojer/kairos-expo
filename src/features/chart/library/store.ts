@@ -298,6 +298,19 @@ export class ChartLibraryStore {
       await this.db.runAsync('UPDATE library_accounts SET cursor=? WHERE owner=?', cursor, did);
     }));
   }
+  /** Conversion receipts download account charts without enabling upload sync.
+   * Do not advance the feed cursor or replace an edit/deletion queued locally. */
+  acceptTransferredChart(did: string, record: SyncRecord, authorized: () => boolean): Promise<void> {
+    return this.serial(() => this.transaction(async () => {
+      validateRecord(record);
+      if (!authorized()) throw new Error('Account changed');
+      const local = await this.db.getFirstAsync<Row>('SELECT * FROM library_records WHERE owner=? AND id=?', did, record.id);
+      if (!local?.dirty && (!local || local.revision < record.revision)) {
+        await this.db.runAsync('INSERT INTO library_records(owner,id,content,revision,dirty) VALUES(?,?,?,?,0) ON CONFLICT(owner,id) DO UPDATE SET content=excluded.content,revision=excluded.revision,dirty=0', did, record.id, record.chart === null ? null : JSON.stringify(record.chart), record.revision);
+      }
+      if (!authorized()) throw new Error('Account changed');
+    }));
+  }
   markSynced(did: string): Promise<void> {
     return this.serial(() => this.transaction(async () => { await this.account(did); await this.db.runAsync('UPDATE library_accounts SET last_synced=? WHERE owner=?', new Date().toISOString(), did); }));
   }
