@@ -26,6 +26,7 @@ let snapshots: Map<string, ArchiveSnapshot>;
 let calls: string[];
 let beforeResponse: (() => void) | undefined;
 beforeEach(() => {
+  jest.clearAllMocks();
   database = testDatabase(); current = { account: { did, handle: 'fixture.test' }, token: 'fixture-token', generation: 1 };
   records = []; snapshots = new Map(); calls = []; beforeResponse = undefined;
   jest.mocked(captureSession).mockImplementation(async () => current);
@@ -37,8 +38,9 @@ beforeEach(() => {
     else if (route.includes('/snapshots/')) body = snapshots.get(route.split('/').at(-1)!);
     else {
       const cursor = Number(new URL(route, 'https://fixture.invalid').searchParams.get('cursor'));
-      const page = records.filter(r => r.revision > cursor);
-      body = { records: page, cursor: page.at(-1)?.revision ?? cursor, hasMore: false };
+      const remaining = records.filter(r => r.revision > cursor);
+      const page = remaining.slice(0, 100);
+      body = { records: page, cursor: page.at(-1)?.revision ?? cursor, hasMore: remaining.length > page.length };
     }
     beforeResponse?.(); beforeResponse = undefined;
     return { ok: true, text: async () => JSON.stringify(body) } as Response;
@@ -118,6 +120,54 @@ it('cannot open unsupported, deleted, unconverted or invalid destination charts'
 });
 it('empty libraries complete retrieval with a zero cursor', async () => {
   const value = await store(); await run(value); expect(await value.cursor(did)).toBe(0); expect(await value.list(did)).toEqual([]);
+});
+
+it('honors throttling and retries the same snapshot without losing the page', async () => {
+  receive(fixture());
+  const normal = jest.mocked(authorizedFetch).getMockImplementation()!;
+  let throttled = false;
+  jest.mocked(authorizedFetch).mockImplementation(async (...args) => {
+    if (!throttled && String(args[0]).includes('/snapshots/')) {
+      throttled = true;
+      return { ok: false, status: 429, headers: new Headers({ 'Retry-After': '1' }) } as Response;
+    }
+    return normal(...args);
+  });
+  const value = await store(); await run(value);
+  expect(throttled).toBe(true);
+  expect(await value.cursor(did)).toBe(1);
+  expect(await value.snapshot(did, uid(101))).toEqual(fixture().snapshot);
+});
+
+it('retains the first page when throttling persists and resumes from its cursor', async () => {
+  for (let index = 1; index <= 102; index++) receive(fixture(index));
+  const normal = jest.mocked(authorizedFetch).getMockImplementation()!;
+  let throttle = true;
+  jest.mocked(authorizedFetch).mockImplementation(async (...args) => {
+    if (throttle && String(args[0]).endsWith(`/snapshots/${uid(201)}`)) {
+      return { ok: false, status: 429, headers: new Headers({ 'Retry-After': '1' }) } as Response;
+    }
+    return normal(...args);
+  });
+  const value = await store();
+  await expect(run(value)).rejects.toThrow('server is busy');
+  expect(await value.cursor(did)).toBe(100);
+  expect(await value.list(did)).toHaveLength(100);
+  throttle = false; await run(value);
+  expect(await value.cursor(did)).toBe(102);
+  expect(await value.list(did)).toHaveLength(102);
+});
+
+it('account cancellation interrupts the throttle wait without another request', async () => {
+  const controller = new AbortController();
+  jest.mocked(authorizedFetch).mockImplementation(async () => {
+    queueMicrotask(() => controller.abort());
+    return { ok: false, status: 429, headers: new Headers({ 'Retry-After': '60' }) } as Response;
+  });
+  const value = await store();
+  await expect(retrieveArchive(value, did, controller.signal)).rejects.toThrow('stopped');
+  expect(authorizedFetch).toHaveBeenCalledTimes(1);
+  expect(await value.cursor(did)).toBe(0);
 });
 
 it('retrieves exact Swift-generated snapshots with their raw sources and independent IDs', async () => {

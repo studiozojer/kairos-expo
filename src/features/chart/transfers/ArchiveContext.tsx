@@ -3,7 +3,7 @@ import { AppState } from 'react-native';
 import { useAuth } from '@/auth/auth-context';
 import { captureSession, subscribeSession } from '@/auth/session';
 import { getChartArchive } from './store';
-import { retrieveArchive } from './sync';
+import { ArchiveDownloadError, retrieveArchive } from './sync';
 import type { ArchivedChart } from './types';
 
 interface ArchiveState { scope: string | null; records: ArchivedChart[]; downloading: boolean; error: string | null; refresh: () => Promise<void> }
@@ -33,7 +33,9 @@ function ScopedArchive({ did, children }: { did: string | null; children: ReactN
       const session = await captureSession();
       if (!live() || session?.account.did !== did) return;
       await retrieveArchive(store, did, controller.signal, publish, session);
-    } catch { if (live()) setError('Could not refresh transferred charts. Previously downloaded records remain available.'); }
+    } catch (error) {
+      if (live()) setError(`${error instanceof ArchiveDownloadError ? error.message : 'Could not refresh transferred charts.'} Previously downloaded records remain available.`);
+    }
     finally { if (mounted.current && active.current === controller) setDownloading(false); }
   }, [did]);
   useEffect(() => {
