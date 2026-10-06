@@ -116,7 +116,7 @@ export default function SavedChartsScreen() {
   </View>;
   const beforeRows = <>
     {accountCharts?.scope && <View style={{ paddingHorizontal: 16 }}>
-      {(accountCharts.downloading || accountCharts.initialLoading) && <Text accessibilityLiveRegion="polite" style={[t.type.whyteXs, { paddingVertical: 12, color: t.color.txSecondary }]}>Loading your charts…</Text>}
+      {(accountCharts.initialLoading || (accountCharts.downloading && !state.saved.length)) && <Text accessibilityLiveRegion="polite" style={[t.type.whyteXs, { paddingVertical: 12, color: t.color.txSecondary }]}>Loading your charts…</Text>}
       {accountCharts.error && <><Text accessibilityRole="alert" style={[t.type.whyteXs, { color: t.color.txError }]}>{accountCharts.error}</Text><Action label="Retry loading charts" onPress={() => void accountCharts.refresh()} /></>}
       {!!exceptionCount && <Action label={`${exceptionCount} chart ${exceptionCount === 1 ? 'exception' : 'exceptions'}`} onPress={() => router.push('/chart-transfers')} />}
     </View>}

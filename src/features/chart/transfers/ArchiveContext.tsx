@@ -19,6 +19,8 @@ export function ArchiveProvider({ children }: { children: ReactNode }) {
 }
 function ScopedArchive({ did, children }: { did: string | null; children: ReactNode }) {
   const { reloadLibrary } = useActiveCharts();
+  const reloadLibraryRef = useRef(reloadLibrary);
+  useEffect(() => { reloadLibraryRef.current = reloadLibrary; }, [reloadLibrary]);
   const [records, setRecords] = useState<ArchivedChart[]>([]);
   const [downloading, setDownloading] = useState(false);
   const [settled, setSettled] = useState(!did);
@@ -39,10 +41,19 @@ function ScopedArchive({ did, children }: { did: string | null; children: ReactN
       const session = await captureSession();
       if (!live() || session?.account.did !== did) return;
       const library = await getChartLibrary();
-      const reload = async () => { if (live() && isCurrentSession(session)) await reloadLibrary(); };
+      const reload = async () => { if (live() && isCurrentSession(session)) await reloadLibraryRef.current(); };
       await downloadAccountCharts(library, session, controller.signal, reload);
       await retrieveArchive(store, did, controller.signal, publish, session);
-      await importAccountArchive(await store.list(did), session, controller.signal, library, reload, values => { if (live() && isCurrentSession(session)) setPreviews(values); });
+      const assessments = await importAccountArchive(await store.list(did), session, controller.signal, library, reload, values => {
+        if (live() && isCurrentSession(session) && values.length) {
+          // Keep previously assessed pages visible until their replacements arrive.
+          setPreviews(previous => [
+            ...previous.map(p => values.find(v => v.transferId === p.transferId) ?? p),
+            ...values.filter(v => !previous.some(p => p.transferId === v.transferId)),
+          ]);
+        }
+      });
+      if (live() && isCurrentSession(session)) setPreviews(assessments);
       // Recover mapping revisions after newly created destinations, without a second assessment pass.
       await retrieveArchive(store, did, controller.signal, publish, session);
     } catch {
@@ -51,7 +62,7 @@ function ScopedArchive({ did, children }: { did: string | null; children: ReactN
     finally {
       if (mounted.current && active.current === controller) { setDownloading(false); setSettled(true); active.current = null; }
     }
-  }, [did, reloadLibrary]);
+  }, [did]);
   useEffect(() => {
     mounted.current = true;
     // Begin retrieval when the external storage connection becomes available.
@@ -62,8 +73,7 @@ function ScopedArchive({ did, children }: { did: string | null; children: ReactN
     const foreground = AppState.addEventListener('change', state => {
       if (state === 'active') void refresh(); else active.current?.abort();
     });
-    const retry = setInterval(() => { if (AppState.currentState === 'active') void refresh(); }, 60000);
-    return () => { clearInterval(retry); mounted.current = false; active.current?.abort(); unsubscribe(); foreground.remove(); };
+    return () => { mounted.current = false; active.current?.abort(); unsubscribe(); foreground.remove(); };
   }, [did, refresh]);
   return <Context.Provider value={{ scope: did, records, previews, downloading, initialLoading: !settled, error, refresh }}>{children}</Context.Provider>;
 }

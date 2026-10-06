@@ -1,5 +1,5 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Text, TextInput } from 'react-native';
+import { FlatList, Text, TextInput } from 'react-native';
 import ChartExceptionsScreen from '@/app/chart-transfers';
 import { CONVERSION_PROFILE, type ConversionPreview } from '../conversion';
 import type { ArchivedChart } from '../types';
@@ -42,4 +42,12 @@ it('ignores an assessment for an older source snapshot', () => {
   act(() => view.update(<ChartExceptionsScreen />));
   expect(text()).toContain('No chart exceptions'); expect(text()).not.toContain('Changed original');
   mockAccount.records = [{ transferId: 'bad', snapshotId: 'bad', name: 'Old sidereal' }, { transferId: 'good', snapshotId: 'good', name: 'Imported chart' }] as ArchivedChart[];
+});
+
+it('keeps cached exceptions steady during automatic background retrieval', () => {
+  mockAccount.downloading = true;
+  act(() => view.update(<ChartExceptionsScreen />));
+  expect(text()).toContain('Old sidereal');
+  expect(text()).not.toContain('Loading your charts');
+  expect(view.root.findByType(FlatList).props.refreshing).toBe(false);
 });
