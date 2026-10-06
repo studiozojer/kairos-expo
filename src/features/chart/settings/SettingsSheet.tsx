@@ -3,12 +3,13 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
-import { Action, LinkRow, Note, Row, Section } from '../display/controls';
-import { HOUSE_SYSTEMS, type ChartLocation, type ChartSettings } from './chartSettings';
+import { Action, Choices, LinkRow, Note, Row, Section } from '../display/controls';
+import { HOUSE_SYSTEMS, calculationSettings, withLunarNode, withCalculation, type ChartLocation, type ChartSettings } from './chartSettings';
 import { searchAtlas } from './atlas';
 
 interface Props {
   visible: boolean;
+  scope?: 'defaults' | 'chart';
   settings: ChartSettings;
   saveError: boolean;
   onChange: (next: ChartSettings) => void;
@@ -20,14 +21,14 @@ export function SettingsSheet(props: Props) {
     <SettingsEditor {...props} />
   </ChartSheet>;
 }
-function SettingsEditor({ settings, saveError, onChange, onClose }: Props) {
+export function SettingsEditor({ settings, saveError, onChange, onClose, scope = 'chart' }: Props) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const [page, setPage] = useState<'location' | 'houses' | null>(null);
   return <View style={{ flex: 1, backgroundColor: t.color.bgSolidBase, paddingTop: insets.top, paddingBottom: insets.bottom }}>
-    <SheetHeader title="Settings" closeLabel="Close chart settings" onClose={onClose} />
+    <SheetHeader title={scope === 'defaults' ? 'Default chart settings' : 'Chart settings'} closeLabel="Close chart settings" onClose={onClose} />
     {page && <SheetBackRow title={page === 'location' ? 'Location' : 'House system'} onBack={() => setPage(null)} />}
-    {saveError && <Text accessibilityRole="alert" style={[t.type.whyteXs, { color: t.color.txAccent, paddingHorizontal: t.space.lg }]}>Couldn’t save this open chart’s settings. Retry saving from the chart screen.</Text>}
+    {saveError && <Text accessibilityRole="alert" style={[t.type.whyteXs, { color: t.color.txAccent, paddingHorizontal: t.space.lg }]}>{scope === 'defaults' ? 'Couldn’t save defaults on this device. Choose again to retry.' : 'Couldn’t save this open chart’s settings. Retry saving from the chart screen.'}</Text>}
     {page === 'location' ? <LocationPicker selected={settings.location} onSelect={location => { onChange({ ...settings, location }); setPage(null); }} /> :
       <ScrollView contentContainerStyle={{ padding: t.space.lg }}>
         {page === 'houses' ? <Section title="House system">
@@ -36,8 +37,8 @@ function SettingsEditor({ settings, saveError, onChange, onClose }: Props) {
             <Row label={system}>{settings.houseSystem === system && <Text style={{ color: t.color.txAccent }}>✓</Text>}</Row>
           </Pressable>)}
         </Section> : <>
-          <Note>Changes apply to this open chart only. Saved charts remain unchanged.</Note><Section title="Location"><LinkRow label="Location" detail={settings.location.name} onPress={() => setPage('location')} /></Section>
-          <Section title="Chart"><LinkRow label="House system" detail={settings.houseSystem} onPress={() => setPage('houses')} /></Section>
+          <Note>{scope === 'defaults' ? 'Defaults apply to new charts. Existing saved and open charts keep their settings.' : 'Changes apply to this open chart only. Saved charts remain unchanged.'}</Note><Section title="Location"><LinkRow label="Location" detail={settings.location.name} onPress={() => setPage('location')} /></Section>
+          <Section title="Calculation"><Choices label="Lunar node" value={calculationSettings(settings).lunarNodeType} options={[["Mean", "Mean"], ["True", "True"]]} onChange={node => onChange(withLunarNode(settings, node))} /><Row label="Zodiac" detail="Tropical" /><Choices label="Lilith" value={calculationSettings(settings).blackMoonLilithType} options={[["Mean", "Mean"], ["Osculating", "Osculating"]]} onChange={value => onChange(withCalculation(settings, { blackMoonLilithType: value }))} /><Choices label="Lots" value={calculationSettings(settings).lotCalculationMethod} options={[["Traditional", "Traditional"], ["Fixed", "Fixed"]]} onChange={value => onChange(withCalculation(settings, { lotCalculationMethod: value }))} /><LinkRow label="House system" detail={settings.houseSystem} onPress={() => setPage('houses')} /></Section>
         </>}
       </ScrollView>}
   </View>;

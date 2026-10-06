@@ -1,5 +1,5 @@
 import { normalizeMetadata, type ChartMetadata } from '../library/metadata';
-import { DEFAULT_SETTINGS, HOUSE_SYSTEMS, isLocation, type ChartSettings } from '../settings/chartSettings';
+import { DEFAULT_SETTINGS, HOUSE_SYSTEMS, isLocation, validCalculationSettings, type ChartSettings } from '../settings/chartSettings';
 import { MAX_TIME, MIN_TIME, stepTime, TIME_STEPS } from '../time/timeSteps';
 
 export interface SavedChart { id: string; name: string; datetime: string; settings: ChartSettings; metadata?: ChartMetadata }
@@ -14,7 +14,7 @@ let sequence = 0;
 export const newChartId = () => `${Date.now().toString(36)}-${(++sequence).toString(36)}-${Math.random().toString(36).slice(2)}`;
 export const snapshotSettings = (settings: ChartSettings): ChartSettings => ({ ...settings, location: { ...settings.location } });
 const validTime = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= MIN_TIME && value <= MAX_TIME;
-const validSettings = (value: unknown): value is ChartSettings => !!value && typeof value === 'object' && isLocation((value as ChartSettings).location) && HOUSE_SYSTEMS.includes((value as ChartSettings).houseSystem);
+const validSettings = (value: unknown): value is ChartSettings => !!value && typeof value === 'object' && validCalculationSettings(value) && isLocation((value as ChartSettings).location) && HOUSE_SYSTEMS.includes((value as ChartSettings).houseSystem);
 export function validateDraft(value: ChartDraft) {
   normalizeMetadata(value?.metadata);
   if (!value || typeof value.name !== 'string' || !value.name.trim() || typeof value.datetime !== 'string' || !/Z$/.test(value.datetime) || !validTime(Date.parse(value.datetime)) || !validSettings(value.settings)) throw new Error('Invalid chart name, date, location, or settings');

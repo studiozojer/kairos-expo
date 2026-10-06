@@ -7,6 +7,7 @@ import type { LibrarySyncState } from '../library/types';
 import { syncCharts, SyncInterrupted } from '../library/sync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useChartSettings } from '../settings/useChartSettings';
 import { DEFAULT_SETTINGS, parseSettings, SETTINGS_KEY, type ChartSettings } from '../settings/chartSettings';
 import { TIME_STEPS } from '../time/timeSteps';
 import { useSteppedChart } from '../time/useSteppedChart';
@@ -33,7 +34,9 @@ function useActiveState(scope: string | null, library?: ChartLibraryStore) {
   const [loadAttempt, setLoadAttempt] = useState(0);
   const writes = useRef(Promise.resolve());
   const revision = useRef(0);
+  const appDefaults = useChartSettings();
   const defaults = useRef(DEFAULT_SETTINGS);
+  useEffect(() => { if (appDefaults.loaded) defaults.current = appDefaults.settings; }, [appDefaults.loaded, appDefaults.settings]);
   const mounted = useRef(true);
   const [calculations, setCalculations] = useState<Record<string, PublishedCalculation>>({});
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
@@ -244,7 +247,7 @@ function useActiveState(scope: string | null, library?: ChartLibraryStore) {
     const calculation = calculations[chart.id];
     if (calculation) visibleCalculations[chart.id] = { ...calculation, status: calculation.requestedTime === chart.time && calculation.requestedSettings === chart.settings ? calculation.status : 'loading' };
   }
-  return { ...session, libraryPreferences, setLibrarySort, setFavorite, tagSuggestionsFor, scope, syncState, syncing, syncError, libraryError, anonymousCount, runSync, reloadLibrary, setSyncEnabled, deleteSaved, loaded, saveError, loadError, saving, calculations: visibleCalculations, saveChart, openSaved, addNow, remove, move, moveTo, selectTarget, updateInstanceSettings, step, seek, reset, selectUnit, retryPersistence, retryLoad, publish };
+  return { ...session, defaultSettings: appDefaults.settings, updateDefaultSettings: appDefaults.update, libraryPreferences, setLibrarySort, setFavorite, tagSuggestionsFor, scope, syncState, syncing, syncError, libraryError, anonymousCount, runSync, reloadLibrary, setSyncEnabled, deleteSaved, loaded, saveError, loadError, saving, calculations: visibleCalculations, saveChart, openSaved, addNow, remove, move, moveTo, selectTarget, updateInstanceSettings, step, seek, reset, selectUnit, retryPersistence, retryLoad, publish };
 }
 const Context = createContext<Omit<ReturnType<typeof useActiveState>, 'publish'> | null>(null);
 export function ActiveChartsProvider({ children, library }: { children: ReactNode; library?: ChartLibraryStore }) {

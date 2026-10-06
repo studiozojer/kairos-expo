@@ -6,7 +6,7 @@ import type { SyncRecord } from '../library/types';
 import { archiveRequest } from './api';
 import type { ArchivedChart } from './types';
 
-export const CONVERSION_PROFILE = 'swift-tropical-mean-v1';
+export const CONVERSION_PROFILE = 'swift-tropical-settings-v2';
 export interface ConversionPreview {
   transferId: string; snapshotId: string; profileVersion: string;
   state: 'compatible' | 'needs_review' | 'unsupported' | 'already_added' | 'source_changed' | 'deleted';
@@ -66,7 +66,7 @@ export async function addTransferredChart(preview: ConversionPreview, reviewed: 
 export const conversionReason = (reason: string): string => ({
   confirm_ordinary_chart: 'No saved source setting: confirm use of the stored date and location as an ordinary chart.',
   confirm_tropical_zodiac: 'No saved zodiac setting: confirm Tropical zodiac.',
-  confirm_captured_settings: 'Confirm the captured Mean node, Mean Lilith and Traditional lot settings; historical settings are unknown.',
+  confirm_captured_settings: 'Confirm the captured calculation settings shown for these charts; historical settings are unknown.',
   confirm_stored_favorite: 'Favorite representations disagree: use the stored favorite flag.',
   confirm_empty_tags: 'No tag relationships were captured: use no tags.',
   sidereal_or_unknown_zodiac: 'Sidereal or unknown zodiac is not supported by this conversion.',
@@ -75,6 +75,7 @@ export const conversionReason = (reason: string): string => ({
   derived_or_ephemeral_chart: 'Derived or temporary chart cannot be added with this profile.',
   unsupported_captured_settings: 'Captured node, Lilith or lot settings are not supported.',
   setting_disagreement: 'Stored overrides disagree with supported captured settings.',
+  confirm_millisecond_precision: 'Use the old app’s millisecond calculation precision; the more precise original timestamp stays archived.',
   subsecond_datetime: 'The stored time needs a precision review.',
   date_range: 'Date is outside the supported 1900–2099 range.',
   unsupported_location: 'Coordinates are invalid or outside the verified latitude range.',

@@ -321,3 +321,18 @@ it('validates metadata on save and rolls back malformed incoming pages', async (
   expect((await store.syncState('did:a')).cursor).toBe(0);
   expect((await store.load('did:a', DEFAULT_SETTINGS)).saved).toEqual([]);
 });
+it('retains calculation settings across save, reopen and conflict detection, with a one-time v2 cursor replay', async () => {
+  const { withLunarNode } = jest.requireActual<typeof import('../../settings/chartSettings')>('../../settings/chartSettings');
+  const store = await createChartLibraryStore(sql.db);
+  const saved = await store.saveChart('did:a', { ...draft, settings: withLunarNode(DEFAULT_SETTINGS, 'True') });
+  const restarted = await createChartLibraryStore(sql.db);
+  expect((await restarted.load('did:a', DEFAULT_SETTINGS)).saved[0].settings.lunarNodeType).toBe('True');
+  await store.applyChanges('did:a', [], 10);
+  await store.prepareSettingsSync('did:a'); expect((await store.syncState('did:a')).cursor).toBe(0);
+  await store.applyChanges('did:a', [], 12); await restarted.prepareSettingsSync('did:a');
+  expect((await store.syncState('did:a')).cursor).toBe(12);
+  const stale = { ...draft, settings: withLunarNode(DEFAULT_SETTINGS, 'Mean') };
+  const copy = await store.saveChart('did:a', { ...draft, name: 'Edit', settings: saved.settings }, saved.id, stale);
+  expect(copy.id).not.toBe(saved.id); expect(copy.name).toContain('conflict copy');
+  expect((await store.load('did:a', DEFAULT_SETTINGS)).saved.find(c => c.id === saved.id)?.settings.lunarNodeType).toBe('True');
+});

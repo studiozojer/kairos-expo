@@ -229,3 +229,16 @@ test('recency updates only for successful openings and restores with local sort'
   await act(async () => { await state.setFavorite(first, true); });
   expect(state.saved.find(chart => chart.id === first)?.metadata?.favorite).toBe(true);
 });
+
+test('changing global calculation defaults affects only newly opened charts', async () => {
+  const { withLunarNode, calculationSettings } = jest.requireActual<typeof import('../../settings/chartSettings')>('../../settings/chartSettings');
+  await mount();
+  await act(async () => { await state.saveChart(draft); });
+  const original = state.active[0];
+  await act(async () => { state.updateDefaultSettings(withLunarNode(DEFAULT_SETTINGS, 'True')); });
+  await act(async () => { state.addNow(); });
+  expect(calculationSettings(state.active[0].settings).lunarNodeType).toBe('Mean');
+  expect(state.active[0]).toEqual(original);
+  expect(state.active[1].settings.lunarNodeType).toBe('True');
+  expect(calculationSettings(state.saved[0].settings).lunarNodeType).toBe('Mean');
+});

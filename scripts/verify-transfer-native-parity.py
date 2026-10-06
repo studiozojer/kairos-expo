@@ -10,20 +10,25 @@ out = root / 'artifacts'
 out.mkdir(exist_ok=True)
 systems = ['Whole Sign', 'Placidus', 'Equal', 'Koch', 'Porphyrius', 'Regiomontanus', 'Campanus', 'Meridian', 'Morinus', 'Alcabitus', 'Topocentric', 'Vehlow', 'Equal (MC)']
 bodies = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'MeanNode', 'MeanApogee', 'Chiron', 'Ceres', 'Pallas', 'Juno', 'Vesta', 'Eros', 'Pholus']
-cases = [(date, lat, lon, elevation, house) for house in systems for date, lat, lon, elevation in [
+instants = [
     ('1900-01-01T00:00:00Z', 0, 0, 0),
     ('1950-06-15T12:34:56Z', -33.86, 151.21, 40),
     ('2026-09-13T19:00:00Z', 47.6062, -122.3321, 0),
     ('2099-12-31T23:59:59Z', 60, 15, 1000),
-]]
+    ('1900-01-01T00:00:00.123Z', 0, 0, 0),
+    ('1950-06-15T12:34:56.999Z', -33.86, 151.21, 40),
+    ('2026-09-13T19:00:00.456Z', 47.6062, -122.3321, 0),
+    ('2099-12-31T23:59:59.123Z', 60, 15, 1000),
+]
+cases = [(date, lat, lon, elevation, house, node, lilith, lots)
+    for house in systems for date, lat, lon, elevation in instants
+    for node in ['Mean', 'True'] for lilith in ['Mean', 'Osculating'] for lots in ['Traditional', 'Fixed']]
 for name in ['swift', 'expo']:
     requests = []
-    for date, lat, lon, elevation, house in cases:
-        value = dict(datetime=date, latitude=lat, longitude=lon, elevation=elevation, house_system=house, zodiac_system='Tropical', lunar_node_type='Mean', enabled_bodies=bodies, enabled_stars=[])
-        if name == 'swift':
-            value.update(black_moon_lilith_type='Mean', fortune_calculation_method='Traditional')
-        else:
-            value['chart_kind'] = 'Transit'
+    for date, lat, lon, elevation, house, node, lilith, lots in cases:
+        selected = ['TrueNode' if body == 'MeanNode' and node == 'True' else 'OscuApogee' if body == 'MeanApogee' and lilith == 'Osculating' else body for body in bodies]
+        value = dict(datetime=date, latitude=lat, longitude=lon, elevation=elevation, house_system=house, zodiac_system='Tropical', lunar_node_type=node, black_moon_lilith_type=lilith, fortune_calculation_method=lots, enabled_bodies=selected, enabled_stars=[])
+        if name == 'expo': value['chart_kind'] = 'Transit'
         requests.append(json.dumps(value))
     (out / f'{name}-requests.jsonl').write_text('\n'.join(requests) + '\n')
 
@@ -68,6 +73,6 @@ for old, new in zip(results['swift'], results['expo']):
     assert len(old['houses']['nodes']) == len(new['houses']['nodes']) == 12
     for a, b in zip(old['houses']['nodes'], new['houses']['nodes']):
         close(a['cusp_longitude'], b['cusp_longitude'], True)
-report = {'profileVersion': 'swift-tropical-mean-v1', 'platform': 'ios-arm64-simulator', 'cases': len(cases), 'houses': systems, 'bodies': sorted(old_nodes), 'aspectsCompared': True, 'maxDelta': maximum, 'tolerance': 1e-7, 'libraries': {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in libraries.items()}}
+report = {'profileVersion': 'swift-tropical-settings-v2', 'nodeTypes': ['Mean', 'True'], 'lilithTypes': ['Mean', 'Osculating'], 'lotMethods': ['Traditional', 'Fixed'], 'fractionalSecondsCompared': True, 'platform': 'ios-arm64-simulator', 'cases': len(cases), 'houses': systems, 'bodies': sorted(old_nodes), 'aspectsCompared': True, 'maxDelta': maximum, 'tolerance': 1e-7, 'libraries': {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in libraries.items()}}
 (out / 'native-parity.json').write_text(json.dumps(report, indent=2)+'\n')
 print(json.dumps(report))

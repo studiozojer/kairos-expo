@@ -4,7 +4,7 @@ import { ReplacementChooser } from '../../active/ReplacementChooser';
 import { TextInput } from 'react-native';
 import ChartEditorScreen from '@/app/chart-editor';
 import { Action } from '../../display/controls';
-import { DEFAULT_SETTINGS } from '../../settings/chartSettings';
+import { DEFAULT_SETTINGS, LEGACY_CALCULATION } from '../../settings/chartSettings';
 
 let mockParams: { id?: string; duplicate?: string; fromLibrary?: string } = {};
 const mockRouter = { back: jest.fn(), dismissTo: jest.fn() };
@@ -43,7 +43,7 @@ test('duplicate prefills metadata and time but saves with a new identity and no 
   await act(async () => { view = create(<ChartEditorScreen />); });
   expect(mockState.tagSuggestionsFor).toHaveBeenCalledWith(undefined);
   await press('Save chart');
-  expect(mockState.saveChart).toHaveBeenCalledWith({ name: 'Natal copy', datetime: original.datetime, settings: DEFAULT_SETTINGS, metadata: original.metadata }, undefined, undefined);
+  expect(mockState.saveChart).toHaveBeenCalledWith({ name: 'Natal copy', datetime: original.datetime, settings: { ...DEFAULT_SETTINGS, ...LEGACY_CALCULATION }, metadata: original.metadata }, undefined, undefined);
   expect(original.metadata.tags).toEqual([{ id: 'family', name: 'Family' }]);
 });
 

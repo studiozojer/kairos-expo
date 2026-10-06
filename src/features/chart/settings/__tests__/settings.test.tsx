@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DEFAULT_SETTINGS, parseSettings, SETTINGS_KEY } from '../chartSettings';
@@ -10,7 +11,7 @@ jest.mock('../../../../../modules/kairos', () => ({ searchLocations: jest.fn() }
 const london = { name: 'London, GB', latitude: 51.5085, longitude: -0.1257, elevation: 25, timezone: 'Europe/London' };
 const changed = { location: london, houseSystem: 'Whole Sign' as const };
 let latest: ReturnType<typeof useChartSettings>;
-function Probe() { latest = useChartSettings(); return null; }
+function Probe() { const value = useChartSettings(); useEffect(() => { latest = value; }, [value]); return null; }
 let view: ReactTestRenderer;
 afterEach(() => { if (view) act(() => view.unmount()); jest.restoreAllMocks(); });
 beforeEach(async () => { jest.clearAllMocks(); await AsyncStorage.clear(); });
@@ -62,4 +63,18 @@ test('atlas retains disambiguation, coordinates, elevation and timezone', async 
   ]));
   expect(await searchAtlas(' London ')).toEqual([{ ...london, name: 'London, England, GB' }]);
   expect(searchLocations).toHaveBeenLastCalledWith('London');
+});
+
+test('versioned defaults preserve True node on restart and reject partial or future calculation inputs', async () => {
+  const { withLunarNode, calculationSettings, validCalculationSettings } = jest.requireActual<typeof import('../chartSettings')>('../chartSettings');
+  const trueSettings = withLunarNode(changed, 'True');
+  await act(async () => { view = create(<Probe />); });
+  await act(async () => { latest.update(trueSettings); });
+  act(() => view.unmount());
+  await act(async () => { view = create(<Probe />); });
+  expect(latest.settings).toEqual(trueSettings);
+  expect(chartRequest('2026-09-13T19:00:00Z', latest.settings).lunar_node_type).toBe('True');
+  expect(calculationSettings(changed).lunarNodeType).toBe('Mean');
+  expect(validCalculationSettings({ ...changed, lunarNodeType: 'True' })).toBe(false);
+  expect(() => calculationSettings({ ...trueSettings, settingsVersion: 3 } as never)).toThrow('Unsupported');
 });

@@ -109,7 +109,7 @@ it('keeps local edits made during the request and sends their rebased operation 
   beforeResponse = async () => { await a.saveChart(did, { ...draft, name: 'Edited in flight' }, saved.id); };
   await run(a);
   expect(records.get(saved.id)?.chart?.name).toBe('Edited in flight');
-  expect(calls.slice(0, 2)).toEqual(['/api/chart-sync/v1/push', '/api/chart-sync/v1/push']);
+  expect(calls.slice(0, 2)).toEqual(['/api/chart-sync/v2/push', '/api/chart-sync/v2/push']);
   expect((await a.syncState(did)).conflicts).toBe(0);
 });
 it('rejects out-of-order changes without advancing cursor or replacing local records', async () => {

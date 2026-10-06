@@ -15,6 +15,7 @@ function record(value: unknown): asserts value is SyncRecord {
 export async function syncCharts(store: ChartLibraryStore, did: string, signal: AbortSignal, onChange: () => Promise<void> = async () => {}, session?: SessionSnapshot) {
   let captured = session ?? await captureSession();
   if (!captured || captured.account.did !== did) throw new SyncInterrupted('Sign in to sync this library');
+  await store.prepareSettingsSync(did);
   // Verify token ownership and rotate expiring tokens before binding the pass.
   if (signal.aborted || !(await store.syncState(did)).enabled) throw new SyncInterrupted('Chart sync stopped');
   const renewal = new AbortController();
@@ -36,7 +37,7 @@ export async function syncCharts(store: ChartLibraryStore, did: string, signal: 
     signal.addEventListener('abort', abort);
     const timer = setTimeout(abort, 15000);
     try {
-      const response = await authorizedFetch(`/api/chart-sync/v1${path}`, { ...init, signal: controller.signal }, bound);
+      const response = await authorizedFetch(`/api/chart-sync/v2${path}`, { ...init, signal: controller.signal }, bound);
       if (!response.ok) throw new Error(response.status === 404 ? 'Chart sync is not available on the server yet.' : `Chart sync failed (${response.status}). Your local charts are safe.`);
       const body: unknown = await response.json();
       await guard();

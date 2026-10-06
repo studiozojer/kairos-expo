@@ -9,7 +9,7 @@ import type { ChartTag } from '@/features/chart/library/metadata';
 import { ChartTagEditor } from '@/features/chart/library/ChartTagEditor';
 import { ReplacementChooser } from '@/features/chart/active/ReplacementChooser';
 import { chartDateLabel, localFields, resolveWallTime } from '@/features/chart/active/wallTime';
-import { DEFAULT_SETTINGS, HOUSE_SYSTEMS, isLocation, type ChartLocation } from '@/features/chart/settings/chartSettings';
+import { DEFAULT_SETTINGS, HOUSE_SYSTEMS, isLocation, calculationSettings, withCalculation, type CalculationSettings, type LunarNodeType, type ChartLocation } from '@/features/chart/settings/chartSettings';
 import { searchAtlas } from '@/features/chart/settings/atlas';
 
 function Field({ label, value, onChange, numeric = false }: { label: string; value: string; onChange: (value: string) => void; numeric?: boolean }) {
@@ -40,7 +40,7 @@ function Editor({ saved, duplicate, fromLibrary }: { saved?: SavedChart; duplica
   const state = useActiveCharts();
   const t = useTheme();
   const router = useRouter();
-  const initialSettings = saved?.settings ?? DEFAULT_SETTINGS;
+  const initialSettings = saved?.settings ?? state.defaultSettings ?? DEFAULT_SETTINGS;
   const [initialFields] = useState(() => localFields(saved ? Date.parse(saved.datetime) : Date.now(), initialSettings.location.timezone));
   const [name, setName] = useState(saved ? `${saved.name}${duplicate ? ' copy' : ''}` : '');
   const [metadata, setMetadata] = useState<ChartDraft['metadata']>(() => saved?.metadata ? { favorite: saved.metadata.favorite, tags: saved.metadata.tags.map(tag => ({ ...tag })) } : undefined);
@@ -54,6 +54,9 @@ function Editor({ saved, duplicate, fromLibrary }: { saved?: SavedChart; duplica
   const [elevation, setElevation] = useState(String(initialSettings.location.elevation));
   const [timezone, setTimezone] = useState(initialSettings.location.timezone);
   const [houseSystem, setHouseSystem] = useState(initialSettings.houseSystem);
+  const [lilith, setLilith] = useState<CalculationSettings['blackMoonLilithType']>(calculationSettings(initialSettings).blackMoonLilithType);
+  const [lots, setLots] = useState<CalculationSettings['lotCalculationMethod']>(calculationSettings(initialSettings).lotCalculationMethod);
+  const [lunarNode, setLunarNode] = useState<LunarNodeType>(calculationSettings(initialSettings).lunarNodeType);
   const [fold, setFold] = useState<number | null>(() => {
     if (!saved) return null;
     const candidates = resolveWallTime(initialFields.date, initialFields.clock, initialSettings.location.timezone);
@@ -75,7 +78,7 @@ function Editor({ saved, duplicate, fromLibrary }: { saved?: SavedChart; duplica
   }, [savedId, tagSuggestionsFor, visibleCharts]);
   const editBaseline = useRef<ChartDraft | undefined>(saved && !duplicate ? { name: saved.name, datetime: saved.datetime, settings: saved.settings, ...(saved.metadata ? { metadata: saved.metadata } : {}) } : undefined);
   const [savedSignature, setSavedSignature] = useState<string | null>(null);
-  const draftSignature = JSON.stringify([name, date, clock, locationName, latitude, longitude, elevation, timezone, houseSystem, fold, metadata]);
+  const draftSignature = JSON.stringify([name, date, clock, locationName, latitude, longitude, elevation, timezone, houseSystem, lunarNode, lilith, lots, fold, metadata]);
   const latestDraftSignature = useRef(draftSignature);
   useLayoutEffect(() => { latestDraftSignature.current = draftSignature; }, [draftSignature]);
   const savedMessage = savedSignature === draftSignature;
@@ -116,7 +119,7 @@ function Editor({ saved, duplicate, fromLibrary }: { saved?: SavedChart; duplica
     }
     try {
       setSavingChart(true);
-      const chart = await state.saveChart({ name: name.trim(), datetime: new Date(wall.candidates[fold ?? 0]).toISOString(), settings: { location, houseSystem }, ...(metadata ? { metadata } : {}) }, savedId, editBaseline.current);
+      const chart = await state.saveChart({ name: name.trim(), datetime: new Date(wall.candidates[fold ?? 0]).toISOString(), settings: withCalculation({ ...initialSettings, location, houseSystem }, { lunarNodeType: lunarNode, blackMoonLilithType: lilith, lotCalculationMethod: lots }), ...(metadata ? { metadata } : {}) }, savedId, editBaseline.current);
       if (!mounted.current) return;
       editBaseline.current = { name: chart.name, datetime: chart.datetime, settings: chart.settings, ...(chart.metadata ? { metadata: chart.metadata } : {}) };
       setSavedId(chart.id);
@@ -138,7 +141,7 @@ function Editor({ saved, duplicate, fromLibrary }: { saved?: SavedChart; duplica
       <Section title="Local date and time">
         <Field label="Date · YYYY-MM-DD" value={date} onChange={value => { setDate(value); setFold(null); }} />
         <Field label="Time · HH:mm:ss (24-hour)" value={clock} onChange={value => { setClock(value); setFold(null); }} />
-        <Note>Enter the clock time at the chart’s location, from 1900–2099. The timezone below determines its UTC instant.</Note>
+        <Note>Enter the clock time at the chart’s location, from 1900–2099. Seconds may include up to three decimal digits. The timezone below determines its UTC instant.</Note>
         {wall.candidates.length > 1 && <Choices label="This time occurs twice" value={fold ?? undefined}
           options={wall.candidates.map((time, index) => [index, `${index === 0 ? 'Earlier' : 'Later'} · ${new Date(time).toISOString()}`] as const)} onChange={setFold} />}
         {wall.candidates.length === 1 && <Note>UTC: {new Date(wall.candidates[0]).toISOString()}</Note>}
@@ -157,7 +160,9 @@ function Editor({ saved, duplicate, fromLibrary }: { saved?: SavedChart; duplica
         <Note>For example America/Los_Angeles, Europe/London or UTC. Choosing a new location keeps the entered local clock time.</Note>
       </Section>
       <Section title="Calculation"><Choices label="House system" value={houseSystem} options={HOUSE_SYSTEMS.map(system => [system, system] as const)} onChange={setHouseSystem} />
-        <Note>Tropical zodiac · mean lunar node. These are the calculation modes currently supported.</Note>
+        <Choices label="Lunar node" value={lunarNode} options={[["Mean", "Mean"], ["True", "True"]]} onChange={setLunarNode} />
+        <Choices label="Lilith" value={lilith} options={[["Mean", "Mean"], ["Osculating", "Osculating"]]} onChange={setLilith} /><Choices label="Lots" value={lots} options={[["Traditional", "Traditional"], ["Fixed", "Fixed"]]} onChange={setLots} />
+        <Note>Tropical zodiac. Each saved chart keeps its calculation settings.</Note>
       </Section>
       {error && <Text accessibilityRole="alert" style={[t.type.whyteSm, { color: t.color.txAccent }]}>{error}</Text>}
       {state.saveError ? <><Text accessibilityRole="alert" style={{ color: t.color.txAccent }}>Changes are in memory but could not be saved on this device.</Text><Action label="Retry saving" onPress={state.retryPersistence} /></> :

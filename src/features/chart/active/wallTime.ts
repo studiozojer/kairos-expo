@@ -9,14 +9,18 @@ function parts(format: Intl.DateTimeFormat, time: number) {
 }
 export function localFields(time: number, timezone: string) {
   const p = parts(formatter(timezone), time);
-  return { date: `${p.year}-${p.month}-${p.day}`, clock: `${p.hour}:${p.minute}:${p.second}` };
+  const millis = ((time % 1000) + 1000) % 1000;
+  const fraction = millis ? `.${String(millis).padStart(3, '0')}` : '';
+  return { date: `${p.year}-${p.month}-${p.day}`, clock: `${p.hour}:${p.minute}:${p.second}${fraction}` };
 }
 /** Every candidate must round-trip: nonexistent local times are never normalized. */
 export function resolveWallTime(date: string, clock: string, timezone: string): number[] {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}(:\d{2})?$/.test(clock)) throw new Error('Use YYYY-MM-DD and HH:mm (24-hour time).');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?$/.test(clock)) throw new Error('Use YYYY-MM-DD and HH:mm (24-hour time).');
   const [year, month, day] = date.split('-').map(Number);
-  const [hour, minute, second = 0] = clock.split(':').map(Number);
-  const wall = Date.UTC(year, month - 1, day, hour, minute, second);
+  const [whole, fraction = ''] = clock.split('.');
+  const millis = Number(fraction.padEnd(3, '0'));
+  const [hour, minute, second = 0] = whole.split(':').map(Number);
+  const wall = Date.UTC(year, month - 1, day, hour, minute, second, millis);
   if (year < 1900 || year > 2099 || month < 1 || month > 12 || day < 1 || hour > 23 || minute > 59 || second > 59 ||
     new Date(wall).getUTCDate() !== day) throw new Error('Enter a valid date in 1900–2099 and a valid time.');
   let format: Intl.DateTimeFormat;
@@ -25,7 +29,7 @@ export function resolveWallTime(date: string, clock: string, timezone: string): 
   // Sample either side of the local day to capture both offsets at transitions,
   // including half-hour changes and historical offsets with seconds.
   for (let delta = -48; delta <= 48; delta += 6) {
-    const instant = wall + delta * 3_600_000;
+    const instant = wall - millis + delta * 3_600_000;
     const p = parts(format, instant);
     offsets.add(Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - instant);
   }

@@ -22,8 +22,9 @@ export default function ChartTransfersScreen() {
   const review = conversions.previews.filter(p => p.state === 'needs_review');
   const confirmReview = () => {
     const reasons = [...new Set(review.flatMap(p => p.reasons))];
+    const modes = [...new Set(review.map(p => `${p.chart?.settings.lunarNodeType ?? 'Mean'} node · ${p.chart?.settings.blackMoonLilithType ?? 'Mean'} Lilith · ${p.chart?.settings.lotCalculationMethod ?? 'Traditional'} lots`))];
     Alert.alert('Review charts before adding',
-      `${review.length} charts can be added using these confirmed choices:\n\n${reasons.map(conversionReason).join('\n\n')}\n\nExpo uses Tropical zodiac, Mean node and Mean Lilith. Unsupported settings remain in the archive. Original charts and uploaded snapshots stay intact.`,
+      `${review.length} charts can be added using these confirmed choices:\n\n${reasons.map(conversionReason).join('\n\n')}\n\nThese charts use Tropical zodiac and: ${modes.join('; ')}. Unsupported settings remain in the archive. Original charts and uploaded snapshots stay intact.`,
       [{ text: 'Cancel', style: 'cancel' }, { text: 'Confirm and add', onPress: () => { void conversions.add(review, true); } }]);
   };
   return <View style={{ flex: 1, backgroundColor: t.color.bgSolidBase, padding: t.space.lg }}>

@@ -1,11 +1,10 @@
 import { calculateChart as nativeCalculate } from '../../../../modules/kairos';
 import type { ChartCalculationResponse } from '../config/engine-types';
 
-import { DEFAULT_SETTINGS, type ChartSettings } from '../settings/chartSettings';
-export { DEFAULT_LOCATION } from '../settings/chartSettings';
-
+import { DEFAULT_SETTINGS, calculationSettings, type ChartSettings } from '../settings/chartSettings';
 import { SKY_BODIES } from './skyBodies';
 export { SKY_BODIES } from './skyBodies';
+export { DEFAULT_LOCATION } from '../settings/chartSettings';
 
 export function chartRequest(datetime: string, settings: ChartSettings = DEFAULT_SETTINGS) {
   const time = Date.parse(datetime);
@@ -13,13 +12,14 @@ export function chartRequest(datetime: string, settings: ChartSettings = DEFAULT
   if (!Number.isFinite(time) || time < Date.UTC(1900, 0, 1) || time >= Date.UTC(2100, 0, 1)) {
     throw new Error('Chart time must be between 1900 and 2100.');
   }
+  const calculation = calculationSettings(settings);
   return {
     datetime: new Date(time).toISOString(),
     latitude: settings.location.latitude,
     longitude: settings.location.longitude,
     elevation: settings.location.elevation,
-    chart_kind: 'Transit', house_system: settings.houseSystem, zodiac_system: 'Tropical',
-    lunar_node_type: 'Mean', enabled_bodies: SKY_BODIES, enabled_stars: [],
+    chart_kind: 'Transit', house_system: settings.houseSystem, zodiac_system: calculation.zodiacSystem,
+    lunar_node_type: calculation.lunarNodeType, black_moon_lilith_type: calculation.blackMoonLilithType, fortune_calculation_method: calculation.lotCalculationMethod, enabled_bodies: SKY_BODIES.map(body => body === 'MeanNode' && calculation.lunarNodeType === 'True' ? 'TrueNode' : body === 'MeanApogee' && calculation.blackMoonLilithType === 'Osculating' ? 'OscuApogee' : body), enabled_stars: [],
   };
 }
 
@@ -37,7 +37,7 @@ export async function calculateChart(datetime: string, settings: ChartSettings =
     throw new Error('Invalid chart response from the native engine.');
   }
   const ids = new Set(chart.celestial.nodes.map(n => n.id));
-  if (!SKY_BODIES.every(body => chart.celestial.nodes.some(n => n.body === body)) ||
+  if (!request.enabled_bodies.every(body => chart.celestial.nodes.some(n => n.body === body)) ||
       !chart.celestial.nodes.every(n => typeof n.id === 'string' &&
         Number.isFinite(n.position?.longitude) && Number.isFinite(n.position?.speed_longitude)) ||
       !chart.houses.nodes.every(n => Number.isFinite(n.cusp_longitude)) ||

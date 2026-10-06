@@ -8,7 +8,7 @@ import SavedChartsScreen from '@/app/charts';
 import { ActiveChartCards } from '../ActiveChartCards';
 import { useCardDragSession } from '../useCardDragSession';
 import { Action } from '../../display/controls';
-import { DEFAULT_SETTINGS } from '../../settings/chartSettings';
+import { DEFAULT_SETTINGS, LEGACY_CALCULATION } from '../../settings/chartSettings';
 
 let mockParams: { id?: string } = {};
 const mockRouter = { back: jest.fn(), push: jest.fn(), dismissTo: jest.fn() };
@@ -65,7 +65,7 @@ test('create validates input and saves the chosen local time as UTC before openi
   expect(mockState.saveChart).not.toHaveBeenCalled();
   field('Chart name', 'Natal'); field('Date · YYYY-MM-DD', '1990-07-05'); field('Time · HH:mm:ss (24-hour)', '14:30');
   await act(async () => { action('Save and open').props.onPress(); });
-  expect(mockState.saveChart).toHaveBeenCalledWith({ name: 'Natal', datetime: '1990-07-05T21:30:00.000Z', settings: DEFAULT_SETTINGS }, undefined, undefined);
+  expect(mockState.saveChart).toHaveBeenCalledWith({ name: 'Natal', datetime: '1990-07-05T21:30:00.000Z', settings: { ...DEFAULT_SETTINGS, ...LEGACY_CALCULATION } }, undefined, undefined);
   expect(mockState.openSaved).toHaveBeenCalledWith('saved-1', undefined);
   expect(mockRouter.dismissTo).toHaveBeenCalledWith('/(tabs)/(chart)');
 });
@@ -128,7 +128,7 @@ test('editing a saved fold chart preserves its occurrence when only the name cha
   act(() => { view = create(<ChartEditorScreen />); });
   field('Chart name', 'Renamed');
   await act(async () => { action('Save chart').props.onPress(); });
-  expect(mockState.saveChart).toHaveBeenCalledWith({ name: 'Renamed', datetime: '2026-11-01T09:30:00.000Z', settings: DEFAULT_SETTINGS }, 'fold', { name: 'Fold', datetime: '2026-11-01T09:30:00.000Z', settings: DEFAULT_SETTINGS });
+  expect(mockState.saveChart).toHaveBeenCalledWith({ name: 'Renamed', datetime: '2026-11-01T09:30:00.000Z', settings: { ...DEFAULT_SETTINGS, ...LEGACY_CALCULATION } }, 'fold', { name: 'Fold', datetime: '2026-11-01T09:30:00.000Z', settings: DEFAULT_SETTINGS });
 });
 
 test('a remote deletion keeps the open editor draft and its original baseline', async () => {

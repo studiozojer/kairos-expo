@@ -3,7 +3,7 @@ import { LIBRARY_SORTS, parseLibraryPreferences, type LibraryPreferences, type L
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { openDatabaseAsync } from 'expo-sqlite';
 import { ACTIVE_CHARTS_KEY, initialSession, newChartId, parseSession, removeInstance, snapshotSettings, validateDraft, type ActiveSession, type ChartDraft, type SavedChart } from '../active/model';
-import type { ChartSettings } from '../settings/chartSettings';
+import { calculationSettings, type ChartSettings } from '../settings/chartSettings';
 import type { LibrarySyncState, SyncOperation, SyncRecord, SyncResult } from './types';
 
 type Binding = string | number | null;
@@ -32,6 +32,7 @@ function conflictName(name: string) {
 }
 function sameChart(a: ChartDraft | null, b: ChartDraft) {
   if (!a || a.name !== b.name || a.datetime !== b.datetime || a.settings.houseSystem !== b.settings.houseSystem || !sameMetadata(a.metadata, b.metadata)) return false;
+  if (JSON.stringify(calculationSettings(a.settings)) !== JSON.stringify(calculationSettings(b.settings))) return false;
   const left = a.settings.location, right = b.settings.location;
   return left.name === right.name && left.latitude === right.latitude && left.longitude === right.longitude && left.elevation === right.elevation && left.timezone === right.timezone;
 }
@@ -234,6 +235,16 @@ export class ChartLibraryStore {
   }
   disableSync(did: string): Promise<void> {
     return this.serial(() => this.transaction(async () => { await this.account(did); await this.db.runAsync('UPDATE library_accounts SET enabled=0 WHERE owner=?', did); }));
+  }
+  /** v2 includes records hidden from old clients, so replay the feed once. */
+  prepareSettingsSync(did: string): Promise<void> {
+    return this.serial(() => this.transaction(async () => {
+      const key = `syncProtocol:${did}`;
+      if (await this.db.getFirstAsync('SELECT value FROM library_meta WHERE key=?', key)) return;
+      await this.account(did);
+      await this.db.runAsync('UPDATE library_accounts SET cursor=0 WHERE owner=?', did);
+      await this.db.runAsync('INSERT INTO library_meta(key,value) VALUES(?,?)', key, '2');
+    }));
   }
   syncState(did: string): Promise<LibrarySyncState> {
     return this.serial(async () => {

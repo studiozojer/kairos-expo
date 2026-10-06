@@ -66,3 +66,25 @@ test.each(SKY_ASTEROIDS)('rejects native output silently omitting %s', async bod
   } }));
   await expect(calculateChart(datetime)).rejects.toThrow('Incomplete chart');
 });
+
+test('True node and Osculating Lilith cross the calculation, visibility and glyph boundaries', async () => {
+  const { DEFAULT_SETTINGS, withCalculation } = jest.requireActual<typeof import('../../settings/chartSettings')>('../../settings/chartSettings');
+  const settings = withCalculation(DEFAULT_SETTINGS, { lunarNodeType: 'True', blackMoonLilithType: 'Osculating', lotCalculationMethod: 'Fixed' });
+  const request = chartRequest(datetime, settings);
+  expect(request).toMatchObject({ lunar_node_type: 'True', black_moon_lilith_type: 'Osculating', fortune_calculation_method: 'Fixed' });
+  expect(request.enabled_bodies).toContain('TrueNode'); expect(request.enabled_bodies).not.toContain('MeanNode');
+  expect(request.enabled_bodies).toContain('OscuApogee'); expect(request.enabled_bodies).not.toContain('MeanApogee');
+  const nodes = fixture.celestial.nodes.map(node => ({ ...node, body: node.body === 'MeanNode' ? 'TrueNode' : node.body === 'MeanApogee' ? 'OscuApogee' : node.body }));
+  const output = { ...fixture, celestial: { ...fixture.celestial, nodes } };
+  native.mockResolvedValue(JSON.stringify(output));
+  await expect(calculateChart(datetime, settings)).resolves.toBeDefined();
+  native.mockResolvedValue(JSON.stringify(fixture));
+  await expect(calculateChart(datetime, settings)).rejects.toThrow('Incomplete');
+  let preset = bundledPreset('classic')!.preset;
+  preset = toggleBody(toggleBody(preset, 'North Node', true), 'Black Moon Lilith', true);
+  const placements = buildConfiguration(output, preset).rings.flatMap(r => r.type.kind === 'planets' ? r.type.placements : []);
+  for (const id of ['rahu','blackMoonLilith']) {
+    const placement = placements.find(p => p.bodyId === id);
+    expect(placement).toBeDefined(); expect(GLYPH_ASSETS).toHaveProperty(`celestials/${placement!.glyphAsset}`);
+  }
+});

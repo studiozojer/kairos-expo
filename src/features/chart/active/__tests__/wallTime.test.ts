@@ -25,3 +25,11 @@ describe('chart local-time input', () => {
     expect(() => resolveWallTime('1900-01-01', '00:00', 'Asia/Tokyo')).toThrow('UTC time');
   });
 });
+
+test('fractional times survive local editing and both DST fold occurrences', () => {
+  for (const date of ['2000-01-01T12:00:00.123Z','2026-11-01T08:30:00.456Z','2026-11-01T09:30:00.456Z','1900-01-01T12:00:00.999Z']) {
+    const time = Date.parse(date), fields = localFields(time, 'America/Los_Angeles');
+    expect(resolveWallTime(fields.date, fields.clock, 'America/Los_Angeles')).toContain(time);
+  }
+  expect(() => resolveWallTime('2000-01-01','12:00:00.1234','UTC')).toThrow();
+});
