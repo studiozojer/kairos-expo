@@ -93,3 +93,14 @@ it('clears exception assessments when the account archive is empty', async () =>
   expect(assessed).toHaveBeenCalledWith([]);
   expect(archiveRequest).not.toHaveBeenCalled();
 });
+
+it('publishes already-added destinations once per page rather than once per record', async () => {
+  const library = await createChartLibraryStore(db.db);
+  const previews = Array.from({ length: 20 }, (_, index) => ({ ...preview, transferId: `source-${index}`, snapshotId: `snapshot-${index}`, state: 'already_added', chart: null, destinationChartId: `destination-${index}`, record: { ...record, id: `destination-${index}`, revision: index + 1 } }));
+  const sources = previews.map(p => ({ ...p, name: draft.name })) as unknown as ArchivedChart[];
+  jest.mocked(archiveRequest).mockImplementation(async path => path === '/capabilities' ? { conversionProfile: CONVERSION_PROFILE } : { previews });
+  const changed = jest.fn().mockResolvedValue(undefined);
+  await importAccountArchive(sources, session, signal(), library, changed, () => {});
+  expect((await library.load(session.account.did, DEFAULT_SETTINGS)).saved).toHaveLength(20);
+  expect(changed).toHaveBeenCalledTimes(1);
+});

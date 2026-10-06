@@ -62,6 +62,7 @@ export async function importAccountArchive(records: ArchivedChart[], session: Se
     const previews = await previewConversions(records.slice(start, start + 100), session, signal);
     if (!current()) throw new Error('Account changed');
     result.push(...previews); assessed([...result]);
+    let existingDownloaded = false;
     for (const preview of previews) {
       if (!current()) throw new Error('Account changed');
       let downloaded = false;
@@ -72,12 +73,13 @@ export async function importAccountArchive(records: ArchivedChart[], session: Se
         downloaded = true;
       } else if (preview.record) {
         await library.acceptTransferredChart(session.account.did, preview.record, current);
-        downloaded = true;
+        existingDownloaded = true;
       }
       if (!current()) throw new Error('Account changed');
       assessed([...result]);
       if (downloaded) await changed();
     }
+    if (existingDownloaded) await changed();
   }
   return result;
 }

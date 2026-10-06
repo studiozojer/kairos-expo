@@ -247,7 +247,7 @@ function useActiveState(scope: string | null, library?: ChartLibraryStore) {
     const calculation = calculations[chart.id];
     if (calculation) visibleCalculations[chart.id] = { ...calculation, status: calculation.requestedTime === chart.time && calculation.requestedSettings === chart.settings ? calculation.status : 'loading' };
   }
-  return { ...session, defaultSettings: appDefaults.settings, updateDefaultSettings: appDefaults.update, libraryPreferences, setLibrarySort, setFavorite, tagSuggestionsFor, scope, syncState, syncing, syncError, libraryError, anonymousCount, runSync, reloadLibrary, setSyncEnabled, deleteSaved, loaded, saveError, loadError, saving, calculations: visibleCalculations, saveChart, openSaved, addNow, remove, move, moveTo, selectTarget, updateInstanceSettings, step, seek, reset, selectUnit, retryPersistence, retryLoad, publish };
+  return { ...session, defaultSettings: appDefaults.settings, updateDefaultSettings: appDefaults.update, libraryPreferences, setLibrarySort, setFavorite, tagSuggestionsFor, scope, syncState, syncing, syncError, libraryError, anonymousCount, runSync, reloadLibrary, refreshLibrary, setSyncEnabled, deleteSaved, loaded, saveError, loadError, saving, calculations: visibleCalculations, saveChart, openSaved, addNow, remove, move, moveTo, selectTarget, updateInstanceSettings, step, seek, reset, selectUnit, retryPersistence, retryLoad, publish };
 }
 const Context = createContext<Omit<ReturnType<typeof useActiveState>, 'publish'> | null>(null);
 export function ActiveChartsProvider({ children, library }: { children: ReactNode; library?: ChartLibraryStore }) {

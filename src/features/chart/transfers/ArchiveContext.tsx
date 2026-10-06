@@ -18,9 +18,9 @@ export function ArchiveProvider({ children }: { children: ReactNode }) {
   return <ScopedArchive key={account?.did ?? 'anonymous'} did={account?.did ?? null}>{children}</ScopedArchive>;
 }
 function ScopedArchive({ did, children }: { did: string | null; children: ReactNode }) {
-  const { reloadLibrary } = useActiveCharts();
-  const reloadLibraryRef = useRef(reloadLibrary);
-  useEffect(() => { reloadLibraryRef.current = reloadLibrary; }, [reloadLibrary]);
+  const { refreshLibrary } = useActiveCharts();
+  const refreshLibraryRef = useRef(refreshLibrary);
+  useEffect(() => { refreshLibraryRef.current = refreshLibrary; }, [refreshLibrary]);
   const [records, setRecords] = useState<ArchivedChart[]>([]);
   const [downloading, setDownloading] = useState(false);
   const [settled, setSettled] = useState(!did);
@@ -41,7 +41,7 @@ function ScopedArchive({ did, children }: { did: string | null; children: ReactN
       const session = await captureSession();
       if (!live() || session?.account.did !== did) return;
       const library = await getChartLibrary();
-      const reload = async () => { if (live() && isCurrentSession(session)) await reloadLibraryRef.current(); };
+      const reload = async () => { if (live() && isCurrentSession(session)) await refreshLibraryRef.current(); };
       await downloadAccountCharts(library, session, controller.signal, reload);
       await retrieveArchive(store, did, controller.signal, publish, session);
       const assessments = await importAccountArchive(await store.list(did), session, controller.signal, library, reload, values => {

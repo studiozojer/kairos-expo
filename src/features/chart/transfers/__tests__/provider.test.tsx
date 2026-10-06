@@ -6,6 +6,7 @@ import { downloadAccountCharts } from '../../library/sync';
 import { retrieveArchive } from '../sync';
 import { importAccountArchive } from '../conversion';
 const mockAuth = { ready: true, account: { did: 'did:plc:a' } };
+const mockReloadWithSync = jest.fn();
 let mockReload = jest.fn().mockResolvedValue(undefined);
 const mockStore = { list: jest.fn().mockResolvedValue([]) };
 jest.mock('@/auth/auth-context', () => ({ useAuth: () => mockAuth }));
@@ -15,7 +16,7 @@ jest.mock('../../library/store', () => ({ getChartLibrary: async () => ({}) }));
 jest.mock('../../library/sync', () => ({ downloadAccountCharts: jest.fn() }));
 jest.mock('../sync', () => ({ retrieveArchive: jest.fn() }));
 jest.mock('../conversion', () => ({ importAccountArchive: jest.fn() }));
-jest.mock('../../active/ActiveChartsContext', () => ({ useActiveCharts: () => ({ reloadLibrary: mockReload }) }));
+jest.mock('../../active/ActiveChartsContext', () => ({ useActiveCharts: () => ({ refreshLibrary: mockReload, reloadLibrary: mockReloadWithSync }) }));
 function Probe() {
   const state = useChartArchive();
   return <><Text>{state.scope}</Text><Text>{state.initialLoading ? 'initial-loading' : 'settled'}</Text><Text>{state.error}</Text><Text>{state.previews.map(p => p.transferId).join(',')}</Text><Text onPress={() => void state.refresh()}>retry</Text></>;
@@ -82,4 +83,15 @@ it('keeps existing exceptions visible while a new assessment is pending', async 
   expect(view.root.findAllByType(Text).map(n => n.props.children)).toContain('exception');
   await act(async () => finish());
   expect(view.root.findAllByType(Text).map(n => n.props.children)).not.toContain('exception');
+});
+
+it('publishes incoming pages through local refresh without starting edit sync', async () => {
+  jest.mocked(downloadAccountCharts).mockImplementationOnce(async (_store, _session, _signal, changed) => { await changed!(); });
+  jest.mocked(importAccountArchive).mockImplementationOnce(async (_records, _session, _signal, _library, changed) => {
+    for (let page = 0; page < 3; page++) await changed();
+    return [];
+  });
+  await act(async () => { view = create(<ArchiveProvider><Probe /></ArchiveProvider>); });
+  expect(mockReload).toHaveBeenCalledTimes(4);
+  expect(mockReloadWithSync).not.toHaveBeenCalled();
 });

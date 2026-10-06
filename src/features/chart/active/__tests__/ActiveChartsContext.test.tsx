@@ -1,9 +1,14 @@
 import React from 'react';
+import { AppState } from 'react-native';
 import { createChartLibraryStore, getChartLibrary, type ChartLibraryStore } from '../../library/store';
 import { testDatabase } from '../../library/test-support/sqlite';
 
 jest.mock('../../library/store', () => ({ ...jest.requireActual('../../library/store'), getChartLibrary: jest.fn() }));
 jest.mock('expo-sqlite', () => ({ openDatabaseAsync: jest.fn() }));
+let mockAuth: { ready: boolean; account: { did: string } } | null = null;
+jest.mock('@/auth/auth-context', () => ({ useOptionalAuth: () => mockAuth }));
+jest.mock('../../library/sync', () => ({ ...jest.requireActual('../../library/sync'), syncCharts: jest.fn().mockResolvedValue(undefined) }));
+import { syncCharts } from '../../library/sync';
 let database: ReturnType<typeof testDatabase>;
 let library: ChartLibraryStore;
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
@@ -22,6 +27,7 @@ const draft = { name: 'Natal', datetime: '1990-06-01T12:00:00.000Z', settings: D
 function Probe() { const value = useActiveCharts(); React.useLayoutEffect(() => { state = value; }); return null; }
 const mount = async (injected = true) => { await act(async () => { view = create(<ActiveChartsProvider library={injected ? library : undefined}><Probe /></ActiveChartsProvider>); }); };
 beforeEach(async () => {
+  mockAuth = null;
   await AsyncStorage.clear();
   database = testDatabase();
   library = await createChartLibraryStore(database.db, () => AsyncStorage.getItem(ACTIVE_CHARTS_KEY)); jest.clearAllMocks();
@@ -241,4 +247,25 @@ test('changing global calculation defaults affects only newly opened charts', as
   expect(state.active[0]).toEqual(original);
   expect(state.active[1].settings.lunarNodeType).toBe('True');
   expect(calculationSettings(state.saved[0].settings).lunarNodeType).toBe('Mean');
+});
+
+test('incoming library publications do not start edit sync with synchronization enabled', async () => {
+  const previousAppState = AppState.currentState;
+  AppState.currentState = 'active';
+  mockAuth = { ready: true, account: { did: 'did:plc:a' } };
+  await library.enableSync(mockAuth.account.did, false);
+  await mount();
+  const initialPasses = jest.mocked(syncCharts).mock.calls.length;
+  expect(initialPasses).toBe(1);
+  await act(async () => {
+    for (let page = 0; page < 3; page++) {
+      await library.acceptTransferredChart(mockAuth!.account.did, { id: `incoming-${page}`, revision: page + 1, updatedAt: '2026-10-06T00:00:00Z', chart: { ...draft, name: `Incoming ${page}` } }, () => true);
+      await state.refreshLibrary();
+    }
+  });
+  expect(state.saved).toHaveLength(3);
+  expect(syncCharts).toHaveBeenCalledTimes(initialPasses);
+  await act(async () => { await state.reloadLibrary(); });
+  expect(syncCharts).toHaveBeenCalledTimes(initialPasses + 1);
+  AppState.currentState = previousAppState;
 });
