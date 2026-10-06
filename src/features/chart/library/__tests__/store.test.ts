@@ -336,3 +336,49 @@ it('retains calculation settings across save, reopen and conflict detection, wit
   expect(copy.id).not.toBe(saved.id); expect(copy.name).toContain('conflict copy');
   expect((await store.load('did:a', DEFAULT_SETTINGS)).saved.find(c => c.id === saved.id)?.settings.lunarNodeType).toBe('True');
 });
+
+it('retains downloaded copies on account-upload removal without re-uploading edits or leaking accounts', async () => {
+  const store = await createChartLibraryStore(sql.db);
+  const saved: SyncRecord = { id: 'downloaded', chart: draft, revision: 1, updatedAt: '2026-10-06T00:00:00Z' };
+  await store.acceptTransferredChart('did:a', saved, () => true);
+  await store.enableSync('did:a', false);
+  await store.saveChart('did:a', { ...draft, name: 'Unsent edit' }, saved.id);
+  expect(await store.pending('did:a')).toHaveLength(1);
+  const removal = { ...saved, chart: null, revision: 2, removedFromAccount: true };
+  await store.applyChanges('did:a', [removal], 2);
+  expect((await store.load('did:a', DEFAULT_SETTINGS)).saved).toEqual([{ ...draft, id: saved.id, name: 'Unsent edit' }]);
+  expect(await store.pending('did:a')).toEqual([]);
+  await store.saveChart('did:a', { ...draft, name: 'Device edit after removal' }, saved.id);
+  await store.disableSync('did:a'); await store.enableSync('did:a', false);
+  expect(await store.pending('did:a')).toEqual([]);
+  expect((await store.load('did:b', DEFAULT_SETTINGS)).saved).toEqual([]);
+  const reopened = await createChartLibraryStore(sql.db);
+  await reopened.acceptTransferredChart('did:a', removal, () => true);
+  expect((await reopened.load('did:a', DEFAULT_SETTINGS)).saved[0].name).toBe('Device edit after removal');
+  await reopened.deleteChart('did:a', saved.id);
+  await reopened.acceptTransferredChart('did:a', { ...removal, revision: 3 }, () => true);
+  expect((await reopened.load('did:a', DEFAULT_SETTINGS)).saved).toEqual([]);
+  expect(await reopened.pending('did:a')).toEqual([]);
+});
+it('preserves a device copy when an edit races with account removal and does not create a conflict upload', async () => {
+  const store = await createChartLibraryStore(sql.db);
+  await store.acceptTransferredChart('did:a', { id: 'racing', chart: draft, revision: 1, updatedAt: '2026-10-06T00:00:00Z' }, () => true);
+  await store.enableSync('did:a', false);
+  await store.saveChart('did:a', { ...draft, name: 'Latest edit' }, 'racing');
+  const sent = await store.pending('did:a');
+  await store.applyResults('did:a', sent, [{ operationId: sent[0].operationId, outcome: 'conflict', record: { id: 'racing', chart: null, revision: 2, updatedAt: '2026-10-06T00:00:00Z', removedFromAccount: true } }]);
+  expect((await store.load('did:a', DEFAULT_SETTINGS)).saved.map(c => c.name)).toEqual(['Latest edit']);
+  expect(await store.pending('did:a')).toEqual([]);
+  expect((await store.syncState('did:a')).conflicts).toBe(0);
+});
+it('retains a cached clean copy with edit sync off and keeps ordinary deletions propagating', async () => {
+  const store = await createChartLibraryStore(sql.db);
+  const record: SyncRecord = { id: 'copy', chart: draft, revision: 1, updatedAt: '2026-10-06T00:00:00Z' };
+  await store.acceptTransferredChart('did:a', record, () => true);
+  await store.acceptTransferredChart('did:a', { ...record, revision: 2, chart: null, removedFromAccount: true }, () => true);
+  expect((await store.load('did:a', DEFAULT_SETTINGS)).saved).toHaveLength(1);
+  await store.acceptTransferredChart('did:a', { ...record, id: 'ordinary' }, () => true);
+  await store.applyChanges('did:a', [{ ...record, id: 'ordinary', revision: 3, chart: null }], 3);
+  expect((await store.load('did:a', DEFAULT_SETTINGS)).saved.map(c => c.id)).toEqual(['copy']);
+  await expect(store.acceptTransferredChart('did:a', { ...record, removedFromAccount: true }, () => true)).rejects.toThrow('Invalid account removal');
+});

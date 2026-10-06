@@ -19,6 +19,7 @@ interface Account { enabled: number; cursor: number; last_synced: string | null;
 const ownerKey = (scope: string | null) => scope ?? '';
 function validateRecord(record: SyncRecord) {
   if (!record || typeof record.id !== 'string' || typeof record.updatedAt !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(record.id) || !Number.isSafeInteger(record.revision) || record.revision < 1 || !Number.isFinite(Date.parse(record.updatedAt))) throw new Error('Invalid server chart record');
+  if (record.removedFromAccount !== undefined && (typeof record.removedFromAccount !== 'boolean' || (record.removedFromAccount && record.chart !== null))) throw new Error('Invalid account removal');
   if (record.chart !== null) validateDraft(record.chart);
 }
 
@@ -42,6 +43,7 @@ CREATE TABLE IF NOT EXISTS library_meta (key TEXT PRIMARY KEY, value TEXT NOT NU
 CREATE TABLE IF NOT EXISTS library_records (owner TEXT NOT NULL, id TEXT NOT NULL, content TEXT, revision INTEGER NOT NULL DEFAULT 0, dirty INTEGER NOT NULL DEFAULT 1, PRIMARY KEY(owner,id));
 CREATE TABLE IF NOT EXISTS library_sessions (owner TEXT PRIMARY KEY, session TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS library_accounts (owner TEXT PRIMARY KEY, enabled INTEGER NOT NULL DEFAULT 0, cursor INTEGER NOT NULL DEFAULT 0, last_synced TEXT, conflicts INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS library_account_removals (owner TEXT NOT NULL, id TEXT NOT NULL, PRIMARY KEY(owner,id));
 CREATE TABLE IF NOT EXISTS library_outbox (owner TEXT NOT NULL, chart_id TEXT NOT NULL, operation TEXT NOT NULL, PRIMARY KEY(owner,chart_id));
 `;
 
@@ -109,6 +111,9 @@ export class ChartLibraryStore {
   }
   private async enqueue(row: Row) {
     if (!row.owner || !row.dirty) return;
+    // Removed account uploads remain device copies. Local edits/deletions must
+    // not silently recreate the account copy after a later sync opt-in.
+    if (await this.db.getFirstAsync('SELECT id FROM library_account_removals WHERE owner=? AND id=?', row.owner, row.id)) return;
     // Keeping operations immutable makes a response lost after server commit safe to retry.
     const operation: SyncOperation = { operationId: newChartId(), chartId: row.id, baseRevision: row.revision, chart: row.content === null ? null : JSON.parse(row.content) };
     await this.db.runAsync('INSERT OR IGNORE INTO library_outbox(owner,chart_id,operation) VALUES (?,?,?)', row.owner, row.id, JSON.stringify(operation));
@@ -256,6 +261,13 @@ export class ChartLibraryStore {
   pending(did: string): Promise<SyncOperation[]> {
     return this.serial(async () => (await this.db.getAllAsync<{ operation: string }>('SELECT operation FROM library_outbox WHERE owner=? ORDER BY rowid LIMIT 100', did)).map(row => JSON.parse(row.operation)));
   }
+  private async retainRemovedAccountCopy(did: string, record: SyncRecord, local: Row | null) {
+    await this.db.runAsync('INSERT OR IGNORE INTO library_account_removals(owner,id) VALUES (?,?)', did, record.id);
+    await this.db.runAsync('DELETE FROM library_outbox WHERE owner=? AND chart_id=?', did, record.id);
+    // Retain the latest local content, including unsent edits, and deliberate
+    // local deletions. Keeping the ID also preserves open chart source links.
+    await this.db.runAsync('INSERT INTO library_records(owner,id,content,revision,dirty) VALUES (?,?,?,?,0) ON CONFLICT(owner,id) DO UPDATE SET revision=excluded.revision,dirty=0', did, record.id, local?.content ?? null, record.revision);
+  }
   private async conflict(did: string, local: Row, remote: SyncRecord | null) {
     if (local.content !== null) {
       const content = JSON.parse(local.content) as ChartDraft;
@@ -279,6 +291,7 @@ export class ChartLibraryStore {
         const queued = await this.db.getFirstAsync<{ operation: string }>('SELECT operation FROM library_outbox WHERE owner=? AND chart_id=?', did, operation.chartId);
         if (!queued || JSON.parse(queued.operation).operationId !== operation.operationId) continue;
         const local = (await this.db.getFirstAsync<Row>('SELECT * FROM library_records WHERE owner=? AND id=?', did, operation.chartId))!;
+        if (result.record?.removedFromAccount) { await this.retainRemovedAccountCopy(did, result.record, local); continue; }
         if (result.outcome === 'conflict') { await this.conflict(did, local, result.record); continue; }
         const record = result.record!;
         await this.db.runAsync('DELETE FROM library_outbox WHERE owner=? AND chart_id=?', did, local.id);
@@ -303,6 +316,7 @@ export class ChartLibraryStore {
       for (const record of records) {
         const local = await this.db.getFirstAsync<Row>('SELECT * FROM library_records WHERE owner=? AND id=?', did, record.id);
         if (local && local.revision >= record.revision) continue;
+        if (record.removedFromAccount) { await this.retainRemovedAccountCopy(did, record, local); continue; }
         if (local?.dirty) { await this.conflict(did, local, record); continue; }
         await this.db.runAsync('INSERT INTO library_records(owner,id,content,revision,dirty) VALUES (?,?,?,?,0) ON CONFLICT(owner,id) DO UPDATE SET content=excluded.content,revision=excluded.revision,dirty=0', did, record.id, record.chart === null ? null : JSON.stringify(record.chart), record.revision);
       }
@@ -316,7 +330,9 @@ export class ChartLibraryStore {
       validateRecord(record);
       if (!authorized()) throw new Error('Account changed');
       const local = await this.db.getFirstAsync<Row>('SELECT * FROM library_records WHERE owner=? AND id=?', did, record.id);
-      if (!local?.dirty && (!local || local.revision < record.revision)) {
+      if (record.removedFromAccount && (!local || local.revision < record.revision)) {
+        await this.retainRemovedAccountCopy(did, record, local);
+      } else if (!local?.dirty && (!local || local.revision < record.revision)) {
         await this.db.runAsync('INSERT INTO library_records(owner,id,content,revision,dirty) VALUES(?,?,?,?,0) ON CONFLICT(owner,id) DO UPDATE SET content=excluded.content,revision=excluded.revision,dirty=0', did, record.id, record.chart === null ? null : JSON.stringify(record.chart), record.revision);
       }
       if (!authorized()) throw new Error('Account changed');

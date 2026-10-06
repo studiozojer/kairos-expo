@@ -8,6 +8,7 @@ const validRevision = (n: unknown): n is number => Number.isSafeInteger(n) && (n
 function record(value: unknown): asserts value is SyncRecord {
   const v = value as SyncRecord;
   if (!v || typeof v.id !== 'string' || !v.id || !validRevision(v.revision) || v.revision === 0 || typeof v.updatedAt !== 'string' || !Number.isFinite(Date.parse(v.updatedAt))) throw new Error('Invalid chart sync response');
+  if (v.removedFromAccount !== undefined && (typeof v.removedFromAccount !== 'boolean' || (v.removedFromAccount && v.chart !== null))) throw new Error('Invalid account removal');
   if (v.chart !== null) validateDraft(v.chart);
 }
 
