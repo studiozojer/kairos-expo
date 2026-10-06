@@ -64,6 +64,8 @@ export async function addTransferredChart(preview: ConversionPreview, reviewed: 
 }
 
 export const conversionReason = (reason: string): string => ({
+  source_changed: 'The original changed after import. Your saved copy stays unchanged.',
+  destination_deleted: 'You deleted the saved copy. Importing again will not restore it automatically.',
   confirm_ordinary_chart: 'No saved source setting: confirm use of the stored date and location as an ordinary chart.',
   confirm_tropical_zodiac: 'No saved zodiac setting: confirm Tropical zodiac.',
   confirm_captured_settings: 'Confirm the captured calculation settings shown for these charts; historical settings are unknown.',
