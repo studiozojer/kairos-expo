@@ -14,7 +14,7 @@ import { useTheme } from '@/theme';
  * the OAuth dance, and only a session token ever touches this device (Keychain
  * via expo-secure-store). One account across Kairos and zhouyi.
  *
- * Local charts are usable signed out. Account chart sync requires separate opt-in.
+ * Local charts are usable signed out. Account charts download automatically; edit/upload sync is optional.
  */
 export default function AccountScreen() {
   const theme = useTheme();
@@ -77,10 +77,10 @@ export default function AccountScreen() {
             Signing out stops chart sync and hides this account’s charts on this device. Local charts outside the account remain available.
           </Text>
           <Pressable onPress={() => router.push('/charts')} style={buttonStyle(true)}>
-            <Text style={{ ...theme.type.whyteSm, color: theme.color.txButton }}>Saved charts and sync</Text>
+            <Text style={{ ...theme.type.whyteSm, color: theme.color.txButton }}>Saved charts</Text>
           </Pressable>
           <Pressable onPress={() => router.push('/chart-transfers')} style={buttonStyle(true)}>
-            <Text style={{ ...theme.type.whyteSm, color: theme.color.txButton }}>Charts transferred from the old app</Text>
+            <Text style={{ ...theme.type.whyteSm, color: theme.color.txButton }}>Chart exceptions</Text>
           </Pressable>
           {error && <Text accessibilityRole="alert" style={{ color: theme.color.txError }}>{error}</Text>}
           <Pressable onPress={() => { void signOut().catch(() => Alert.alert('Could not finish signing out', 'The saved session could not be cleared from this device. Please try again.', [{ text: 'Retry', onPress: () => { void signOut().catch(() => Alert.alert('Sign-out failed', 'Device storage is unavailable. Try again when it is available.')); } }])); }} style={buttonStyle(true)}>

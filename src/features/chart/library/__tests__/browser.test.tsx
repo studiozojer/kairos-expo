@@ -15,10 +15,12 @@ const mockState = {
 jest.mock('expo-router', () => ({ Stack: { Screen: () => null }, useRouter: () => mockRouter }));
 jest.mock('../../active/ActiveChartsContext', () => ({ useActiveCharts: () => mockState }));
 jest.mock('../LibrarySyncSettings', () => ({ LibrarySyncSettings: () => null }));
+const mockAccountCharts = { scope: 'did:plc:a', records: [{ transferId: 'bad', snapshotId: 'bad' }] as any[], previews: [] as any[], downloading: false, initialLoading: false, error: null as string | null, refresh: jest.fn() };
+jest.mock('../../transfers/ArchiveContext', () => ({ useAccountCharts: () => mockAccountCharts }));
 let view: ReactTestRenderer;
 const press = (label: string) => act(() => view.root.findAll(node => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')[0].props.onPress());
 const chart = (id: string, name: string, tag?: string): SavedChart => ({ id, name, datetime: '2000-01-01T12:00:00Z', settings: DEFAULT_SETTINGS, metadata: { favorite: false, tags: tag ? [{ id: tag, name: tag }] : [] } });
-beforeEach(() => { jest.clearAllMocks(); mockState.loaded = true; mockState.syncing = false; mockState.saved = [chart('a', 'Alice', 'Family'), chart('b', 'Bob', 'Work')]; mockState.openSaved.mockReturnValue(true); act(() => { view = create(<SavedChartsScreen />); }); });
+beforeEach(() => { jest.clearAllMocks(); mockAccountCharts.downloading = false; mockAccountCharts.initialLoading = false; mockAccountCharts.error = null; mockAccountCharts.previews = []; mockState.loaded = true; mockState.syncing = false; mockState.saved = [chart('a', 'Alice', 'Family'), chart('b', 'Bob', 'Work')]; mockState.openSaved.mockReturnValue(true); act(() => { view = create(<SavedChartsScreen />); }); });
 afterEach(() => act(() => view.unmount()));
 test('search intersects tags and cancels without losing tag selection', () => {
   press('Filter: Family');
@@ -113,4 +115,28 @@ test('title and filters are outside the refreshable list', () => {
   expect(view.root.findAll(node => node.props.accessibilityRole === 'header').some(node => node.props.children === 'Saved Charts')).toBe(true);
   press('Filter: Family');
   expect(view.root.findAllByType(LibraryRow).map(row => row.props.chart.id)).toEqual(['a']);
+});
+
+test('waits for first account retrieval before showing an empty library and keeps cached rows on failure', () => {
+  mockState.saved = []; mockAccountCharts.initialLoading = true;
+  act(() => view.update(<SavedChartsScreen />));
+  const allText = () => view.root.findAllByType(Text).map(n => n.props.children).flat().join(' ');
+  expect(allText()).toContain('Loading your charts'); expect(allText()).not.toContain('No saved charts yet');
+  mockAccountCharts.initialLoading = false; mockAccountCharts.downloading = true;
+  act(() => view.update(<SavedChartsScreen />));
+  expect(allText()).not.toContain('No saved charts yet');
+  mockAccountCharts.downloading = false; mockAccountCharts.error = 'Couldn’t load all your account charts.';
+  mockState.saved = [chart('a', 'Cached')];
+  act(() => view.update(<SavedChartsScreen />));
+  expect(view.root.findAllByType(LibraryRow)).toHaveLength(1);
+  expect(allText()).toContain('Retry loading charts');
+});
+test('keeps the exception link visible independently of library search and filters', () => {
+  mockAccountCharts.previews = [{ transferId: 'bad', snapshotId: 'bad', state: 'unsupported' }, { state: 'deleted' }];
+  act(() => view.update(<SavedChartsScreen />));
+  press('Search charts');
+  act(() => view.root.findByType(TextInput).props.onChangeText('no match'));
+  const link = view.root.findAll(n => n.props.accessibilityRole === 'button' && typeof n.props.onPress === 'function').find(n => n.findAllByType(Text).some(t => t.props.children === '1 chart exception'))!;
+  act(() => link.props.onPress());
+  expect(mockRouter.push).toHaveBeenCalledWith('/chart-transfers');
 });

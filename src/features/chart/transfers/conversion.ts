@@ -6,7 +6,7 @@ import type { SyncRecord } from '../library/types';
 import { archiveRequest } from './api';
 import type { ArchivedChart } from './types';
 
-export const CONVERSION_PROFILE = 'swift-tropical-settings-v2';
+export const CONVERSION_PROFILE = 'swift-tropical-automatic-v3';
 export interface ConversionPreview {
   transferId: string; snapshotId: string; profileVersion: string;
   state: 'compatible' | 'needs_review' | 'unsupported' | 'already_added' | 'source_changed' | 'deleted';
@@ -35,25 +35,13 @@ export async function previewConversions(records: ArchivedChart[], session: Sess
   return previews;
 }
 
-/** Recover saved destinations after a lost acknowledgement or on another device.
- * This only downloads existing account charts, and never enables normal sync. */
-export async function retrieveConvertedDestinations(records: ArchivedChart[], session: SessionSnapshot, signal: AbortSignal, library: ChartLibraryStore) {
-  const destinations = records.filter(record => record.destinationChartId !== null);
-  if (!destinations.length) return;
-  for (const preview of await previewConversions(destinations, session, signal)) {
-    const source = destinations.find(r => r.transferId === preview.transferId)!;
-    if (!preview.record || preview.record.id !== source.destinationChartId) throw new Error('Saved destination changed. Refresh the archive.');
-    await library.acceptTransferredChart(session.account.did, preview.record, () => !signal.aborted && isCurrentSession(session));
-  }
-}
-
-export async function addTransferredChart(preview: ConversionPreview, reviewed: boolean, session: SessionSnapshot, signal: AbortSignal, library: ChartLibraryStore) {
-  if (!['compatible', 'needs_review'].includes(preview.state) || (preview.state === 'needs_review' && !reviewed) || preview.profileVersion !== CONVERSION_PROFILE) throw new Error('Review compatibility before adding this chart');
-  // The same source/version/review decision keeps its operation ID across app
+export async function addTransferredChart(preview: ConversionPreview, session: SessionSnapshot, signal: AbortSignal, library: ChartLibraryStore) {
+  if (preview.state !== 'compatible' || preview.profileVersion !== CONVERSION_PROFILE) throw new Error('This chart needs additional compatibility support');
+  // The same source/version/automatic policy keeps its operation ID across app
   // restarts and ambiguous replies. Account ownership still comes from auth.
-  const hash = await digestStringAsync(CryptoDigestAlgorithm.SHA256, `${CONVERSION_PROFILE}:${session.account.did}:${preview.snapshotId}:${reviewed}`);
+  const hash = await digestStringAsync(CryptoDigestAlgorithm.SHA256, `${CONVERSION_PROFILE}:${session.account.did}:${preview.snapshotId}:automatic`);
   const operationId = `${hash.slice(0,8)}-${hash.slice(8,12)}-${hash.slice(12,16)}-${hash.slice(16,20)}-${hash.slice(20,32)}`;
-  const result = await archiveRequest('/conversions', session, signal, { method: 'POST', body: JSON.stringify({ operationId, snapshotId: preview.snapshotId, classifierVersion: 'swift-preservation-v1', profileVersion: CONVERSION_PROFILE, acknowledgeReview: reviewed }) }) as {
+  const result = await archiveRequest('/conversions', session, signal, { method: 'POST', body: JSON.stringify({ operationId, snapshotId: preview.snapshotId, classifierVersion: 'swift-preservation-v1', profileVersion: CONVERSION_PROFILE, acknowledgeReview: false }) }) as {
     receipt: { operationId: string; snapshotId: string; transferId: string; profileVersion: string; destinationChartId: string; status: string }; record: SyncRecord;
   };
   const receipt = result?.receipt;
@@ -63,33 +51,33 @@ export async function addTransferredChart(preview: ConversionPreview, reviewed: 
   return result.record;
 }
 
-export const conversionReason = (reason: string): string => ({
-  source_changed: 'The original changed after import. Your saved copy stays unchanged.',
-  destination_deleted: 'You deleted the saved copy. Importing again will not restore it automatically.',
-  confirm_ordinary_chart: 'No saved source setting: confirm use of the stored date and location as an ordinary chart.',
-  confirm_tropical_zodiac: 'No saved zodiac setting: confirm Tropical zodiac.',
-  confirm_captured_settings: 'Confirm the captured calculation settings shown for these charts; historical settings are unknown.',
-  confirm_stored_favorite: 'Favorite representations disagree: use the stored favorite flag.',
-  confirm_empty_tags: 'No tag relationships were captured: use no tags.',
-  sidereal_or_unknown_zodiac: 'Sidereal or unknown zodiac is not supported by this conversion.',
-  derived_or_unknown_source: 'Derived or unknown chart source needs additional support.',
-  source_input_disagreement: 'Stored source inputs disagree with the chart fields.',
-  derived_or_ephemeral_chart: 'Derived or temporary chart cannot be added with this profile.',
-  unsupported_captured_settings: 'Captured node, Lilith or lot settings are not supported.',
-  setting_disagreement: 'Stored overrides disagree with supported captured settings.',
-  confirm_millisecond_precision: 'Use the old app’s millisecond calculation precision; the more precise original timestamp stays archived.',
-  subsecond_datetime: 'The stored time needs a precision review.',
-  date_range: 'Date is outside the supported 1900–2099 range.',
-  unsupported_location: 'Coordinates are invalid or outside the verified latitude range.',
-  unknown_house_system: 'House system is missing or unsupported.',
-  metadata_limit: 'Name, location or timezone needs review.',
-  unresolved_tags: 'Some saved tag names lack matching tag records.',
-  unsupported_tags: 'Tags exceed the supported limits or contain conflicts.',
-  unreadable_zodiac: 'The original zodiac data could not be read.',
-  unreadable_source: 'The original source data could not be read.',
-  unknown_source_version: 'The source format needs additional support.',
-  unknown_chart_kind: 'The chart type needs additional compatibility support.',
-  unknown_timezone: 'The saved timezone is not supported.',
-  invalid_destination: 'The saved fields cannot be represented in Saved Charts.',
-  invalid_favorite: 'The stored favorite flag is invalid.',
-}[reason] ?? 'This record needs additional compatibility support.');
+/** Assess and ingest without user-facing migration steps or fabricated review. */
+export async function importAccountArchive(records: ArchivedChart[], session: SessionSnapshot, signal: AbortSignal, library: ChartLibraryStore, changed: () => Promise<void>, assessed: (previews: ConversionPreview[]) => void) {
+  const current = () => !signal.aborted && isCurrentSession(session);
+  // Each page publishes exceptions and saved charts before the next page.
+  const result: ConversionPreview[] = [];
+  if (!current()) throw new Error('Account changed');
+  assessed([]);
+  for (let start = 0; start < records.length; start += 100) {
+    const previews = await previewConversions(records.slice(start, start + 100), session, signal);
+    if (!current()) throw new Error('Account changed');
+    result.push(...previews); assessed([...result]);
+    for (const preview of previews) {
+      if (!current()) throw new Error('Account changed');
+      let downloaded = false;
+      if (preview.state === 'compatible') {
+        const record = await addTransferredChart(preview, session, signal, library);
+        const index = result.findIndex(p => p.transferId === preview.transferId);
+        result[index] = { ...preview, state: 'already_added', chart: null, destinationChartId: record.id, record };
+        downloaded = true;
+      } else if (preview.record) {
+        await library.acceptTransferredChart(session.account.did, preview.record, current);
+        downloaded = true;
+      }
+      if (!current()) throw new Error('Account changed');
+      assessed([...result]);
+      if (downloaded) await changed();
+    }
+  }
+  return result;
+}

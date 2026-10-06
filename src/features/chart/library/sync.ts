@@ -85,3 +85,32 @@ export async function syncCharts(store: ChartLibraryStore, did: string, signal: 
     }
   }
 }
+
+/** Account downloads are automatic; optional edit/upload sync remains separate.
+ * Replay from zero safely through guarded ingestion, without touching its cursor/outbox. */
+export async function downloadAccountCharts(store: ChartLibraryStore, session: SessionSnapshot, signal: AbortSignal, changed: () => Promise<void> = async () => {}) {
+  const current = () => !signal.aborted && isCurrentSession(session);
+  let cursor = 0;
+  for (let page = 0; page < 1000; page++) {
+    if (!current()) throw new SyncInterrupted('Account changed');
+    const controller = new AbortController(), abort = () => controller.abort();
+    signal.addEventListener('abort', abort);
+    const timer = setTimeout(abort, 15000);
+    let body: { records: SyncRecord[]; cursor: number; hasMore: boolean };
+    try {
+      const response = await authorizedFetch(`/api/chart-sync/v2/changes?cursor=${cursor}&limit=100`, { signal: controller.signal }, session);
+      if (!response.ok) throw new Error('Could not load account charts');
+      body = await response.json();
+    } finally { clearTimeout(timer); signal.removeEventListener('abort', abort); }
+    if (!current() || !Array.isArray(body.records) || body.records.length > 100 || !validRevision(body.cursor) || typeof body.hasMore !== 'boolean') throw new Error('Invalid account chart download');
+    let previous = cursor;
+    // Validate the whole page before allowing any chart to enter the library.
+    for (const item of body.records) { record(item); if (item.revision <= previous) throw new Error('Invalid account chart order'); previous = item.revision; }
+    if (body.cursor !== previous || (body.hasMore && !body.records.length)) throw new Error('Invalid account chart cursor');
+    for (const item of body.records) await store.acceptTransferredChart(session.account.did, item, current);
+    cursor = body.cursor;
+    await changed();
+    if (!body.hasMore) return;
+  }
+  throw new Error('Account chart download will continue on retry');
+}

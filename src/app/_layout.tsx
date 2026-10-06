@@ -73,7 +73,7 @@ export default function RootLayout() {
             <Stack.Screen name="charts" options={{ presentation: 'formSheet', headerShown: false, sheetAllowedDetents: [1], sheetGrabberVisible: true, contentStyle: { backgroundColor: 'transparent' } }} />
             <Stack.Screen name="chart-editor" options={{ title: 'Chart', presentation: 'modal' }} />
             <Stack.Screen name="chart-defaults" options={{ title: "Default chart settings" }} />
-            <Stack.Screen name="chart-transfers" options={{ title: 'Transferred charts' }} />
+            <Stack.Screen name="chart-transfers" options={{ title: 'Chart exceptions' }} />
             <Stack.Screen name="account" options={{ title: 'Account', presentation: 'modal' }} />
           </Stack>
           </ArchiveProvider>

@@ -23,7 +23,7 @@ export function LibrarySyncSettings() {
       <Note>Charts are saved on this device. Sign in with ATProto to optionally sync them across devices. Signing in does not upload anything.</Note>
       <Action label="Sign in for chart sync" onPress={() => router.push('/account')} />
     </> : <>
-      <Note>{state.syncState?.enabled ? 'Sync is enabled for this account. Local charts are included only with your permission.' : 'Charts save on this device. Sync is off for this account.'}</Note>
+      <Note>{state.syncState?.enabled ? 'Your account charts download automatically. Edit sync is enabled; local charts are included only with your permission.' : 'Your account charts download automatically. Syncing edits and uploading local charts is off.'}</Note>
       {state.syncState?.enabled ? <>
         <Note>{state.syncing ? 'Syncing charts…' : state.syncState.pending ? `${state.syncState.pending} change${state.syncState.pending === 1 ? '' : 's'} waiting to sync.` : state.syncState.lastSyncedAt ? `Last synced ${new Date(state.syncState.lastSyncedAt).toLocaleString()}.` : 'Waiting for the first sync.'}</Note>
         <Action label="Sync now" onPress={() => void state.runSync()} />
@@ -32,7 +32,7 @@ export function LibrarySyncSettings() {
           { text: 'Cancel', style: 'cancel' }, { text: 'Pause sync', onPress: () => { void state.setSyncEnabled(false); } },
         ])} />
       </> : <Action label="Enable chart sync" onPress={enable} />}
-      <Action label="Charts transferred from the old app" onPress={() => router.push('/chart-transfers')} />
+      <Action label="Chart exceptions" onPress={() => router.push('/chart-transfers')} />
       {!!state.syncState?.conflicts && <Note>Conflicting changes were preserved. Look for charts named “(conflict copy)”. A conflicting deletion keeps the other device’s version.</Note>}
       {state.syncError && <Note>{state.syncError} Your charts remain available on this device. Sync retries while the app is open.</Note>}
     </>}

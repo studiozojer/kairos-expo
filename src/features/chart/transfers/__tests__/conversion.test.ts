@@ -1,6 +1,6 @@
 import { isCurrentSession, type SessionSnapshot } from '@/auth/session';
 import { archiveRequest } from '../api';
-import { addTransferredChart, previewConversions, retrieveConvertedDestinations, CONVERSION_PROFILE, type ConversionPreview } from '../conversion';
+import { addTransferredChart, previewConversions, importAccountArchive, CONVERSION_PROFILE, type ConversionPreview } from '../conversion';
 import type { ArchivedChart } from '../types';
 import { createChartLibraryStore } from '../../library/store';
 import { testDatabase } from '../../library/test-support/sqlite';
@@ -12,13 +12,13 @@ jest.mock('../api', () => ({ archiveRequest: jest.fn() }));
 jest.mock('expo-crypto', () => ({ CryptoDigestAlgorithm: { SHA256: 'SHA256' }, digestStringAsync: async (_: string, value: string) => jest.requireActual<typeof import('node:crypto')>('node:crypto').createHash('sha256').update(value).digest('hex') }));
 const session = { account: { did: 'did:plc:a', handle: 'test' }, token: 'token', generation: 1 } as SessionSnapshot;
 const draft = { name: 'Original', datetime: '2000-01-01T12:00:00.000Z', settings: DEFAULT_SETTINGS };
-const preview: ConversionPreview = { transferId: 'source', snapshotId: 'snapshot', profileVersion: CONVERSION_PROFILE, state: 'needs_review', reasons: ['confirm_ordinary_chart'], chart: draft, destinationChartId: null, record: null };
+const preview: ConversionPreview = { transferId: 'source', snapshotId: 'snapshot', profileVersion: CONVERSION_PROFILE, state: 'compatible', reasons: [], chart: draft, destinationChartId: null, record: null };
 const record = { id: 'destination', revision: 1, updatedAt: '2026-10-02T00:00:00Z', chart: draft };
 let db: ReturnType<typeof testDatabase>;
 beforeEach(() => { jest.clearAllMocks(); db = testDatabase(); jest.mocked(isCurrentSession).mockReturnValue(true); });
 afterEach(() => db.close());
 const signal = () => new AbortController().signal;
-it('requires review, retains stable retry IDs and downloads without enabling sync or advancing its cursor', async () => {
+it('automatically imports, retains stable retry IDs and downloads without enabling sync or advancing its cursor', async () => {
   const library = await createChartLibraryStore(db.db);
   const operations: string[] = [];
   jest.mocked(archiveRequest).mockImplementation(async (_path, _session, _signal, init) => {
@@ -26,10 +26,8 @@ it('requires review, retains stable retry IDs and downloads without enabling syn
     if (operations.length === 1) throw new Error('Lost acknowledgement');
     return { receipt: { ...request, transferId: preview.transferId, status: 'added', destinationChartId: record.id }, record };
   });
-  await expect(addTransferredChart(preview, false, session, signal(), library)).rejects.toThrow('Review');
-  expect(archiveRequest).not.toHaveBeenCalled();
-  await expect(addTransferredChart(preview, true, session, signal(), library)).rejects.toThrow('Lost');
-  await addTransferredChart(preview, true, session, signal(), library);
+  await expect(addTransferredChart(preview, session, signal(), library)).rejects.toThrow('Lost');
+  await addTransferredChart(preview, session, signal(), library);
   expect(operations[0]).toEqual(operations[1]);
   expect((await library.load(session.account.did, DEFAULT_SETTINGS)).saved).toHaveLength(1);
   expect(await library.pending(session.account.did)).toEqual([]);
@@ -54,7 +52,7 @@ it('recovers existing destinations after acknowledgement loss with ordinary sync
   const library = await createChartLibraryStore(db.db);
   const source = { ...preview, name: draft.name, destinationChartId: record.id } as unknown as ArchivedChart;
   jest.mocked(archiveRequest).mockImplementation(async path => path === '/capabilities' ? { conversionProfile: CONVERSION_PROFILE } : { previews: [{ ...preview, state: 'already_added', chart: null, destinationChartId: record.id, record }] });
-  await retrieveConvertedDestinations([source], session, signal(), library);
+  await importAccountArchive([source], session, signal(), library, async () => {}, () => {});
   expect((await library.load(session.account.did, DEFAULT_SETTINGS)).saved[0].id).toBe(record.id);
   expect((await library.syncState(session.account.did)).enabled).toBe(false);
   expect(jest.mocked(archiveRequest).mock.calls.every(([path]) => path !== '/conversions')).toBe(true);
@@ -64,9 +62,34 @@ it('rejects mismatched assessments, unsupported additions and stale account ackn
   const source = { ...preview, name: draft.name } as unknown as ArchivedChart;
   jest.mocked(archiveRequest).mockImplementation(async path => path === '/capabilities' ? { conversionProfile: CONVERSION_PROFILE } : { previews: [{ ...preview, transferId: 'wrong' }] });
   await expect(previewConversions([source], session, signal())).rejects.toThrow('Invalid compatibility');
-  await expect(addTransferredChart({ ...preview, state: 'unsupported' }, true, session, signal(), library)).rejects.toThrow('Review');
+  await expect(addTransferredChart({ ...preview, state: 'unsupported' }, session, signal(), library)).rejects.toThrow('compatibility');
   jest.mocked(archiveRequest).mockImplementation(async (_path, _session, _signal, init) => ({ receipt: { ...JSON.parse(init!.body as string), transferId: preview.transferId, status: 'added', destinationChartId: record.id }, record }));
   jest.mocked(isCurrentSession).mockReturnValue(false);
-  await expect(addTransferredChart(preview, true, session, signal(), library)).rejects.toThrow('Account changed');
+  await expect(addTransferredChart(preview, session, signal(), library)).rejects.toThrow('Account changed');
   expect((await library.load(session.account.did, DEFAULT_SETTINGS)).saved).toEqual([]);
+});
+
+it('automatically imports supported records and publishes exceptions without any confirmation', async () => {
+  const library = await createChartLibraryStore(db.db);
+  const sources = [{ ...preview, name: 'Good' }, { ...preview, transferId: 'bad', snapshotId: 'bad', name: 'Bad' }] as unknown as ArchivedChart[];
+  const assessments: ConversionPreview[][] = [];
+  jest.mocked(archiveRequest).mockImplementation(async (path, _session, _signal, init) => {
+    if (path === '/capabilities') return { conversionProfile: CONVERSION_PROFILE };
+    if (path === '/conversion-previews') return { previews: [preview, { ...preview, transferId: 'bad', snapshotId: 'bad', state: 'unsupported', reasons: ['date_range'], chart: null }] };
+    const request = JSON.parse(init!.body as string);
+    expect(request.acknowledgeReview).toBe(false);
+    return { receipt: { ...request, transferId: preview.transferId, status: 'added', destinationChartId: record.id }, record };
+  });
+  const result = await importAccountArchive(sources, session, signal(), library, async () => {}, values => assessments.push(values));
+  expect(result.map(p => p.state)).toEqual(['already_added', 'unsupported']);
+  expect((await library.load(session.account.did, DEFAULT_SETTINGS)).saved).toHaveLength(1);
+  expect(assessments.length).toBeGreaterThan(1);
+  expect((await library.syncState(session.account.did)).enabled).toBe(false);
+});
+
+it('clears exception assessments when the account archive is empty', async () => {
+  const library = await createChartLibraryStore(db.db), assessed = jest.fn();
+  await importAccountArchive([], session, signal(), library, async () => {}, assessed);
+  expect(assessed).toHaveBeenCalledWith([]);
+  expect(archiveRequest).not.toHaveBeenCalled();
 });

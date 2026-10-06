@@ -3,7 +3,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn
 jest.mock('@/auth/session', () => ({ authorizedFetch: jest.fn(), captureSession: jest.fn(), isCurrentSession: jest.fn(), renewSession: jest.fn() }));
 import { authorizedFetch, captureSession, isCurrentSession, renewSession, type SessionSnapshot } from '@/auth/session';
 import { createChartLibraryStore, type ChartLibraryStore } from '../store';
-import { syncCharts, SyncInterrupted } from '../sync';
+import { syncCharts, SyncInterrupted, downloadAccountCharts } from '../sync';
 import { testDatabase } from '../test-support/sqlite';
 import { DEFAULT_SETTINGS } from '../../settings/chartSettings';
 import type { SyncOperation, SyncRecord, SyncResult } from '../types';
@@ -120,5 +120,31 @@ it('rejects out-of-order changes without advancing cursor or replacing local rec
   ], cursor: 2, hasMore: false }) } as Response);
   await expect(run(a)).rejects.toThrow('Out-of-order');
   expect((await a.syncState(did)).cursor).toBe(0);
+  expect((await a.load(did, DEFAULT_SETTINGS)).saved).toEqual([]);
+});
+
+it('downloads account records with edit sync paused, preserving outbox, edits and deletions', async () => {
+  const a = await client(); await a.disableSync(did);
+  records.set('remote', { id: 'remote', revision: 1, chart: draft, updatedAt: '2026-10-06T00:00:00Z' });
+  await downloadAccountCharts(a, current, new AbortController().signal);
+  expect((await a.load(did, DEFAULT_SETTINGS)).saved.map(c => c.id)).toEqual(['remote']);
+  expect(await a.syncState(did)).toMatchObject({ enabled: false, cursor: 0 });
+  await a.saveChart(did, { ...draft, name: 'My edit' }, 'remote');
+  const before = await a.pending(did);
+  records.set('remote', { ...records.get('remote')!, revision: 2, chart: { ...draft, name: 'Server edit' } });
+  await downloadAccountCharts(a, current, new AbortController().signal);
+  expect((await a.load(did, DEFAULT_SETTINGS)).saved[0].name).toBe('My edit');
+  expect(await a.pending(did)).toEqual(before);
+  await a.deleteChart(did, 'remote');
+  await downloadAccountCharts(a, current, new AbortController().signal);
+  expect((await a.load(did, DEFAULT_SETTINGS)).saved).toEqual([]);
+  expect(calls.some(path => path.endsWith('/push'))).toBe(false);
+});
+it('does not ingest an account download after sign-out', async () => {
+  const a = await client(); await a.disableSync(did);
+  records.set('remote', { id: 'remote', revision: 1, chart: draft, updatedAt: '2026-10-06T00:00:00Z' });
+  const captured = current;
+  beforeResponse = async () => { current = { ...current, generation: 2, account: { ...current.account, did: 'did:plc:other' } }; };
+  await expect(downloadAccountCharts(a, captured, new AbortController().signal)).rejects.toThrow();
   expect((await a.load(did, DEFAULT_SETTINGS)).saved).toEqual([]);
 });

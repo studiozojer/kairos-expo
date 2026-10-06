@@ -13,12 +13,16 @@ import { LibraryIcon } from '@/features/chart/library/LibraryIcon';
 import { LibraryRow, type LibraryRowAction } from '@/features/chart/library/LibraryRow';
 import { LibrarySyncSettings } from '@/features/chart/library/LibrarySyncSettings';
 import { browseCharts, libraryTags } from '@/features/chart/library/browse';
+import { useAccountCharts } from '@/features/chart/transfers/ArchiveContext';
+import { chartExceptions } from '@/features/chart/transfers/presentation';
 import { DEFAULT_LIBRARY_PREFERENCES, type LibrarySort } from '@/features/chart/library/preferences';
 
 const SORTS: [LibrarySort, string][] = [['recent', 'Recently opened'], ['name-asc', 'Name (A–Z)'], ['name-desc', 'Name (Z–A)'], ['date-desc', 'Date (newest)'], ['date-asc', 'Date (oldest)']];
 
 export default function SavedChartsScreen() {
   const state = useActiveCharts();
+  const accountCharts = useAccountCharts();
+  const exceptionCount = accountCharts ? chartExceptions(accountCharts.previews, accountCharts.records).length : 0;
   // The provider remounts on account changes; browser selections never cross accounts.
   const router = useRouter();
   const t = useTheme();
@@ -55,13 +59,13 @@ export default function SavedChartsScreen() {
     else if (choice === 'duplicate') edit(chart, true);
     else Alert.alert(`Delete ${chart.name}?`, 'Open copies remain on the wheel as unsaved snapshots. For synced charts, deletion reaches other devices when sync next completes.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete chart', style: 'destructive', onPress: () => void state.deleteSaved(chart.id) }]);
   };
-  const syncLabel = !state.scope ? 'On this device' : !state.syncState?.enabled ? 'Sync paused' : state.syncing ? 'Syncing…' : state.syncError ? 'Sync needs attention' : state.syncState.pending ? `${state.syncState.pending} waiting to sync` : state.syncState.lastSyncedAt ? 'Synced' : 'Waiting to sync';
+  const syncLabel = !state.scope ? 'On this device' : !state.syncState?.enabled ? 'Edit sync off' : state.syncing ? 'Syncing edits…' : state.syncError ? 'Sync needs attention' : state.syncState.pending ? `${state.syncState.pending} waiting to sync` : state.syncState.lastSyncedAt ? 'Synced' : 'Waiting to sync';
   const menuAccessibility: Pick<ViewProps, 'accessible' | 'accessibilityRole' | 'accessibilityLabel'> = { accessible: true, accessibilityRole: 'button', accessibilityLabel: 'Sort saved charts' };
   const refresh = async () => {
     if (refreshing) return;
     setRefreshing(true);
     setError(null);
-    try { await state.reloadLibrary(); }
+    try { await state.reloadLibrary(); await accountCharts?.refresh(); }
     catch { setError('Couldn’t reload charts. Please try again.'); }
     finally { setRefreshing(false); }
   };
@@ -111,6 +115,11 @@ export default function SavedChartsScreen() {
     </Pressable>
   </View>;
   const beforeRows = <>
+    {accountCharts?.scope && <View style={{ paddingHorizontal: 16 }}>
+      {(accountCharts.downloading || accountCharts.initialLoading) && <Text accessibilityLiveRegion="polite" style={[t.type.whyteXs, { paddingVertical: 12, color: t.color.txSecondary }]}>Loading your charts…</Text>}
+      {accountCharts.error && <><Text accessibilityRole="alert" style={[t.type.whyteXs, { color: t.color.txError }]}>{accountCharts.error}</Text><Action label="Retry loading charts" onPress={() => void accountCharts.refresh()} /></>}
+      {!!exceptionCount && <Action label={`${exceptionCount} chart ${exceptionCount === 1 ? 'exception' : 'exceptions'}`} onPress={() => router.push('/chart-transfers')} />}
+    </View>}
     {syncDetails && <View style={{ paddingHorizontal: 16 }}><LibrarySyncSettings /></View>}
     {(error || state.libraryError) && <Text accessibilityRole="alert" style={[t.type.whyteSm, { padding: 16, color: t.color.txError }]}>{error ?? state.libraryError}</Text>}
     {state.syncError && !syncDetails && <View style={{ paddingHorizontal: 16 }}><Text accessibilityRole="alert" style={[t.type.whyteXs, { color: t.color.txError }]}>{state.syncError}</Text><Action label="Retry chart sync" onPress={() => void state.runSync()} /></View>}
@@ -132,7 +141,7 @@ export default function SavedChartsScreen() {
         refreshing={refreshing} onRefresh={() => void refresh()} alwaysBounceVertical
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} automaticallyAdjustKeyboardInsets
         renderItem={({ item }) => item.type === 'status' ? <View>{beforeRows}</View> : <LibraryRow chart={item.chart} onOpen={() => open(item.chart.id)} onAction={choice => action(item.chart, choice)} />}
-        ListFooterComponent={state.loaded && !state.loadError && !charts.length ? <View style={{ padding: 24 }}>
+        ListFooterComponent={state.loaded && !state.loadError && !accountCharts?.initialLoading && !accountCharts?.downloading && !accountCharts?.error && !charts.length ? <View style={{ padding: 24 }}>
           <Text style={[t.type.whyteSm, { color: t.color.txSecondary }]}>{query || selected.length ? 'No charts match these filters.' : 'No saved charts yet.'}</Text>
           {query || selected.length ? <Action label="Clear filters" onPress={() => { setQuery(''); setTagIds([]); }} /> : <Action label="Create your first chart" onPress={() => edit()} />}
         </View> : null} />
