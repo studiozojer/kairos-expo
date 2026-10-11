@@ -1,6 +1,6 @@
 import { SheetHeader } from '../components/ChartSheet';
 import { MenuView } from '@react-native-menu/menu';
-import { BUNDLED_PRESET_NAMES } from './presets';
+import { TEMPLATE_NAMES as BUNDLED_PRESET_NAMES } from './templates';
 import { Text, View, type ViewProps } from 'react-native';
 import { Canvas, Path, Skia } from '@shopify/react-native-skia';
 import { useTheme } from '@/theme';
@@ -14,7 +14,7 @@ function HeaderIcon({ color }: { color: string }) {
 }
 
 /** Native anchored menu; selecting a preset leaves the editor page in place. */
-export function PresetSelector({ name, onSelect }: { name: string; onSelect: (name: string) => void }) {
+export function PresetSelector({ name, onSelect, choices, selectedId }: { name: string; onSelect: (name: string) => void; choices?: { id: string; name: string }[]; selectedId?: string }) {
   const t = useTheme();
   const label = name.charAt(0).toUpperCase() + name.slice(1);
   // MenuView forwards these ViewProps to its native host; its public types omit them.
@@ -24,12 +24,9 @@ export function PresetSelector({ name, onSelect }: { name: string; onSelect: (na
   };
   return <MenuView title="Display preset" {...accessibility} shouldOpenOnLongPress={false} isAnchoredToRight
     themeVariant={t.scheme}
-    actions={BUNDLED_PRESET_NAMES.map(key => ({
-      id: key, title: key.charAt(0).toUpperCase() + key.slice(1),
-      state: key === name ? 'on' : 'off',
-    }))}
+    actions={(choices ?? BUNDLED_PRESET_NAMES.map(key => ({ id: key, name: key.charAt(0).toUpperCase() + key.slice(1) }))).map(choice => ({ id: choice.id, title: choice.name, state: choice.id === (selectedId ?? name) ? 'on' : 'off' }))}
     onPressAction={({ nativeEvent: { event } }) => {
-      if (event !== name && BUNDLED_PRESET_NAMES.includes(event)) onSelect(event);
+      if (event !== (selectedId ?? name) && (choices?.some(choice => choice.id === event) ?? (BUNDLED_PRESET_NAMES as readonly string[]).includes(event))) onSelect(event);
     }}
     style={{ minHeight: 44, minWidth: 44, maxWidth: '100%', justifyContent: 'center' }}>
     <View pointerEvents="none" style={{
@@ -44,9 +41,10 @@ export function PresetSelector({ name, onSelect }: { name: string; onSelect: (na
   </MenuView>;
 }
 
-export function DisplayHeader({ presetName, onClose, onSelectPreset }: {
+export function DisplayHeader({ presetName, onClose, onSelectPreset, choices, selectedId }: {
+  choices?: { id: string; name: string }[]; selectedId?: string;
   presetName: string; onClose: () => void; onSelectPreset: (name: string) => void;
 }) {
   return <SheetHeader title="Display" closeLabel="Close display settings" onClose={onClose}
-    trailing={<PresetSelector name={presetName} onSelect={onSelectPreset} />} />;
+    trailing={<PresetSelector name={presetName} onSelect={onSelectPreset} choices={choices} selectedId={selectedId} />} />;
 }

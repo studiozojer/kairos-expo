@@ -202,7 +202,7 @@ export function ZodiacSignsRing({ ring, ringIndex, layout, colors, selection }: 
       // Pass 4 (markers): degree ticks from the inner edge outward; zodiac
       // cusps (every 30°) skipped. iOS colors these `bd/primary` regardless of
       // ring style (ZodiacSignsRing.swift:427).
-      if (style.showDegreeMarkers) {
+      if (style.showDegreeMarkers && Number.isFinite(style.minorMarkInterval) && style.minorMarkInterval >= .25) {
         for (let d = startDeg; d < endDeg; d += style.minorMarkInterval) {
           if (d % SEGMENT_DEGREES === 0) continue;
           const isMajor = d % style.majorMarkInterval === 0;
@@ -237,11 +237,11 @@ export function ZodiacSignsRing({ ring, ringIndex, layout, colors, selection }: 
         <Path key={s.key} path={s.path} style="fill" color={s.color} />
       ))}
       {/* Pass 1b + 2 — trimmed arc strokes, then cusp border lines */}
-      {paths.borders.map((b) => (
+      {(!ring.content || !("showBoundaries" in ring.content) || ring.content.showBoundaries) && paths.borders.map((b) => (
         <Path key={b.key} path={b.path} style="stroke" strokeWidth={b.width} color={b.color} />
       ))}
       {/* Pass 3 — radial boundary lines */}
-      {style.radialLineWidth > 0 && (
+      {style.radialLineWidth > 0 && (!ring.content || !("showBoundaries" in ring.content) || ring.content.showBoundaries) && (
         <Path
           path={paths.radialLines}
           style="stroke"
@@ -250,14 +250,14 @@ export function ZodiacSignsRing({ ring, ringIndex, layout, colors, selection }: 
         />
       )}
       {/* Pass 4 — degree markers (opt-in via style.showDegreeMarkers) */}
-      {style.showDegreeMarkers && ZODIAC_SIGNS.map((sign, i) => (
+      {style.showDegreeMarkers && (!ring.content || !("showDegrees" in ring.content) || ring.content.showDegrees) && ZODIAC_SIGNS.map((sign, i) => (
         <Group key={`marks-${sign}`} opacity={selectionOpacity(selection, `sign:${sign}`, "affectsGlyphs", true)}>
           <Path path={paths.majorMarks[i]} style="stroke" strokeWidth={style.majorMarkWidth} color={theme.color.bdPrimary} />
           <Path path={paths.minorMarks[i]} style="stroke" strokeWidth={style.minorMarkWidth} color={theme.color.bdPrimary} />
         </Group>
       ))}
       {/* Pass 4 — sign glyphs at segment midpoints */}
-      {ZODIAC_SIGNS.map((sign, signIndex) => {
+      {(!ring.content || !("showSymbols" in ring.content) || ring.content.showSymbols) && ZODIAC_SIGNS.map((sign, signIndex) => {
         const glyphDeg = signIndex * SEGMENT_DEGREES + SEGMENT_DEGREES / 2;
         const pos = coordinates.pointForDegree(glyphDeg, midR);
         const glyphColor = resolveColorValue(

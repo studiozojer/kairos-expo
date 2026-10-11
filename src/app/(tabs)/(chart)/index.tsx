@@ -3,7 +3,7 @@ import { wheelFrame } from '@/features/chart/interaction/wheelFrame';
 import { ReplacementChooser } from '@/features/chart/active/ReplacementChooser';
 import { useActionRegistry } from '@/features/chart/actions/useActionRegistry';
 import { useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { Alert, ActivityIndicator, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { useIsFocused, useRouter } from 'expo-router';
 import { useCardDragSession } from '@/features/chart/active/useCardDragSession';
 import { ChartPutAwayOverlay } from '@/features/chart/active/ChartPutAwayOverlay';
@@ -21,9 +21,12 @@ import { SelectionStepper } from '@/features/chart/events/SelectionStepper';
 import { SettingsSheet } from '@/features/chart/settings/SettingsSheet';
 import { DisplaySheet } from '@/features/chart/display/DisplaySheet';
 import { toggleBody, bodyChoices } from '@/features/chart/display/displayPreset';
-import { bundledPreset, bundledPresetSource } from '@/features/chart/display/presets';
+import { useDisplayPresets } from '@/features/chart/display/useDisplayPresets';
+import { renderingPreset, applyAppearance } from '@/features/chart/display/model';
+import { displayTemplate } from '@/features/chart/display/templates';
+import type { Preset } from '@/features/chart/schema/preset';
 import { InteractiveChartWheel } from '@/features/chart/interaction/InteractiveChartWheel';
-import { presetDocument, editPresetDocument } from '@/features/chart/display/presetDocument';
+
 
 /** One wheel composes the persisted open session; the glass controls address
  * its explicit target. Keep every ring in place while its next result computes. */
@@ -43,7 +46,7 @@ export default function ChartHome() {
   const screen = useRef<View>(null);
   const focused = useIsFocused();
   const [menuActive, setMenuActive] = useState(false);
-  const [orientationMode, setOrientationMode] = useState<"static" | "ascendant">("static");
+
   const { capturing, capture } = useChartScreenshot(screen);
   const [windowRect, setWindowRect] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const [stepperTop, setStepperTop] = useState(window.height);
@@ -51,9 +54,12 @@ export default function ChartHome() {
   const { size: wheelSize, center: wheelCenter } = wheelFrame(width, chartArea, failed.length > 0);
   const insets = useSafeAreaInsets();
 
-  const [document, setDocument] = useState(() => presetDocument(bundledPresetSource('classic')));
-  const preset = document.preset;
-  const [presetName, setPresetName] = useState('classic');
+  const display = useDisplayPresets();
+  const localPreset = display.preset;
+  const preset = useMemo(() => renderingPreset(localPreset), [localPreset]);
+  const presetName = localPreset.name;
+  const orientationMode = localPreset.orientation.mode;
+  const changePreset = (next: Preset) => { void display.update(applyAppearance(display.preset,next)); };
   const [sheetOpen, setSheetOpen] = useState(false);
   const cardDrag = useCardDragSession({ ids: session.active.map(chart => chart.id), viewport: windowRect, enabled: focused && !sheetOpen && !settingsOpen && !replaceNow && !menuActive && !capturing,
     onDrop: drop => { if (drop.kind === 'remove') session.remove(drop.id); else session.moveTo(drop.id, drop.targetId); } });
@@ -67,31 +73,28 @@ export default function ChartHome() {
 
   const actions = useActionRegistry({
     enabled: focused && !sheetOpen && !settingsOpen && !replaceNow && !capturing,
-    settingsEnabled: loaded && !!session.targetId, chartEnabled: !!config && !previousArrangement,
+    settingsEnabled: loaded && !!session.targetId, chartEnabled: display.state.loaded && !!config && !previousArrangement,
     chartsLoaded: session.loaded, openLibrary: () => router.push('/charts'),
     addNow: () => { if (!session.addNow()) setReplaceNow(true); },
     capturing, locked: orientationMode === 'static', hasTarget: loaded && !!clock.targetId,
     targetKind: clock.kind, canStepBackward: clock.canStepBackward, canStepForward: clock.canStepForward,
     aspects: { ...preset.aspects, showPatterns: !!preset.aspects.showPatterns },
-    openSettings: () => setSettingsOpen(true), openDisplay: () => setSheetOpen(true),
-    toggleOrientation: () => setOrientationMode(mode => mode === 'static' ? 'ascendant' : 'static'),
+    openSettings: () => setSettingsOpen(true), openDisplay: () => { if (display.state.loaded) setSheetOpen(true); },
+    toggleOrientation: () => { void display.update({ ...display.preset, orientation: { ...display.preset.orientation, mode: orientationMode === 'static' ? 'ascendant' : 'static' } }); },
     rotateOrientation: direction => {
-      setDocument(current => editPresetDocument(current, rotateOrientation(current.preset, session.active.length, orientationMode, config?.orientation, direction)));
-      setOrientationMode('static');
+      const next = applyAppearance(display.preset, rotateOrientation(preset, session.active.length, orientationMode, config?.orientation, direction));
+      void display.update({ ...next, orientation: { ...next.orientation, mode: 'static' } });
     },
-    resetOrientation: () => setDocument(current => editPresetDocument(current, resetOrientation(current.preset, bundledPreset(presetName)!.preset))),
+    resetOrientation: () => changePreset(resetOrientation(preset, renderingPreset(displayTemplate(localPreset.templateId ?? 'classic')!))),
     screenshot: capture, step: clock.step, reset: clock.reset,
-    toggleDisplay: key => setDocument(current => editPresetDocument(current, {
-      ...current.preset, aspects: { ...current.preset.aspects, [key]: !current.preset.aspects[key] },
-    })),
+    toggleDisplay: key => changePreset({ ...preset, aspects: { ...preset.aspects, [key]: !preset.aspects[key] } }),
   });
 
-  const selectPreset = (name: string) => {
-    const next = bundledPreset(name);
-    if (!next) return;
-    setDocument(presetDocument(bundledPresetSource(name)));
-    setPresetName(name);
-  };
+  const selectPreset = (id: string) => { void display.select(id); };
+  const previewCharts = session.active.flatMap(item => {
+    const chart = session.calculations[item.id]?.result?.chart;
+    return chart ? [{ instanceId: item.id, name: item.name, chart }] : [];
+  });
 
   return (
     <MarkingMenuProvider enabled={focused && !sheetOpen && !settingsOpen && !replaceNow && !capturing} onActiveChange={setMenuActive}>
@@ -105,11 +108,13 @@ export default function ChartHome() {
           without clipping it. Cards and the stepper bound the resting slot. */}
       {config && wheelSize > 0 && <InteractiveChartWheel config={config} size={wheelSize} viewport={viewport}
         baseCenter={wheelCenter} selectedIds={selectedIds} onSelectionChange={setSelectedIds}
-        selectionStyle={preset.selection} enabled={!sheetOpen && !settingsOpen && !replaceNow && !menuActive && !capturing && !previousArrangement}
-        onHideBody={name => setDocument(current => editPresetDocument(current, toggleBody(current.preset, name, false)))} />}
+        selectionStyle={preset.selection} enabled={display.state.loaded && !sheetOpen && !settingsOpen && !replaceNow && !menuActive && !capturing && !previousArrangement}
+        onHideBody={name => changePreset(toggleBody(preset,name,false))} />}
       <ChartToolbar title={session.active.find(item => item.id === session.targetId)?.name ?? 'Chart'} topInset={insets.top}
         actions={actions} />
 
+      {display.state.loadError && <View><Pressable accessibilityRole="button" onPress={() => { void display.load(); }}><Text accessibilityRole="alert" style={{color:theme.color.txAccent}}>Couldn’t restore display presets. Tap to retry.</Text></Pressable><Pressable accessibilityRole="button" onPress={() => Alert.alert('Reset display presets?', 'This replaces all saved custom presets on this device.',[{text:'Cancel',style:'cancel'},{text:'Reset',style:'destructive',onPress:()=>{void display.reset();}}])}><Text style={{color:theme.color.txAccent}}>Reset display presets</Text></Pressable></View>}
+      {display.state.saveError && !sheetOpen && <Pressable accessibilityRole="button" onPress={() => { void display.retrySave(); }}><Text accessibilityRole="alert" style={{color:theme.color.txAccent}}>Display changes haven’t been saved. Tap to retry.</Text></Pressable>}
       <ActiveChartCards session={cardDrag} chartActions={actions} updatingArrangement={previousArrangement} />
       {(session.loadError || session.saveError) && <Pressable accessibilityRole="button"
         onPress={session.loadError ? session.retryLoad : session.retryPersistence} style={{ paddingHorizontal: theme.space.lg, paddingVertical: theme.space.sm }}>
@@ -145,14 +150,15 @@ export default function ChartHome() {
       <ReplacementChooser active={session.active} visible={replaceNow} onCancel={() => setReplaceNow(false)}
         onSelect={id => { if (session.addNow(id)) setReplaceNow(false); }} />
       <SettingsSheet visible={settingsOpen} settings={settings} saveError={saveError} onChange={update} onClose={() => setSettingsOpen(false)} />
-      {config && <DisplaySheet
+      {config && display.state.loaded && <DisplaySheet
         visible={sheetOpen}
+        displayPreset={localPreset} repository={display} previewCharts={previewCharts}
         preset={preset}
         presetName={presetName}
         bodyNames={bodyNames}
         onSelectPreset={selectPreset}
         config={config}
-        onChangePreset={next => setDocument(current => editPresetDocument(current, next))}
+        onChangePreset={changePreset}
         onClose={() => setSheetOpen(false)}
       />}
     </View>

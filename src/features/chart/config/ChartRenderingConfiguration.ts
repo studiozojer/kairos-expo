@@ -18,6 +18,8 @@
 import type { RingThickness, ChartColors, GlobalChartVariables } from "../schema/core-types";
 import type { AspectConfiguration } from "../schema/preset";
 import type { AspectOverlayStyle, RingStyle } from "../schema/ring-styles";
+import type { RulerSegment } from "../geometry/RulerSegments";
+import type { RingContent } from "../schema/ring-content";
 import type { AspectEdgeDTO, Placement } from "./engine-types";
 
 /** The type of content in a ring (mirrors iOS `RingContentType`). */
@@ -34,10 +36,13 @@ export type RingContentType =
     }
   | { kind: "houseNumbers" }
   | { kind: "cuspAnnotations" }
+  | { kind: "rulerSegments"; ringKind: "signRulers" | "decans" | "terms"; system: string; showNumbers: boolean; segments: RulerSegment[] }
   | { kind: "empty" };
 
 /** One ring with pre-filtered content and pre-resolved style. */
 export interface RingConfiguration {
+  id?: string;
+  content?: RingContent;
   /** Owner of this ring's house frame; zodiac rings are shared. */
   chartInstanceId?: string;
   chartName?: string;

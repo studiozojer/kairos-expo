@@ -176,25 +176,25 @@ export function HouseNumbersRing({ ring, ringIndex, layout, selection }: RingRen
 
         return (
           <React.Fragment key={`house-${houseNumber}`}>
-            {lineWidth > 0 && (
+            {lineWidth > 0 && (!ring.content || !("showCusps" in ring.content) || ring.content.showCusps) && (
               <Path
                 path={linePath(
                   coordinates.pointForDegree(cuspDegree, outerR),
                   coordinates.pointForDegree(cuspDegree, innerR),
                 )}
                 style="stroke"
-                opacity={cuspSelectionOpacity(selection, index)}
+                opacity={cuspSelectionOpacity(selection, index, ring.chartInstanceId)}
                 strokeWidth={lineWidth}
                 color={cuspLineColor(angular, style, theme)}
               />
             )}
-            {style.rotateNumbers ? (
+            {(!ring.content || !("showNumbers" in ring.content) || ring.content.showNumbers) && (style.rotateNumbers ? (
               <Group origin={numberPosition} transform={[{ rotate: (rotationDeg * Math.PI) / 180 }]}>
                 {numberNode}
               </Group>
             ) : (
               numberNode
-            )}
+            ))}
           </React.Fragment>
         );
       })}

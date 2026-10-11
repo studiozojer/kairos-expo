@@ -1,19 +1,22 @@
+import { segmentIdentifier, rulerGlyphSize } from '../geometry/RulerSegments';
 import { houseIdentifier } from '../config/identifiers';
 import type { Theme } from '@/theme';
 import { resolveColorValue } from '../render/colors';
 import type { ChartRenderingConfiguration } from '../config/ChartRenderingConfiguration';
 import type { Placement } from '../config/engine-types';
 import type { SelectionStyleOverride } from '../schema/preset';
-import { ZODIAC_SIGNS } from '../schema/enums.gen';
+import { CELESTIAL_BODIES, ZODIAC_SIGNS } from '../schema/enums.gen';
 import type { WheelLayout } from '../render/useWheelLayout';
 import { toCanvas, type Point, type WheelTransform } from './motion';
 
 export interface ChartTarget extends Point {
-  id: string; kind: 'body' | 'sign' | 'house'; label: string; detail: string;
+  id: string; kind: 'body' | 'sign' | 'house' | 'segment';
+  ruler?: string; start?: number; end?: number; label: string; detail: string;
   radius: number; placement?: Placement;
 }
 export function chartTargets(layout: WheelLayout): ChartTarget[] {
   const out: ChartTarget[] = [];
+  if (layout.feasible === false) return out;
   layout.rings.forEach((ring, index) => {
     const radius = layout.global.moduleHitRadiusOverrides[
       ring.type.kind === 'planets' ? 'planetsRing' : ring.type.kind === 'zodiacSigns' ? 'zodiacRing' : 'housesRing'
@@ -25,6 +28,15 @@ export function chartTargets(layout: WheelLayout): ChartTarget[] {
         out.push({ id: p.id, kind: 'body', label: p.bodyName, placement: p, ...pos.adjustedPosition, radius,
           detail: `${p.chartInstanceId ? `${p.chartName ?? "Chart"} · Ring ${ring.type.ringNumber} · ` : ""}${Math.floor(degrees)}° ${String(Math.floor((degrees % 1) * 60)).padStart(2, '0')}′ ${p.signPlacement}${p.housePlacement ? ` · House ${p.housePlacement}` : ''}${p.isRetrograde ? ' · Retrograde' : ''}` });
       }
+    } else if (ring.type.kind === 'rulerSegments') {
+      const { segments, system } = ring.type;
+      const mid = ring.type.showNumbers ? layout.geometry.innerRadiusForRing(index) + layout.ringThicknesses[index] * .7 : layout.geometry.midRadiusForRing(index);
+      const glyphSize = rulerGlyphSize(segments, mid, layout.ringThicknesses[index], 'glyphSize' in ring.style ? ring.style.glyphSize : 16);
+      segments.forEach(segment => out.push({ id: segmentIdentifier(ring.id ?? String(index), segment.index), kind: 'segment',
+        ruler: segment.ruler, start: segment.start, end: segment.end,
+        label: `${segment.label}: ${CELESTIAL_BODIES[segment.ruler]?.displayName ?? segment.ruler}`,
+        detail: `${segment.start}°–${segment.end}° · ${system}`, radius: Math.min(radius, Math.max(1,glyphSize / 2)),
+        ...layout.coordinates.pointForDegree((segment.start + segment.end) / 2, mid) }));
     } else if (ring.type.kind === 'zodiacSigns') {
       ZODIAC_SIGNS.forEach((sign, i) => out.push({ id: `sign:${sign}`, kind: 'sign', label: sign[0].toUpperCase() + sign.slice(1),
         detail: `${i * 30}°–${(i + 1) * 30}°`, radius,
@@ -57,10 +69,21 @@ export interface SelectionPaint {
 export function selectionPaint(ids: string[], targets: ChartTarget[], config: ChartRenderingConfiguration, style: SelectionStyleOverride): SelectionPaint {
   const selected = new Set(ids.filter(id => targets.some(t => t.id === id))), related = new Set<string>();
   for (const target of targets) {
-    if (!selected.has(target.id) || !target.placement) continue;
+    if (!selected.has(target.id)) continue;
+    if (target.kind === 'segment' && style.includeRulershipPlanets) {
+      targets.filter(other => other.placement?.bodyId === target.ruler).forEach(other => related.add(other.id));
+    }
+    if (!target.placement) continue;
     const p = target.placement;
     related.add(`sign:${p.signPlacement.toLowerCase()}`);
     if (p.housePlacement) related.add(houseIdentifier(p.chartInstanceId, p.housePlacement));
+    if (style.includeRulershipPlanets) {
+      const segments = targets.filter(other => other.kind === 'segment' && p.longitude >= other.start! && p.longitude < other.end!);
+      segments.forEach(segment => {
+        related.add(segment.id);
+        targets.filter(other => other.placement?.bodyId === segment.ruler && other.placement?.chartInstanceId === p.chartInstanceId).forEach(other => related.add(other.id));
+      });
+    }
     if (style.includeAspectedPlanets) {
       // iOS RelationshipComputer uses the chart's aspect edges for this tier.
       for (const edge of config.aspectEdges) {

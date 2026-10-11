@@ -30,8 +30,7 @@
 
 import { useMemo } from "react";
 
-import type { ChartRenderingConfiguration } from "../config/ChartRenderingConfiguration";
-import type { RingConfiguration } from "../config/ChartRenderingConfiguration";
+import type { ChartRenderingConfiguration, RingConfiguration } from "../config/ChartRenderingConfiguration";
 import type { Placement } from "../config/engine-types";
 import {
   scaleAspectOverlayStyle,
@@ -71,6 +70,7 @@ function toPlanetRenderPlacement(p: Placement): PlanetRenderPlacement {
 export type PlanetRingLayout = (PlanetLayoutPosition & { placement: PlanetRenderPlacement })[];
 
 export interface WheelLayout {
+  feasible?: boolean;
   /** Canvas size in points (the canvas is square: size × size). */
   size: number;
   /** DisplayScaleProvider factor for this size. */
@@ -127,9 +127,10 @@ export function useWheelLayout(config: ChartRenderingConfiguration, size: number
       config.orientation,
     );
 
+    const feasible = geometry.innerRadiusForRing(rings.length - 1) >= global.minimumInnerRadius - 1e-7 && ringThicknesses.every(value => Number.isFinite(value) && value >= 0);
     const planetLayouts = new Map<number, PlanetRingLayout>();
     rings.forEach((ring, ringIndex) => {
-      if (ring.type.kind !== "planets") return;
+      if (!feasible || ring.type.kind !== "planets") return;
       const style =
         ring.style.$type === PLANETS_STYLE_TYPE ? ring.style : PLANETS_RING_STYLE_DEFAULT;
       const placements = ring.type.placements.map(toPlanetRenderPlacement);
@@ -152,6 +153,7 @@ export function useWheelLayout(config: ChartRenderingConfiguration, size: number
     });
 
     return {
+      feasible,
       size,
       displayScale,
       rings,
