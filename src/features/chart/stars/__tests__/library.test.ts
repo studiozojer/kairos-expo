@@ -37,3 +37,17 @@ test.each([
   {version:2,stars:[]}, {version:1,stars:[{id:'star:wrong',name:'Regulus'}]},
   {version:1,stars:[{id:'star:regulus',name:'Regulus'},{id:'star:regulus',name:'regulus'}]},
 ])('rejects malformed identity/version',value=>expect(()=>parseStarLibrary(JSON.stringify(value))).toThrow());
+test('saving reflects the newest queued edit until its own write succeeds or fails', async () => {
+  const disk = storage(), repo = new StarLibraryRepository(disk, null); await repo.load();
+  let firstRelease!: () => void, secondReject!: (error: Error) => void;
+  disk.setItem.mockImplementationOnce(() => new Promise<void>(resolve => { firstRelease = resolve; }))
+    .mockImplementationOnce(() => new Promise<void>((_, reject) => { secondReject = reject; }));
+  const first = repo.add('Regulus'); const second = repo.add('Spica');
+  expect(repo.state.saving).toBe(true);
+  await Promise.resolve(); firstRelease(); await first;
+  expect(repo.state.saving).toBe(true); expect(repo.state.saveError).toBe(false);
+  secondReject(new Error('disk')); await second;
+  expect(repo.state.saving).toBe(false); expect(repo.state.saveError).toBe(true);
+  const retry = repo.retrySave(); expect(repo.state.saving).toBe(true); await retry;
+  expect(repo.state.saving).toBe(false); expect(repo.state.saveError).toBe(false);
+});

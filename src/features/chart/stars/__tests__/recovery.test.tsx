@@ -1,0 +1,46 @@
+import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { Text } from 'react-native';
+import { StarLibraryPanel } from '../StarLibraryPanel';
+import { StarLibraryRepository } from '../library';
+import { loadStarCatalog } from '../catalog';
+let mockRepository: StarLibraryRepository;
+jest.mock('../useStarLibrary', () => {
+  const React = jest.requireActual('react');
+  return { useStarLibrary: () => ({ repository: mockRepository, state: React.useSyncExternalStore(mockRepository.subscribe, mockRepository.snapshot), ready: mockRepository.state.loaded, scope: 'account' }) };
+});
+jest.mock('../catalog', () => ({ ...jest.requireActual('../catalog'), loadStarCatalog: jest.fn() }));
+const catalog = jest.mocked(loadStarCatalog);
+let tree: ReactTestRenderer;
+const press = (label: string) => tree.root.findAll(node => typeof node.props.onPress === 'function' && (node.props.accessibilityLabel === label || node.findAllByType(Text).some(text => text.props.children === label)))[0];
+const text = () => tree.root.findAllByType(Text).map(node => node.props.children);
+afterEach(() => act(() => tree.unmount()));
+test('failed catalog retry preserves an unknown saved reference and allows inspection/removal', async () => {
+  const storage = { getItem: async () => JSON.stringify({ version: 1, stars: [{ id: 'star:unknown', name: 'Unknown' }] }), setItem: jest.fn(async () => {}) };
+  mockRepository = new StarLibraryRepository(storage, 'account'); await mockRepository.load();
+  catalog.mockRejectedValueOnce(new Error('native')).mockResolvedValueOnce([]);
+  await act(async () => { tree = create(<StarLibraryPanel />); });
+  expect(press('Inspect Unknown')).toBeDefined();
+  act(() => press('Inspect Unknown').props.onPress());
+  expect(text()).toContain('Couldn’t load the star catalog. Your saved reference is preserved; retry to load its details.');
+  await act(async () => press('Retry star catalog').props.onPress());
+  expect(text()).toContain('Details are unavailable in the loaded catalog. Your saved reference remains in your library until you remove it.');
+  await act(async () => press('Remove from my stars').props.onPress());
+  expect(mockRepository.state.stars).toEqual([]);
+  expect(storage.setItem).toHaveBeenCalledTimes(1);
+});
+test('an optimistic edit shows pending status and failed persistence remains recoverable', async () => {
+  let finish!: (error: Error) => void;
+  const storage = { getItem: async () => null, setItem: jest.fn<Promise<void>, [string, string]>().mockImplementationOnce(() => new Promise((_, reject) => { finish = reject; })).mockResolvedValue(undefined) };
+  mockRepository = new StarLibraryRepository(storage, 'account'); await mockRepository.load();
+  catalog.mockResolvedValue([{ id: 'star:spica', name: 'Spica', designation: 'alVir', displayDesignation: 'α Vir', constellation: 'Virgo', magnitude: .97, longitude: 204, sign: 'Libra', degrees: 24, minutes: 0 }]);
+  await act(async () => { tree = create(<StarLibraryPanel />); });
+  await act(async () => press('Add Spica').props.onPress());
+  expect(text()).toContain('Saving changes on this device…');
+  await act(async () => { finish(new Error('disk')); await mockRepository.settled(); });
+  expect(text()).toContain('Changes haven’t been saved on this device.');
+  expect(press('Inspect Spica')).toBeDefined();
+  act(() => press('Inspect Spica').props.onPress());
+  await act(async () => press('Retry saving star changes').props.onPress());
+  expect(mockRepository.state.saveError).toBe(false);
+  expect(text()).toContain('Shared across presets · saved on this device');
+});

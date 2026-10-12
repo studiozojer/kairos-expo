@@ -2,7 +2,7 @@ import type { PresetStorage } from '../display/repository';
 /** Only lookup identity is persisted. Metadata and reference positions belong to the catalog. */
 export interface StarReference { id: string; name: string }
 export const starId = (name: string) => `star:${name.trim().toLowerCase()}`;
-export interface StarLibraryState { version: 1; stars: StarReference[]; loaded: boolean; loadError: boolean; saveError: boolean }
+export interface StarLibraryState { version: 1; stars: StarReference[]; loaded: boolean; loadError: boolean; saveError: boolean; saving: boolean }
 export function parseStarLibrary(raw: string | null): StarReference[] {
   if (raw === null) return [];
   const value = JSON.parse(raw);
@@ -16,7 +16,7 @@ export function parseStarLibrary(raw: string | null): StarReference[] {
 }
 /** One owner per account with ordered writes, hydration gating and explicit recovery. */
 export class StarLibraryRepository {
-  state: StarLibraryState = { version: 1, stars: [], loaded: false, loadError: false, saveError: false };
+  state: StarLibraryState = { version: 1, stars: [], loaded: false, loadError: false, saveError: false, saving: false };
   private listeners = new Set<() => void>();
   private queue = Promise.resolve();
   private reading?: Promise<void>;
@@ -30,7 +30,7 @@ export class StarLibraryRepository {
     if (this.state.loaded) return Promise.resolve();
     if (this.reading) return this.reading;
     this.reading = this.storage.getItem(this.key).then(raw => {
-      this.state = { version: 1, stars: parseStarLibrary(raw), loaded: true, loadError: false, saveError: false }; this.emit();
+      this.state = { version: 1, stars: parseStarLibrary(raw), loaded: true, loadError: false, saveError: false, saving: false }; this.emit();
     }).catch(() => { this.state = { ...this.state, loadError: true }; this.emit(); }).finally(() => { this.reading = undefined; });
     return this.reading;
   }
@@ -38,11 +38,11 @@ export class StarLibraryRepository {
     const payload = JSON.stringify({ version: 1, stars });
     const validated = parseStarLibrary(payload);
     const generation = ++this.generation;
-    this.state = { version: 1, stars: validated, loaded: true, loadError: false, saveError: false }; this.emit();
+    this.state = { version: 1, stars: validated, loaded: true, loadError: false, saveError: false, saving: true }; this.emit();
     this.queue = this.queue.then(() => this.storage.setItem(this.key, payload)).then(() => {
-      if (generation === this.generation) { this.state = { ...this.state, saveError: false }; this.emit(); }
+      if (generation === this.generation) { this.state = { ...this.state, saveError: false, saving: false }; this.emit(); }
     }, () => {
-      if (generation === this.generation) { this.state = { ...this.state, saveError: true }; this.emit(); }
+      if (generation === this.generation) { this.state = { ...this.state, saveError: true, saving: false }; this.emit(); }
     });
     return this.queue;
   }

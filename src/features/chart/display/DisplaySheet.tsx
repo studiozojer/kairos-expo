@@ -1,5 +1,6 @@
 import { StarLibraryPanel } from '../stars/StarLibraryPanel';
-import { RingsEditor } from './RingsEditor';
+import { starRingGuidance, type StarChartContext, type StarRingTarget } from '../stars/ringContext';
+import { RingsEditor, type RingSelection } from './RingsEditor';
 import { renderingPreset, type DisplayPreset, type ChartCount } from './model';
 import type { PresetRepository } from './repository';
 import { buildMultiConfiguration, type RenderChart } from '../config/buildConfiguration';
@@ -26,6 +27,11 @@ import { resolveAspectType } from '../geometry/AspectFilter';
 import { PATTERN_NAMES } from '../geometry/AspectPatterns';
 export interface DisplaySheetProps {
     displayPreset?: DisplayPreset;
+    starCharts?: StarChartContext[];
+    initialPage?: 'rings';
+    initialLayout?: ChartCount;
+    initialSourceSlot?: number;
+    onBack?: () => void;
     repository?: PresetRepository;
     previewCharts?: RenderChart[];
     visible: boolean;
@@ -63,20 +69,37 @@ export function DisplaySheet(props: DisplaySheetProps) {
     <DisplayEditor {...props} previewPosition={previewPosition} onChangePreviewPosition={setPreviewPosition}/>
   </ChartSheet>;
 }
-interface DisplayEditorProps extends DisplaySheetProps {
+export interface DisplayEditorProps extends DisplaySheetProps {
     previewPosition: number | null;
     onChangePreviewPosition: (position: number) => void;
 }
-function DisplayEditor({ displayPreset, repository, previewCharts, preset, presetName, bodyNames, config, onChangePreset: change, onSelectPreset, onClose, previewPosition, onChangePreviewPosition: setPreviewPosition }: DisplayEditorProps) {
+export function DisplayEditor({ displayPreset, repository, previewCharts, starCharts, initialPage, initialLayout, initialSourceSlot, onBack, preset, presetName, bodyNames, config, onChangePreset: change, onSelectPreset, onClose, previewPosition, onChangePreviewPosition: setPreviewPosition }: DisplayEditorProps) {
     const t = useTheme();
     const insets = useSafeAreaInsets();
     const window = useWindowDimensions();
     const [frame, setFrame] = useState({ width: window.width, height: window.height });
     const width = frame.width;
     const [tab, setTab] = useState('Bodies');
-    const [layoutCount, setLayoutCount] = useState<ChartCount>((config.chartCount || 1) as ChartCount);
+    const [layoutCount, setLayoutCount] = useState<ChartCount>(initialLayout ?? (config.chartCount || 1) as ChartCount);
     const [rename, setRename] = useState(presetName);
-    const [page, setPage] = useState<string | null>(null);
+    const [page, setPage] = useState<string | null>(initialPage ?? null);
+    const [libraryOpen, setLibraryOpen] = useState(false);
+    const [libraryTarget, setLibraryTarget] = useState<StarRingTarget>({ layout: layoutCount });
+    const [ringSelection, setRingSelection] = useState<RingSelection | null>(() => {
+      const ring = initialSourceSlot && displayPreset?.layouts[layoutCount].rings.find(ring => ring.kind === 'fixedStars' && ring.sourceSlot === initialSourceSlot);
+      return ring ? { id: ring.id, kind: ring.kind, sourceSlot: initialSourceSlot } : null;
+    });
+    const contextCharts = starCharts ?? previewCharts?.map(chart => ({ id: chart.instanceId, name: chart.name ?? 'Chart' })) ?? [];
+    const guidance = displayPreset ? starRingGuidance(displayPreset, contextCharts, libraryTarget) : undefined;
+    const manageRings = () => {
+      if (!displayPreset) return;
+      const live = starRingGuidance(displayPreset, contextCharts, libraryTarget);
+      if (!live.manageable) return;
+      setLayoutCount(libraryTarget.layout);
+      const ring = displayPreset.layouts[libraryTarget.layout].rings.find(ring => ring.kind === 'fixedStars' && (!live.sourceSlot || ring.sourceSlot === live.sourceSlot));
+      setRingSelection(ring ? { id: ring.id, kind: ring.kind, sourceSlot: 'sourceSlot' in ring ? ring.sourceSlot : undefined } : null);
+      setTab('Details'); setPage('rings'); setLibraryOpen(false);
+    };
     const previewHeight = Math.max(0, Math.min(width, frame.height - insets.bottom - 144));
     const restingPosition = Math.max(0, Math.min(previewHeight, previewPosition ?? width / 2));
     const [cover] = useState(() => new Animated.Value(restingPosition));
@@ -102,10 +125,12 @@ function DisplayEditor({ displayPreset, repository, previewCharts, preset, prese
     const preview = displayPreset && previewCharts && layoutCount <= previewCharts.length
       ? buildMultiConfiguration(previewCharts.slice(0,layoutCount),renderingPreset(displayPreset),displayPreset.orientation.mode) : config;
     let content;
-    const openStars = () => setPage('stars');
+    const openStars = (sourceSlot?: number) => {
+      setLibraryTarget({ layout: layoutCount, sourceSlot, chartId: sourceSlot ? contextCharts[sourceSlot - 1]?.id : undefined });
+      setLibraryOpen(true);
+    };
     if (page === 'rings' && displayPreset && repository)
-        content = <RingsEditor preset={displayPreset} count={layoutCount} onCount={setLayoutCount} onChange={next => { void repository.update(next); }} onOpenStars={openStars} />;
-    else if (page === 'stars') content = <StarLibraryPanel />;
+        content = <RingsEditor preset={displayPreset} count={layoutCount} onCount={setLayoutCount} onChange={next => { void repository.update(next); }} onOpenStars={openStars} selection={ringSelection} onSelect={setRingSelection} />;
     else if (page === 'presets' && repository)
         content = <Section title="Your presets"><Action label="Duplicate preset" onPress={() => { void repository.duplicate(); }} />
           {repository.state.custom.some(item => item.id === repository.state.selected) && <>
@@ -147,7 +172,7 @@ function DisplayEditor({ displayPreset, repository, previewCharts, preset, prese
         content = <><Note>Tap chart objects to select them. Tap empty space to clear selection.</Note><Section title="Highlight & related bodies">{SELECTION.slice(0, 3).map(([key, label]) => <Toggle key={key} label={label} value={preset.selection[key]} onChange={v => selection({ [key]: v })}/>)}</Section><Section title="Fixed star relationships"><Toggle label="Include conjunct fixed stars" value={preset.selection.includeConjunctFixedStars} onChange={value => selection({includeConjunctFixedStars:value})} /><NumberRow label="Fixed star conjunction orb ±" value={preset.selection.conjunctFixedStarsOrb} min={0} max={15} step={.25} onChange={value => selection({conjunctFixedStarsOrb:value})} /></Section><Section title="Dimming"><NumberRow label="Unselected opacity" value={preset.selection.unselectedOpacity * 100} max={100} step={5} suffix="%" onChange={v => selection({ unselectedOpacity: v / 100 })}/><NumberRow label="Related opacity" value={preset.selection.relatedOpacity * 100} max={100} step={5} suffix="%" onChange={v => selection({ relatedOpacity: v / 100 })}/>{SELECTION.slice(3).map(([key, label]) => <Toggle key={key} label={label} value={preset.selection[key]} onChange={v => selection({ [key]: v })}/>)}</Section></>;
     else if (tab === 'Bodies')
         content = <><Section title="Planets"><PlanetPicker enabledBodies={preset.visibility.enabledBodies} colors={preset.colors}
-              onToggle={name => change(toggleBody(preset, name, !isBodyEnabled(preset, name)))} /></Section><Section title="Points">{POINTS.filter(n => bodyNames.includes(n)).map(bodyToggle)}</Section><Section title="More bodies"><LinkRow label="Asteroids" detail={enabledCount(ASTEROIDS)} onPress={() => setPage('asteroids')}/><LinkRow label="Lots" detail={enabledCount(LOTS)} onPress={() => setPage('lots')}/><LinkRow label="Personal star library" onPress={openStars} /></Section></>;
+              onToggle={name => change(toggleBody(preset, name, !isBodyEnabled(preset, name)))} /></Section><Section title="Points">{POINTS.filter(n => bodyNames.includes(n)).map(bodyToggle)}</Section><Section title="More bodies"><LinkRow label="Asteroids" detail={enabledCount(ASTEROIDS)} onPress={() => setPage('asteroids')}/><LinkRow label="Lots" detail={enabledCount(LOTS)} onPress={() => setPage('lots')}/><LinkRow label="Personal star library" onPress={() => openStars()} /></Section></>;
     else if (tab === 'Details')
         content = <>{displayPreset && <Section title="Composition"><LinkRow label="Rings" onPress={() => setPage('rings')} /></Section>}<Section title="Beside each planet">{LABEL_CONTROLS.map(([key, label]) => {
                 const all = styles.length > 0 && styles.every(s => s[key]);
@@ -157,11 +182,12 @@ function DisplayEditor({ displayPreset, repository, previewCharts, preset, prese
     else
         content = <>{repository && <Section title="Presets"><LinkRow label="Manage presets" onPress={() => { setRename(repository.preset.name); setPage('presets'); }} /></Section>}<Section title="Reading comfort"><Choices label="Symbol size" value={sizeValue('glyphSize')} options={[[16, 'S'], [20, 'M'], [24, 'L']]} onChange={v => change(updatePlanetStyles(preset, { glyphSize: v }))}/><Choices label="Annotation size" value={sizeValue('degreeTextFontSize')} options={[[7.5, 'S'], [9.6, 'M'], [12, 'L']]} onChange={v => change(updatePlanetStyles(preset, { degreeTextFontSize: v }))}/></Section><Section title="Aspect lines"><LinkRow label="Aspect line styling" detail="Color, shape, weight, and opacity" onPress={() => setPage('lines')}/></Section><Section title="Aspect patterns"><LinkRow label="Aspect patterns" detail="Base opacity and orb weighting" onPress={() => setPage('patterns')}/></Section><Section title="Interaction"><LinkRow label="Selection" detail="Highlighting, dimming, and related bodies" onPress={() => setPage('selection')}/></Section></>;
     return <View style={{ flex: 1, backgroundColor: t.color.bgSolidBase, paddingTop: insets.top }}>
+    <View style={{ flex: 1 }} pointerEvents={libraryOpen ? 'none' : 'auto'} accessibilityElementsHidden={libraryOpen} importantForAccessibility={libraryOpen ? 'no-hide-descendants' : 'auto'}>
     <DisplayHeader presetName={presetName} onClose={onClose} onSelectPreset={onSelectPreset} choices={repository?.choices} selectedId={repository?.state.selected} />
     {repository?.state.saveError && <Action label="Changes haven’t been saved. Tap to retry." onPress={() => { void repository.retrySave(); }} />}
     <View style={{ flex: 1 }} onLayout={({ nativeEvent: { layout } }) => setFrame(previous => previous.width === layout.width && previous.height === layout.height ? previous : { width: layout.width, height: layout.height })}><View style={{ position: 'absolute', top: 0, alignSelf: 'center' }}>{displayPreset && previewCharts && layoutCount > previewCharts.length ? <View style={{width,height:previewHeight,padding:24,justifyContent:'center'}}><Note>Open {layoutCount} charts to preview this layout.</Note></View> : <ChartWheel config={preview} size={width}/>}</View>
-      <Animated.View testID="preview-cover" style={{ position: 'absolute', top: page === 'stars' ? 0 : cover, bottom: 0, width: '100%', backgroundColor: t.color.bgSolidCard, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: t.border.hairline, borderColor: t.color.bdCard }}>
-        {page !== 'stars' && <GestureDetector gesture={handleGesture}>
+      <Animated.View testID="preview-cover" style={{ position: 'absolute', top: cover, bottom: 0, width: '100%', backgroundColor: t.color.bgSolidCard, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: t.border.hairline, borderColor: t.color.bdCard }}>
+        {<GestureDetector gesture={handleGesture}>
           <View testID="preview-handle" collapsable={false} accessible accessibilityRole="button"
             accessibilityLabel={previewShown ? 'Hide chart preview' : 'Show chart preview'}
             accessibilityHint="Drag to adjust the chart preview height, or double tap to toggle it."
@@ -170,12 +196,14 @@ function DisplayEditor({ displayPreset, repository, previewCharts, preset, prese
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: t.color.txTertiary }}/>
           </View>
         </GestureDetector>}
-        {page ? <SheetBackRow title={TITLES[page]} onBack={() => setPage(null)} /> : <View style={{ paddingHorizontal: t.space.lg, paddingBottom: t.space.sm }}>
+        {page ? <SheetBackRow title={TITLES[page]} onBack={() => { if (onBack && page === 'rings') onBack(); else setPage(null); }} /> : <View style={{ paddingHorizontal: t.space.lg, paddingBottom: t.space.sm }}>
           <SegmentedControl testID="display-tabs" values={DISPLAY_TABS} selectedIndex={DISPLAY_TABS.indexOf(tab)}
             onValueChange={setTab} appearance={t.scheme} style={{ width: '100%' }} />
         </View>}
-        {page === 'stars' ? content : <ScrollView key={page ?? tab} contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 18, paddingBottom: insets.bottom + 28 }}>{content}</ScrollView>}
+        <ScrollView key={page ?? tab} contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 18, paddingBottom: insets.bottom + 28 }}>{content}</ScrollView>
       </Animated.View>
     </View>
+    </View>
+    {libraryOpen && <View style={{ position: 'absolute', top: insets.top, bottom: insets.bottom, left: 0, right: 0, backgroundColor: t.color.bgSolidBase }}><StarLibraryPanel onBack={() => setLibraryOpen(false)} onClose={onClose} ringContext={guidance ? { message: guidance.message, onManage: guidance.manageable ? manageRings : undefined } : undefined} /></View>}
   </View>;
 }

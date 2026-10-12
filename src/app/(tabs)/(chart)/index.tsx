@@ -19,11 +19,12 @@ import { useChartTime } from '@/features/chart/time/ChartTimeContext';
 import { ActiveChartCards } from '@/features/chart/active/ActiveChartCards';
 import { useActiveCharts } from '@/features/chart/active/ActiveChartsContext';
 import { SelectionStepper } from '@/features/chart/events/SelectionStepper';
+import { starRingGuidance, type StarRingTarget } from '@/features/chart/stars/ringContext';
 import { SettingsSheet } from '@/features/chart/settings/SettingsSheet';
-import { DisplaySheet } from '@/features/chart/display/DisplaySheet';
+import { DisplaySheet, DisplayEditor } from '@/features/chart/display/DisplaySheet';
 import { toggleBody, bodyChoices } from '@/features/chart/display/displayPreset';
 import { useDisplayPresets } from '@/features/chart/display/useDisplayPresets';
-import { renderingPreset, applyAppearance } from '@/features/chart/display/model';
+import { renderingPreset, applyAppearance, type ChartCount } from '@/features/chart/display/model';
 import { displayTemplate } from '@/features/chart/display/templates';
 import type { Preset } from '@/features/chart/schema/preset';
 import { InteractiveChartWheel } from '@/features/chart/interaction/InteractiveChartWheel';
@@ -41,6 +42,9 @@ export default function ChartHome() {
   const session = useActiveCharts();
   const failed = session.active.filter(item => session.calculations[item.id]?.status === 'error');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTargetId, setSettingsTargetId] = useState<string>();
+  const [settingsRings, setSettingsRings] = useState<StarRingTarget>();
+  const [settingsPreview, setSettingsPreview] = useState<number | null>(0);
   const window = useWindowDimensions();
   const [viewport, setViewport] = useState({ width: window.width, height: window.height });
   const { width } = viewport;
@@ -81,7 +85,7 @@ export default function ChartHome() {
     capturing, locked: orientationMode === 'static', hasTarget: loaded && !!clock.targetId,
     targetKind: clock.kind, canStepBackward: clock.canStepBackward, canStepForward: clock.canStepForward,
     aspects: { ...preset.aspects, showPatterns: !!preset.aspects.showPatterns },
-    openSettings: () => setSettingsOpen(true), openDisplay: () => { if (display.state.loaded) setSheetOpen(true); },
+    openSettings: () => { setSettingsTargetId(session.targetId ?? undefined); setSettingsRings(undefined); setSettingsOpen(true); }, openDisplay: () => { if (display.state.loaded) setSheetOpen(true); },
     toggleOrientation: () => { void display.update({ ...display.preset, orientation: { ...display.preset.orientation, mode: orientationMode === 'static' ? 'ascendant' : 'static' } }); },
     rotateOrientation: direction => {
       const next = applyAppearance(display.preset, rotateOrientation(preset, session.active.length, orientationMode, config?.orientation, direction));
@@ -97,6 +101,18 @@ export default function ChartHome() {
     const chart = session.calculations[item.id]?.result?.chart;
     return chart ? [{ instanceId: item.id, name: item.name, chart, starNames: stars.names }] : [];
   });
+
+  const starCharts = session.active.map(item => ({ id: item.id, name: item.name, status: session.calculations[item.id]?.status,
+    missingStars: session.calculations[item.id]?.result?.chart.missingStars?.filter(name => stars.names.includes(name)) }));
+  const settingsTarget: StarRingTarget = { layout: Math.max(1, session.active.length) as ChartCount, chartId: settingsTargetId };
+  const settingsGuidance = settingsTargetId ? starRingGuidance(localPreset, starCharts, settingsTarget) : undefined;
+  const closeSettings = () => { setSettingsOpen(false); };
+  const displayEditorProps = config ? { visible: true, displayPreset: localPreset, repository: display, previewCharts, starCharts,
+    preset, presetName, bodyNames, onSelectPreset: selectPreset, config, onChangePreset: changePreset } : undefined;
+  const manageSettingsRings = () => {
+    const live = starRingGuidance(display.preset, starCharts, settingsTarget);
+    if (live.manageable && displayEditorProps && display.state.loaded) setSettingsRings({ ...settingsTarget, sourceSlot: live.sourceSlot });
+  };
 
   return (
     <MarkingMenuProvider enabled={focused && !sheetOpen && !settingsOpen && !replaceNow && !capturing} onActiveChange={setMenuActive}>
@@ -153,10 +169,12 @@ export default function ChartHome() {
       <ChartPutAwayOverlay session={cardDrag} stepperTop={stepperTop} />
       <ReplacementChooser active={session.active} visible={replaceNow} onCancel={() => setReplaceNow(false)}
         onSelect={id => { if (session.addNow(id)) setReplaceNow(false); }} />
-      <SettingsSheet visible={settingsOpen} settings={settings} saveError={saveError} onChange={update} onClose={() => setSettingsOpen(false)} />
+      <SettingsSheet visible={settingsOpen} settings={settings} saveError={saveError} onChange={update} onClose={closeSettings}
+        starRingContext={settingsGuidance ? { message: settingsGuidance.message, onManage: settingsGuidance.manageable && displayEditorProps && display.state.loaded ? manageSettingsRings : undefined } : undefined}
+        ringEditor={settingsRings && displayEditorProps ? <DisplayEditor {...displayEditorProps} initialPage="rings" initialLayout={settingsRings.layout} initialSourceSlot={settingsRings.sourceSlot} previewPosition={settingsPreview} onChangePreviewPosition={setSettingsPreview} onClose={closeSettings} onBack={() => setSettingsRings(undefined)} /> : undefined} />
       {config && display.state.loaded && <DisplaySheet
         visible={sheetOpen}
-        displayPreset={localPreset} repository={display} previewCharts={previewCharts}
+        displayPreset={localPreset} repository={display} previewCharts={previewCharts} starCharts={starCharts}
         preset={preset}
         presetName={presetName}
         bodyNames={bodyNames}
