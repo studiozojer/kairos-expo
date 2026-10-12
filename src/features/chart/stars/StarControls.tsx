@@ -1,19 +1,18 @@
 import { StarText as Text } from './StarText';
-import { Canvas, Path, Skia } from '@shopify/react-native-skia';
+import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { Pressable, View } from 'react-native';
 import { useTheme } from '@/theme';
-const paths = {
-  search: 'M14 14L20 20M16 9A7 7 0 1 1 2 9A7 7 0 1 1 16 9',
-  close: 'M6 6L18 18M18 6L6 18',
-  info: 'M12 11V17M12 7V7.2M22 12A10 10 0 1 1 2 12A10 10 0 1 1 22 12',
-  back: 'M14 5L7 12L14 19',
-  down: 'M6 9L12 15L18 9',
-  check: 'M6 12L10 16L18 8',
-};
-export function StarIcon({ name, color, size = 20 }: { name: keyof typeof paths; color: string; size?: number }) {
-  return <Canvas pointerEvents="none" style={{ width: size, height: size }}>
-    <Path path={Skia.Path.MakeFromSVGString(paths[name])!} transform={[{ scale: size / 24 }]} color={color} style="stroke" strokeWidth={1.5} strokeCap="round" strokeJoin="round" />
-  </Canvas>;
+const symbols = {
+  search: { ios: 'magnifyingglass', android: 'search', web: 'search' },
+  close: { ios: 'xmark', android: 'close', web: 'close' },
+  info: { ios: 'info.circle', android: 'info', web: 'info' },
+  back: { ios: 'chevron.left', android: 'chevron_left', web: 'chevron_left' },
+  down: { ios: 'chevron.down', android: 'expand_more', web: 'expand_more' },
+  check: { ios: 'checkmark', android: 'check', web: 'check' },
+} as const satisfies Record<string, SymbolViewProps['name']>;
+/** Native control symbols avoid tiny Skia surfaces disappearing during keyboard/layout changes. */
+export function StarIcon({ name, color, size = 20 }: { name: keyof typeof symbols; color: string; size?: number }) {
+  return <SymbolView name={symbols[name]} tintColor={color} size={size} pointerEvents="none" accessible={false} style={{ width: size, height: size }} />;
 }
 export function LibraryHeader({ title = 'Personal star library', onBack, onClose }: { title?: string; onBack?: () => void; onClose?: () => void }) {
   const t = useTheme();
