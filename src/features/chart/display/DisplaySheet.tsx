@@ -204,6 +204,6 @@ export function DisplayEditor({ displayPreset, repository, previewCharts, starCh
       </Animated.View>
     </View>
     </View>
-    {libraryOpen && <View style={{ position: 'absolute', top: insets.top, bottom: insets.bottom, left: 0, right: 0, backgroundColor: t.color.bgSolidBase }}><StarLibraryPanel onBack={() => setLibraryOpen(false)} onClose={onClose} ringContext={guidance ? { message: guidance.message, onManage: guidance.manageable ? manageRings : undefined } : undefined} /></View>}
+    {libraryOpen && <View style={{ position: 'absolute', top: insets.top, bottom: 0, paddingBottom: insets.bottom, left: 0, right: 0, backgroundColor: t.color.bgSolidBase }}><StarLibraryPanel onBack={() => setLibraryOpen(false)} onClose={onClose} ringContext={guidance ? { message: guidance.message, onManage: guidance.manageable ? manageRings : undefined } : undefined} /></View>}
   </View>;
 }
