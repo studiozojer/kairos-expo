@@ -1,0 +1,58 @@
+import React from 'react';
+import TestRenderer, { act } from 'react-test-renderer';
+import { calculateChart } from '../../data/calculateChart';
+import { calculateChart as nativeCalculate } from '../../../../../modules/kairos';
+import { DEFAULT_SETTINGS } from '../../settings/chartSettings';
+import fixture from '../../fixtures/engine/seattle-2026.json';
+import { buildMultiConfiguration } from '../../config/buildConfiguration';
+import { createRing, renderingPreset } from '../../display/model';
+import { displayTemplate } from '../../display/templates';
+import { validateDisplayPreset } from '../../display/validation';
+import { useWheelLayout, type WheelLayout } from '../../render/useWheelLayout';
+import { chartTargets, hitTarget, selectionPaint } from '../../interaction/selection';
+import { fixedStarMarkers } from '../../geometry/FixedStarLayout';
+import { ChartWheel } from '../../render/ChartWheel';
+import type { Placement } from '../../config/engine-types';
+jest.mock('../../../../../modules/kairos',()=>({calculateChart:jest.fn()}));
+jest.mock('expo-crypto',()=>{let n=300;return {randomUUID:()=>`00000000-0000-4000-8000-${String(++n).padStart(12,'0')}`};});
+const native=jest.mocked(nativeCalculate);
+const star=(name:string,longitude:number)=>({id:name.toLowerCase(),body:name,body_id:-1,node_type:'fixed_star',position:{longitude,latitude:2,distance:1,speed_longitude:0,speed_latitude:0,speed_distance:0},house_placement:4,sign_placement:'Aries'});
+function layoutFor(config: ReturnType<typeof buildMultiConfiguration>) {
+  let layout!:WheelLayout, tree!:TestRenderer.ReactTestRenderer;
+  function Probe(){layout=useWheelLayout(config,400);return null;}
+  act(()=>{tree=TestRenderer.create(<Probe/>);}); act(()=>tree.unmount()); return layout;
+}
+test('personal roster crosses native request, dynamic response, source-specific ring, selection, and rendering',async()=>{
+  const output={...fixture,celestial:{...fixture.celestial,nodes:[...fixture.celestial.nodes,star('Arcturus',.2)]}};
+  native.mockResolvedValue(JSON.stringify(output));
+  const chart=await calculateChart(fixture.chart_metadata.datetime,DEFAULT_SETTINGS,['Arcturus','Unknown']);
+  expect(JSON.parse(native.mock.calls[0][0]).selected_star_names).toEqual(['Arcturus','Unknown']);
+  expect(chart.missingStars).toEqual(['Unknown']);
+  const preset=displayTemplate('classic')!, ring=createRing('fixedStars',2);
+  if(ring.kind!=='fixedStars') throw new Error();
+  ring.options.showDegrees=true; preset.layouts[2].rings.unshift(ring); validateDisplayPreset(preset);
+  const config=buildMultiConfiguration([{instanceId:'inner',chart:fixture},{instanceId:'outer',name:'Transits',chart}],renderingPreset(preset));
+  const stars=config.rings.find(r=>r.type.kind==='fixedStars')!;
+  expect(stars.chartInstanceId).toBe('outer'); expect(stars.type).toMatchObject({placements:[{bodyName:'Arcturus',glyphAsset:'star',longitude:.2,chartInstanceId:'outer'}]});
+  const targets=chartTargets(layoutFor(config)); const target=targets.find(t=>t.kind==='star')!;
+  expect(hitTarget([target],target,{scale:1,x:0,y:0},400)).toBe(target.id);
+  const body={...targets.find(t=>t.kind==='body')!,id:'test-body',placement:{...targets.find(t=>t.kind==='body')!.placement!,longitude:359.7}};
+  const style={...renderingPreset(preset).selection,includeConjunctFixedStars:true,conjunctFixedStarsOrb:1};
+  expect(selectionPaint([body.id],[body,target],config,style).related.has(target.id)).toBe(true);
+  expect(selectionPaint([target.id],[body,target],config,style).related.has(body.id)).toBe(true);
+  expect(selectionPaint([body.id],[body,target],config,{...style,includeConjunctFixedStars:false}).related.has(target.id)).toBe(false);
+  const beyond={...body,placement:{...body.placement,longitude:358}};
+  expect(selectionPaint([target.id],[beyond,target],config,style).related.has(body.id)).toBe(false);
+  let tree!:TestRenderer.ReactTestRenderer;act(()=>{tree=TestRenderer.create(<ChartWheel config={config} size={400}/>);});
+  expect(tree.root.findAll(node=>node.props.name==='celestials/star')).toHaveLength(1); act(()=>tree.unmount());
+  const filtered=buildMultiConfiguration([{instanceId:'outer',chart,starNames:[]}],{...renderingPreset(preset),soloChart:{...renderingPreset(preset).soloChart,rings:[{...renderingPreset(preset).dualChart.rings[0],sourceSlot:1}]}});
+  expect(filtered.rings[0].type).toMatchObject({kind:'fixedStars',placements:[]});
+});
+test('circular crowded layout preserves every star, wraps clusters, and is deterministic under reorder',()=>{
+  const placements=['A','B','C'].map((name,i)=>({...star(name,[359,1,150][i]),bodyName:name,bodyId:name,glyphAsset:'star',housePlacement:0,signPlacement:'Aries',speedLongitude:0,latitude:0,isRetrograde:false,longitude:[359,1,150][i]} as Placement));
+  const markers=fixedStarMarkers(placements,100,20,'ring');
+  expect(markers).toHaveLength(2); expect(markers.flatMap(m=>m.placements)).toHaveLength(3);
+  const cluster=markers.find(m=>m.placements.length===2)!; expect(cluster.longitude).toBe(0);
+  expect(cluster.placements.map(p=>p.longitude)).toEqual([359,1]);
+  expect(fixedStarMarkers([...placements].reverse(),100,20,'ring')).toEqual(markers);
+});

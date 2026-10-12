@@ -28,6 +28,8 @@
  * fixture+preset) or this memo never hits and every frame re-lays-out.
  */
 
+import { FIXED_STARS_CONTENT_TYPE } from "../schema/ring-content";
+import { fixedStarMarkers, type StarMarker } from "../geometry/FixedStarLayout";
 import { useMemo } from "react";
 
 import type { ChartRenderingConfiguration, RingConfiguration } from "../config/ChartRenderingConfiguration";
@@ -87,6 +89,7 @@ export interface WheelLayout {
   coordinates: ChartCoordinateSystem;
   /** Planet layout, keyed by ring index — populated only for rings whose kind is "planets" (Task 9). */
   planetLayouts: ReadonlyMap<number, PlanetRingLayout>;
+  starLayouts?: ReadonlyMap<number, StarMarker[]>;
   /**
    * 12 house-cusp longitudes, house 1 first — passed through from
    * `config.houseCusps` verbatim (degrees, so display-scale invariant; no
@@ -152,7 +155,17 @@ export function useWheelLayout(config: ChartRenderingConfiguration, size: number
       planetLayouts.set(ringIndex, coordinator.calculateLayout() as PlanetRingLayout);
     });
 
+    const starLayouts = new Map<number, StarMarker[]>();
+    if (feasible) rings.forEach((ring,index) => {
+      if (ring.type.kind !== 'fixedStars') return;
+      const style = ring.style;
+      const glyphSize = 'glyphSize' in style ? style.glyphSize : 14;
+      const hasText = ring.content?.$type === FIXED_STARS_CONTENT_TYPE && (ring.content.showDegrees || ring.content.showSign || ring.content.showMinutes);
+      const footprint = hasText && 'textSize' in style ? Math.max(glyphSize, style.textSize * 7) : glyphSize;
+      starLayouts.set(index, fixedStarMarkers(ring.type.placements, geometry.midRadiusForRing(index), footprint + 4 * displayScale, ring.id ?? String(index)));
+    });
     return {
+      starLayouts,
       feasible,
       size,
       displayScale,

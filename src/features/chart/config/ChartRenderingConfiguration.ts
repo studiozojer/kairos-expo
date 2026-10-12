@@ -34,6 +34,7 @@ export type RingContentType =
       maxRingNumber: number;
       drawInnerBoundary: boolean;
     }
+  | { kind: "fixedStars"; placements: Placement[] }
   | { kind: "houseNumbers" }
   | { kind: "cuspAnnotations" }
   | { kind: "rulerSegments"; ringKind: "signRulers" | "decans" | "terms"; system: string; showNumbers: boolean; segments: RulerSegment[] }

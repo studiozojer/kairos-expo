@@ -48,7 +48,7 @@ test('keeps the old chart, date and location together through pending work and f
   expect(latest.status).toBe('error');
   expect(latest.result?.datetime).toBe(first);
   await act(async () => { latest.retry(); });
-  expect(calculate).toHaveBeenLastCalledWith(second, changed);
+  expect(calculate).toHaveBeenLastCalledWith(second, changed, []);
   expect(latest.result?.datetime).toBe(second);
 });
 
@@ -73,4 +73,20 @@ test('an obsolete failure does not overwrite a newer successful request', async 
   await act(async () => { rejectFirst(new Error('old failure')); });
   expect(latest.status).toBe('ready');
   expect(latest.result?.datetime).toBe(last);
+});
+
+test('roster changes invalidate pending results and queue only the latest personal library',async()=>{
+  let release!:(value:typeof fixture)=>void;
+  calculate.mockImplementationOnce(()=>new Promise(resolve=>{release=resolve;})).mockResolvedValue(fixture);
+  function Stars({names}:{names:string[]}) {
+    const value=useSteppedChart(first,DEFAULT_SETTINGS,true,names);
+    React.useLayoutEffect(()=>{latest=value;});return null;
+  }
+  await act(async()=>{view=create(<Stars names={['Regulus']}/>);});
+  await act(async()=>{view.update(<Stars names={['Regulus','Arcturus']}/>);});
+  await act(async()=>{view.update(<Stars names={['Arcturus']}/>);});
+  expect(calculate).toHaveBeenCalledTimes(1);
+  await act(async()=>{release(fixture);});
+  expect(calculate.mock.calls.map(call=>call[2])).toEqual([['Regulus'],['Arcturus']]);
+  expect(latest.result?.starKey).toBe('["Arcturus"]'); expect(latest.status).toBe('ready');
 });

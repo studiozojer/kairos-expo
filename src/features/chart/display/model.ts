@@ -5,7 +5,7 @@ import type { ChartColors, GlobalChartVariables, RingThickness, VisibilityConfig
 import { GLOBAL_CHART_VARIABLES_DEFAULT } from '../schema/core-types';
 import type { Preset, AspectConfiguration, SelectionStyleOverride } from '../schema/preset';
 import { PRESET_DEFAULT } from '../schema/preset';
-import { defaultRingStyle, type ZodiacRingStyle, type PlanetsRingStyle, type HousesRingStyle, type CuspAnnotationsStyle, type SignRulersStyle, type DecansStyle, type TermsStyle, type AspectOverlayStyle } from '../schema/ring-styles';
+import { defaultRingStyle, type ZodiacRingStyle, type PlanetsRingStyle, type HousesRingStyle, type CuspAnnotationsStyle, type SignRulersStyle, type DecansStyle, type TermsStyle, type FixedStarsStyle, type AspectOverlayStyle } from '../schema/ring-styles';
 import { defaultRingContent } from '../schema/ring-content';
 import type { RingModule } from '../schema/ring-module';
 
@@ -20,16 +20,17 @@ export type DisplayRing = Base & (
   | { kind: 'cuspAnnotations'; sourceSlot: SourceSlot; style: Style<CuspAnnotationsStyle>; options: { showSignGlyph: boolean; showDegrees: boolean; showMinutes: boolean } }
   | { kind: 'signRulers'; style: Style<SignRulersStyle>; options: { system: 'traditional' | 'modern' } }
   | { kind: 'decans'; style: Omit<Style<DecansStyle>, 'numberFontWeight'>; options: { system: 'chaldean' | 'triplicity' | 'modern'; showNumbers: boolean } }
+  | { kind: 'fixedStars'; sourceSlot: SourceSlot; style: Style<FixedStarsStyle>; options: { showDegrees: boolean; showSign: boolean; showMinutes: boolean } }
   | { kind: 'terms'; style: Style<TermsStyle>; options: { system: 'egyptian' | 'ptolemaic' | 'chaldean' } }
 );
 export type RingKind = DisplayRing['kind'];
-export const RING_KINDS: RingKind[] = ['zodiac', 'planets', 'houses', 'cuspAnnotations', 'signRulers', 'decans', 'terms'];
-export const RING_TITLES: Record<RingKind, string> = { zodiac: 'Zodiac', planets: 'Planets', houses: 'Houses', cuspAnnotations: 'Cusp degrees', signRulers: 'Sign rulers', decans: 'Decans', terms: 'Terms' };
+export const RING_KINDS: RingKind[] = ['zodiac', 'planets', 'houses', 'cuspAnnotations', 'signRulers', 'decans', 'terms', 'fixedStars'];
+export const RING_TITLES: Record<RingKind, string> = { zodiac: 'Zodiac', planets: 'Planets', houses: 'Houses', cuspAnnotations: 'Cusp degrees', signRulers: 'Sign rulers', decans: 'Decans', terms: 'Terms', fixedStars: 'Fixed stars' };
 export interface DisplayLayout { rings: DisplayRing[]; geometry: Omit<GlobalChartVariables, 'staticOrientationDegree' | 'variableRingSizing'> }
 export interface DisplayPreset {
   schemaVersion: 1; id: string; name: string; templateId?: string;
   colors: ChartColors; visibility: VisibilityConfiguration;
-  selection: Omit<SelectionStyleOverride, 'includeConjunctFixedStars' | 'conjunctFixedStarsOrb'>;
+  selection: SelectionStyleOverride;
   aspects: Omit<AspectConfiguration, 'showGrid'>;
   aspectOverlay: Style<AspectOverlayStyle>;
   orientation: { mode: 'static' | 'ascendant'; degree: number };
@@ -42,10 +43,11 @@ export function createRing(kind: RingKind, sourceSlot: SourceSlot = 1, id = newP
   const { $type: _contentTag, ...options } = defaultRingContent(kind);
   for (const key of ['showRetrograde', 'showSpeeds']) delete (options as Record<string, unknown>)[key];
   if (kind === 'zodiac') { delete (style as Record<string,unknown>).showDegreeMarkers; (options as Record<string,unknown>).showDegrees = true; }
+  if (kind === 'fixedStars') Object.assign(options, { showDegrees: false, showSign: false, showMinutes: false });
   if (kind === 'decans') (options as Record<string,unknown>).showNumbers = true;
   if (kind === 'houses') delete (options as Record<string, unknown>).system;
   return { id, kind, enabled: true, thickness: kind === 'planets' ? { kind: 'auto' } : { kind: 'fixed', value: kind === 'terms' ? 22 : 24 }, style, options,
-    ...(['planets','houses','cuspAnnotations'].includes(kind) ? { sourceSlot } : {}) } as DisplayRing;
+    ...(['planets','houses','cuspAnnotations','fixedStars'].includes(kind) ? { sourceSlot } : {}) } as DisplayRing;
 }
 export function copyPreset(preset: DisplayPreset, name = `${preset.name.slice(0,95)} copy`): DisplayPreset {
   const next: DisplayPreset = JSON.parse(JSON.stringify(preset));
@@ -76,7 +78,7 @@ export function renderingPreset(preset: DisplayPreset): Preset {
 export function applyAppearance(preset: DisplayPreset, view: Preset): DisplayPreset {
   const { showGrid: _grid, ...aspects } = view.aspects;
   const { $type: _tag, ...aspectOverlay } = view.aspectOverlay;
-  const { includeConjunctFixedStars: _stars, conjunctFixedStarsOrb: _orb, ...selection } = view.selection;
+  const selection = view.selection;
   const next = { ...preset, colors: view.colors, visibility: view.visibility, aspects, aspectOverlay, selection,
     orientation: { ...preset.orientation, degree: view.soloChart.globalSettings.staticOrientationDegree }, layouts: { ...preset.layouts } };
   for (const [count, slot] of [[1,view.soloChart],[2,view.dualChart],[3,view.tripleChart]] as const) {

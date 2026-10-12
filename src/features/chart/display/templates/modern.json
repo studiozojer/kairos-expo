@@ -73,7 +73,9 @@
     "affectsDegreeMarks": true,
     "affectsHouseNumbers": true,
     "affectsCuspLines": true,
-    "showBackgroundCircle": false
+    "showBackgroundCircle": false,
+    "includeConjunctFixedStars": false,
+    "conjunctFixedStarsOrb": 1
   },
   "aspects": {
     "enabledTypes": [

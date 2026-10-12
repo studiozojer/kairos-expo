@@ -122,6 +122,8 @@ export interface ChartMetadataDTO {
 }
 
 export interface ChartCalculationResponse {
+  /** App boundary diagnostic: the engine omits individual failed star calculations. */
+  missingStars?: string[];
   celestial: CelestialGraphDTO;
   houses: HouseGraphDTO;
   chart_metadata: ChartMetadataDTO;

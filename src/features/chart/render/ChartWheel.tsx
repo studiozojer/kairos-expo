@@ -1,4 +1,5 @@
 import { Text, View } from "react-native";
+import { FixedStarsRing } from "./rings/FixedStarsRing";
 import { RulerSegmentsRing } from "./rings/RulerSegmentsRing";
 import { PatternOverlay } from './PatternOverlay';
 /**
@@ -73,6 +74,7 @@ export const RING_RENDERERS: Record<RingContentType["kind"], RingRendererCompone
   cuspAnnotations: CuspAnnotationRing,
   empty: UnrenderedRing,
   rulerSegments: RulerSegmentsRing,
+  fixedStars: FixedStarsRing,
 };
 
 /** Skia Group transform wrapping all rings. Defaults to identity. */

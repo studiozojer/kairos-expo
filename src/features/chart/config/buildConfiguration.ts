@@ -125,6 +125,7 @@ export interface RenderChart {
   instanceId: string;
   chart: ChartCalculationResponse;
   name?: string;
+  starNames?: readonly string[];
 }
 
 /** Active inputs are innermost first. Identity never depends on ring position. */
@@ -155,7 +156,7 @@ function buildCharts(charts: RenderChart[], preset: Preset, qualified: boolean, 
   // Placements + North-Node dedup BEFORE any ring filter (Swift :109).
   const sources = charts.map(source => {
     const cusps = [...source.chart.houses.nodes].sort((a, b) => a.house_number - b.house_number).map(h => h.cusp_longitude);
-    const placements = deduplicateNorthNode(source.chart.celestial.nodes.map(placementFromNode)).map(p => qualified ? {
+    const placements = deduplicateNorthNode(source.chart.celestial.nodes.filter(node => node.node_type !== "fixed_star").map(placementFromNode)).map(p => qualified ? {
       ...p, id: placementIdentifier(source.instanceId, p.id), rawNodeId: p.id,
       chartInstanceId: source.instanceId, chartName: source.name,
     } : p);
@@ -222,6 +223,15 @@ function buildCharts(charts: RenderChart[], preset: Preset, qualified: boolean, 
         break;
       }
 
+      case "fixedStars": {
+        if (!owner) break;
+        const placements = owner.chart.celestial.nodes.filter(node => node.node_type === "fixed_star" && (!owner.starNames || owner.starNames.some(name => name.toLowerCase() === node.body.toLowerCase()))).map(node => {
+          const p = { ...placementFromNode(node), bodyName: node.body, glyphAsset: "star", isRetrograde: false };
+          return qualified ? { ...p, id: placementIdentifier(owner.instanceId, `star:${node.body.toLowerCase()}`), rawNodeId: node.id, chartInstanceId: owner.instanceId, chartName: owner.name } : { ...p, id: `star:${node.body.toLowerCase()}` };
+        });
+        rings.push({ id: ringModule.id, content: ringModule.content, type: { kind: "fixedStars", placements }, ...ringReference, style: ringModule.style, thickness: ringModule.thickness });
+        break;
+      }
       case "houses":
         rings.push({
           id: ringModule.id, content: ringModule.content,

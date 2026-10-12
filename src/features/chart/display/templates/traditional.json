@@ -73,7 +73,9 @@
     "affectsDegreeMarks": true,
     "affectsHouseNumbers": true,
     "affectsCuspLines": true,
-    "showBackgroundCircle": false
+    "showBackgroundCircle": false,
+    "includeConjunctFixedStars": false,
+    "conjunctFixedStarsOrb": 1
   },
   "aspects": {
     "enabledTypes": [
@@ -204,6 +206,29 @@
             "showBoundaries": true,
             "showDegrees": true,
             "showSymbols": true
+          }
+        },
+        {
+          "id": "27f47c9e-8fe1-4c45-9224-e69f914f019e",
+          "kind": "fixedStars",
+          "sourceSlot": 1,
+          "enabled": true,
+          "thickness": {
+            "kind": "fixed",
+            "value": 24
+          },
+          "options": {
+            "showDegrees": false,
+            "showSign": false,
+            "showMinutes": false
+          },
+          "style": {
+            "glyphSize": 14,
+            "rotateGlyphs": false,
+            "textSize": 8,
+            "textOffset": 4,
+            "innerBoundaryLineWidth": 0.5,
+            "outerBoundaryLineWidth": 0.5
           }
         },
         {
@@ -357,6 +382,29 @@
             "showBoundaries": true,
             "showDegrees": true,
             "showSymbols": true
+          }
+        },
+        {
+          "id": "97c84bcd-1dc8-4117-b751-1ce98d38f81e",
+          "kind": "fixedStars",
+          "sourceSlot": 1,
+          "enabled": true,
+          "thickness": {
+            "kind": "fixed",
+            "value": 24
+          },
+          "options": {
+            "showDegrees": false,
+            "showSign": false,
+            "showMinutes": false
+          },
+          "style": {
+            "glyphSize": 14,
+            "rotateGlyphs": false,
+            "textSize": 8,
+            "textOffset": 4,
+            "innerBoundaryLineWidth": 0.5,
+            "outerBoundaryLineWidth": 0.5
           }
         },
         {
@@ -550,6 +598,29 @@
             "showBoundaries": true,
             "showDegrees": true,
             "showSymbols": true
+          }
+        },
+        {
+          "id": "b32c2772-36ae-4e0f-abf7-f43df94c960b",
+          "kind": "fixedStars",
+          "sourceSlot": 1,
+          "enabled": true,
+          "thickness": {
+            "kind": "fixed",
+            "value": 24
+          },
+          "options": {
+            "showDegrees": false,
+            "showSign": false,
+            "showMinutes": false
+          },
+          "style": {
+            "glyphSize": 14,
+            "rotateGlyphs": false,
+            "textSize": 8,
+            "textOffset": 4,
+            "innerBoundaryLineWidth": 0.5,
+            "outerBoundaryLineWidth": 0.5
           }
         },
         {

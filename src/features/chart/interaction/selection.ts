@@ -10,8 +10,8 @@ import type { WheelLayout } from '../render/useWheelLayout';
 import { toCanvas, type Point, type WheelTransform } from './motion';
 
 export interface ChartTarget extends Point {
-  id: string; kind: 'body' | 'sign' | 'house' | 'segment';
-  ruler?: string; start?: number; end?: number; label: string; detail: string;
+  id: string; kind: 'body' | 'sign' | 'house' | 'segment' | 'star' | 'starGroup';
+  members?: string[]; ruler?: string; start?: number; end?: number; label: string; detail: string;
   radius: number; placement?: Placement;
 }
 export function chartTargets(layout: WheelLayout): ChartTarget[] {
@@ -19,7 +19,7 @@ export function chartTargets(layout: WheelLayout): ChartTarget[] {
   if (layout.feasible === false) return out;
   layout.rings.forEach((ring, index) => {
     const radius = layout.global.moduleHitRadiusOverrides[
-      ring.type.kind === 'planets' ? 'planetsRing' : ring.type.kind === 'zodiacSigns' ? 'zodiacRing' : 'housesRing'
+      ring.type.kind === 'fixedStars' ? 'fixedStarsRing' : ring.type.kind === 'planets' ? 'planetsRing' : ring.type.kind === 'zodiacSigns' ? 'zodiacRing' : 'housesRing'
     ] ?? layout.global.defaultHitRadius;
     if (ring.type.kind === 'planets') {
       for (const pos of layout.planetLayouts.get(index) ?? []) {
@@ -27,6 +27,13 @@ export function chartTargets(layout: WheelLayout): ChartTarget[] {
         const degrees = ((p.longitude % 30) + 30) % 30;
         out.push({ id: p.id, kind: 'body', label: p.bodyName, placement: p, ...pos.adjustedPosition, radius,
           detail: `${p.chartInstanceId ? `${p.chartName ?? "Chart"} · Ring ${ring.type.ringNumber} · ` : ""}${Math.floor(degrees)}° ${String(Math.floor((degrees % 1) * 60)).padStart(2, '0')}′ ${p.signPlacement}${p.housePlacement ? ` · House ${p.housePlacement}` : ''}${p.isRetrograde ? ' · Retrograde' : ''}` });
+      }
+    } else if (ring.type.kind === 'fixedStars') {
+      for (const marker of layout.starLayouts?.get(index) ?? []) {
+        const point = layout.coordinates.pointForDegree(marker.longitude,layout.geometry.midRadiusForRing(index));
+        if (marker.placements.length > 1) out.push({ ...point, id: marker.id, kind: 'starGroup', members: marker.placements.map(p => p.id), label: `${marker.placements.length} nearby stars`, detail: 'Choose a star to select', radius });
+        marker.placements.forEach(p => out.push({ ...point, id:p.id, kind:'star', label:p.bodyName, placement:p, radius: marker.placements.length > 1 ? -1 : radius,
+          detail: `${p.chartName ? `${p.chartName} · ` : ''}${Math.floor(p.longitude % 30)}° ${String(Math.floor((p.longitude % 1)*60)).padStart(2,'0')}′ ${p.signPlacement}${p.housePlacement ? ` · House ${p.housePlacement}` : ''}` }));
       }
     } else if (ring.type.kind === 'rulerSegments') {
       const { segments, system } = ring.type;
@@ -84,7 +91,14 @@ export function selectionPaint(ids: string[], targets: ChartTarget[], config: Ch
         targets.filter(other => other.placement?.bodyId === segment.ruler && other.placement?.chartInstanceId === p.chartInstanceId).forEach(other => related.add(other.id));
       });
     }
-    if (style.includeAspectedPlanets) {
+    if (style.includeConjunctFixedStars && (target.kind === 'body' || target.kind === 'star')) {
+      for (const other of targets) {
+        if (!other.placement || (target.kind === 'star' ? other.kind !== 'body' : other.kind !== 'star')) continue;
+        const diff = Math.abs(p.longitude - other.placement.longitude);
+        if (Math.min(diff,360-diff) <= style.conjunctFixedStarsOrb) related.add(other.id);
+      }
+    }
+    if (style.includeAspectedPlanets && target.kind === 'body') {
       // iOS RelationshipComputer uses the chart's aspect edges for this tier.
       for (const edge of config.aspectEdges) {
         if (edge.from === p.id) related.add(edge.to);
@@ -92,8 +106,7 @@ export function selectionPaint(ids: string[], targets: ChartTarget[], config: Ch
       }
     }
   }
-  // Fixed-star and rulership-ring relationships remain inert until those rings
-  // are rendered, matching iOS's presence-gated relationship computation.
+  // Relationships operate only on targets in the currently rendered rings.
   return { selected, selectedBodies: new Set(targets.filter(t => t.kind === 'body' && selected.has(t.id)).map(t => t.id)), related, style };
 }
 export type SelectionElement = 'affectsGlyphs' | 'affectsDegreeText' | 'affectsDegreeMarks' | 'affectsHouseNumbers' | 'affectsCuspLines';

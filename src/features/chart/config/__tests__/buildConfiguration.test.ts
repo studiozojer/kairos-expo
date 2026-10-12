@@ -101,15 +101,16 @@ test("showFrameDerivedPoints: false drops angles/lots/vertex from that ring", ()
   expect(planets.placements).toHaveLength(12);
 });
 
-test("unsupported ring types warn and are skipped (starfield fixedStars)", () => {
+test("fixedStars keeps an empty ring shell when no stars are calculated", () => {
   const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
   try {
     const cfg = buildConfiguration(sibly, parsePreset(starfield));
     expect(cfg.rings.some((r) => r.type.kind === "zodiacSigns")).toBe(true);
-    // fixedStars parses in the schema layer but does not render yet.
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("fixedStars"));
-    // zodiac + planets + houses survive; nothing else was appended.
-    expect(cfg.rings.map((r) => r.type.kind)).toEqual(["zodiacSigns", "planets", "houseNumbers"]);
+    // Empty star libraries preserve the ring shell.
+    expect(warn).not.toHaveBeenCalled();
+    expect(cfg.rings.find(r => r.type.kind === "fixedStars")?.type).toEqual({kind:"fixedStars",placements:[]});
+    // Preserve the historical fixture’s outside-to-inside composition.
+    expect(cfg.rings.map((r) => r.type.kind)).toEqual(["zodiacSigns", "planets", "fixedStars", "houseNumbers"]);
   } finally {
     warn.mockRestore();
   }
