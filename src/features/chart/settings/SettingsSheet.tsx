@@ -1,3 +1,4 @@
+import { StarLibraryPanel } from '../stars/StarLibraryPanel';
 import { ChartSheet, SheetHeader, SheetBackRow } from '../components/ChartSheet';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
@@ -24,12 +25,12 @@ export function SettingsSheet(props: Props) {
 export function SettingsEditor({ settings, saveError, onChange, onClose, scope = 'chart' }: Props) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
-  const [page, setPage] = useState<'location' | 'houses' | null>(null);
+  const [page, setPage] = useState<'location' | 'houses' | 'stars' | null>(null);
   return <View style={{ flex: 1, backgroundColor: t.color.bgSolidBase, paddingTop: insets.top, paddingBottom: insets.bottom }}>
     <SheetHeader title={scope === 'defaults' ? 'Default chart settings' : 'Chart settings'} closeLabel="Close chart settings" onClose={onClose} />
-    {page && <SheetBackRow title={page === 'location' ? 'Location' : 'House system'} onBack={() => setPage(null)} />}
+    {page && <SheetBackRow title={page === 'location' ? 'Location' : page === 'stars' ? 'Personal star library' : 'House system'} onBack={() => setPage(null)} />}
     {saveError && <Text accessibilityRole="alert" style={[t.type.whyteXs, { color: t.color.txAccent, paddingHorizontal: t.space.lg }]}>{scope === 'defaults' ? 'Couldn’t save defaults on this device. Choose again to retry.' : 'Couldn’t save this open chart’s settings. Retry saving from the chart screen.'}</Text>}
-    {page === 'location' ? <LocationPicker selected={settings.location} onSelect={location => { onChange({ ...settings, location }); setPage(null); }} /> :
+    {page === 'stars' ? <StarLibraryPanel /> : page === 'location' ? <LocationPicker selected={settings.location} onSelect={location => { onChange({ ...settings, location }); setPage(null); }} /> :
       <ScrollView contentContainerStyle={{ padding: t.space.lg }}>
         {page === 'houses' ? <Section title="House system">
           {HOUSE_SYSTEMS.map(system => <Pressable key={system} accessibilityRole="radio" accessibilityLabel={system}
@@ -37,8 +38,9 @@ export function SettingsEditor({ settings, saveError, onChange, onClose, scope =
             <Row label={system}>{settings.houseSystem === system && <Text style={{ color: t.color.txAccent }}>✓</Text>}</Row>
           </Pressable>)}
         </Section> : <>
-          <Note>{scope === 'defaults' ? 'Defaults apply to new charts. Existing saved and open charts keep their settings.' : 'Changes apply to this open chart only. Saved charts remain unchanged.'}</Note><Section title="Location"><LinkRow label="Location" detail={settings.location.name} onPress={() => setPage('location')} /></Section>
+          <Note>{scope === 'defaults' ? 'Location and calculation defaults apply to new charts. Existing saved and open charts keep their settings.' : 'Location and calculation changes apply to this open chart only. Saved charts remain unchanged.'}</Note><Section title="Location"><LinkRow label="Location" detail={settings.location.name} onPress={() => setPage('location')} /></Section>
           <Section title="Calculation"><Choices label="Lunar node" value={calculationSettings(settings).lunarNodeType} options={[["Mean", "Mean"], ["True", "True"]]} onChange={node => onChange(withLunarNode(settings, node))} /><Row label="Zodiac" detail="Tropical" /><Choices label="Lilith" value={calculationSettings(settings).blackMoonLilithType} options={[["Mean", "Mean"], ["Osculating", "Osculating"]]} onChange={value => onChange(withCalculation(settings, { blackMoonLilithType: value }))} /><Choices label="Lots" value={calculationSettings(settings).lotCalculationMethod} options={[["Traditional", "Traditional"], ["Fixed", "Fixed"]]} onChange={value => onChange(withCalculation(settings, { lotCalculationMethod: value }))} /><LinkRow label="House system" detail={settings.houseSystem} onPress={() => setPage('houses')} /></Section>
+          <Section title="Personal library"><LinkRow label="Personal star library" detail="Your selected stars, shared across all charts and display presets" onPress={() => setPage('stars')} /></Section>
         </>}
       </ScrollView>}
   </View>;
