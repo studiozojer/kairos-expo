@@ -7,7 +7,7 @@ import { resolveColorValue, useChartPaintTheme } from '../colors';
 import { Glyph } from '../Glyph';
 import { FIXED_STARS_CONTENT_TYPE } from '../../schema/ring-content';
 import { ZODIAC_SIGNS } from '../../schema/enums.gen';
-const symbols = ['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'];
+import type { GlyphName } from '../glyph-map.gen';
 export function FixedStarsRing({ ring, ringIndex, layout, selection }: RingRendererProps) {
   const theme = useChartPaintTheme();
   const style = ring.style.$type === FIXED_STARS_STYLE_TYPE ? ring.style : FIXED_STARS_STYLE_DEFAULT;
@@ -28,7 +28,14 @@ export function FixedStarsRing({ ring, ringIndex, layout, selection }: RingRende
       const point = coordinates.pointForDegree(marker.longitude,mid);
       const active = marker.placements.find(p => selection?.selected.has(p.id)) ?? marker.placements.find(p => selection?.related.has(p.id)) ?? marker.placements[0];
       const selected = marker.placements.some(p => selection?.selected.has(p.id));
-      const annotation = marker.placements.length > 1 ? String(marker.placements.length) : content ? [content.showDegrees ? `${Math.floor(active.longitude%30)}°` : '',content.showSign ? symbols[ZODIAC_SIGNS.findIndex(sign => sign === active.signPlacement.toLowerCase())] ?? '' : '',content.showMinutes ? `${String(Math.floor(active.longitude%1*60)).padStart(2,'0')}′` : ''].join('') : '';
+      const grouped = marker.placements.length > 1;
+      const degrees = grouped ? String(marker.placements.length) : content?.showDegrees ? `${Math.floor(active.longitude%30)}°` : '';
+      const minutes = !grouped && content?.showMinutes ? `${String(Math.floor(active.longitude%1*60)).padStart(2,'0')}′` : '';
+      const sign = !grouped && content?.showSign ? ZODIAC_SIGNS.find(sign => sign === active.signPlacement.toLowerCase()) : undefined;
+      const degreeWidth = degrees ? font?.measureText(degrees).width ?? 0 : 0;
+      const minuteWidth = minutes ? font?.measureText(minutes).width ?? 0 : 0;
+      const signSize = sign ? style.textSize * 1.2 : 0;
+      const width = degreeWidth + minuteWidth + signSize;
       const textPoint = coordinates.pointForDegree(marker.longitude,Math.min(outer-style.textSize/2,mid+glyphSize/2+style.textOffset));
       return <Group key={marker.id}>
         {marker.placements.map(p => <Line key={p.id} p1={coordinates.pointForDegree(p.longitude,inner)} p2={coordinates.pointForDegree(p.longitude,inner+Math.min(3*layout.displayScale,(outer-inner)/4))} color={color} strokeWidth={.75*layout.displayScale} opacity={selectionOpacity(selection,p.id,'affectsDegreeMarks')} />)}
@@ -37,7 +44,9 @@ export function FixedStarsRing({ ring, ringIndex, layout, selection }: RingRende
         <Group origin={point} transform={style.rotateGlyphs ? [{ rotate: coordinates.zodiacToCanvasAngle(marker.longitude-90)*Math.PI/180 }] : []}>
           <Glyph name="celestials/star" x={point.x} y={point.y} size={glyphSize} color={selectionColor(selection,active.id,'affectsGlyphs',color,theme)} selected={selected} opacity={selectionOpacity(selection,active.id,'affectsGlyphs')} />
         </Group>
-        {annotation && font ? <Text text={annotation} x={textPoint.x-font.measureText(annotation).width/2} y={textPoint.y+style.textSize*.35} font={font} color={selectionColor(selection,active.id,'affectsDegreeText',textColor,theme)} opacity={selectionOpacity(selection,active.id,'affectsDegreeText')} /> : null}
+        {degrees && font ? <Text text={degrees} x={textPoint.x-width/2} y={textPoint.y+style.textSize*.35} font={font} color={selectionColor(selection,active.id,'affectsDegreeText',textColor,theme)} opacity={selectionOpacity(selection,active.id,'affectsDegreeText')} /> : null}
+        {sign && <Glyph name={`signs/${sign}` as GlyphName} x={textPoint.x-width/2+degreeWidth+signSize/2} y={textPoint.y} size={signSize} color={selectionColor(selection,active.id,'affectsDegreeText',textColor,theme)} opacity={selectionOpacity(selection,active.id,'affectsDegreeText')} />}
+        {minutes && font ? <Text text={minutes} x={textPoint.x-width/2+degreeWidth+signSize} y={textPoint.y+style.textSize*.35} font={font} color={selectionColor(selection,active.id,'affectsDegreeText',textColor,theme)} opacity={selectionOpacity(selection,active.id,'affectsDegreeText')} /> : null}
       </Group>;
     })}
   </Group>;

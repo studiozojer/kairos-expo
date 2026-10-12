@@ -11,6 +11,7 @@ import { validateDisplayPreset } from '../../display/validation';
 import { useWheelLayout, type WheelLayout } from '../../render/useWheelLayout';
 import { chartTargets, hitTarget, selectionPaint } from '../../interaction/selection';
 import { fixedStarMarkers } from '../../geometry/FixedStarLayout';
+import { FixedStarsRing } from '../../render/rings/FixedStarsRing';
 import { ChartWheel } from '../../render/ChartWheel';
 import type { Placement } from '../../config/engine-types';
 jest.mock('../../../../../modules/kairos',()=>({calculateChart:jest.fn()}));
@@ -30,7 +31,7 @@ test('personal roster crosses native request, dynamic response, source-specific 
   expect(chart.missingStars).toEqual(['Unknown']);
   const preset=displayTemplate('classic')!, ring=createRing('fixedStars',2);
   if(ring.kind!=='fixedStars') throw new Error();
-  ring.options.showDegrees=true; preset.layouts[2].rings.unshift(ring); validateDisplayPreset(preset);
+  ring.options.showDegrees=true; ring.options.showSign=true; preset.layouts[2].rings.unshift(ring); validateDisplayPreset(preset);
   const config=buildMultiConfiguration([{instanceId:'inner',chart:fixture},{instanceId:'outer',name:'Transits',chart}],renderingPreset(preset));
   const stars=config.rings.find(r=>r.type.kind==='fixedStars')!;
   expect(stars.chartInstanceId).toBe('outer'); expect(stars.type).toMatchObject({placements:[{bodyName:'Arcturus',glyphAsset:'star',longitude:.2,chartInstanceId:'outer'}]});
@@ -44,7 +45,8 @@ test('personal roster crosses native request, dynamic response, source-specific 
   const beyond={...body,placement:{...body.placement,longitude:358}};
   expect(selectionPaint([target.id],[beyond,target],config,style).related.has(body.id)).toBe(false);
   let tree!:TestRenderer.ReactTestRenderer;act(()=>{tree=TestRenderer.create(<ChartWheel config={config} size={400}/>);});
-  expect(tree.root.findAll(node=>node.props.name==='celestials/star')).toHaveLength(1); act(()=>tree.unmount());
+  expect(tree.root.findAll(node=>node.props.name==='celestials/star')).toHaveLength(1);
+  expect(tree.root.findByType(FixedStarsRing).findAll(node=>node.props.name==='signs/aries')).toHaveLength(1); act(()=>tree.unmount());
   const filtered=buildMultiConfiguration([{instanceId:'outer',chart,starNames:[]}],{...renderingPreset(preset),soloChart:{...renderingPreset(preset).soloChart,rings:[{...renderingPreset(preset).dualChart.rings[0],sourceSlot:1}]}});
   expect(filtered.rings[0].type).toMatchObject({kind:'fixedStars',placements:[]});
 });
