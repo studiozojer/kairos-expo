@@ -1,6 +1,6 @@
-import { StarLibraryPanel } from '../stars/StarLibraryPanel';
+import { StarLibraryPanel, type StarLibraryPanelProps } from '../stars/StarLibraryPanel';
 import { ChartSheet, SheetHeader, SheetBackRow } from '../components/ChartSheet';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
@@ -16,18 +16,20 @@ interface Props {
   onChange: (next: ChartSettings) => void;
   onClose: () => void;
   onOpenStars?: () => void;
+  starRingContext?: StarLibraryPanelProps['ringContext'];
+  ringEditor?: ReactNode;
 }
 // Let Modal retain the editor until native dismissal finishes, as Display does.
 export function SettingsSheet(props: Props) {
   return <ChartSheet visible={props.visible} onClose={props.onClose}>
-    <SettingsEditor {...props} />
+    <View style={{ flex: 1 }}><View style={{ flex: 1 }} pointerEvents={props.ringEditor ? 'none' : 'auto'} accessibilityElementsHidden={!!props.ringEditor} importantForAccessibility={props.ringEditor ? 'no-hide-descendants' : 'auto'}><SettingsEditor {...props} /></View>{props.ringEditor && <View style={{ position: 'absolute', inset: 0 }}>{props.ringEditor}</View>}</View>
   </ChartSheet>;
 }
-export function SettingsEditor({ settings, saveError, onChange, onClose, scope = 'chart', onOpenStars }: Props) {
+export function SettingsEditor({ settings, saveError, onChange, onClose, scope = 'chart', onOpenStars, starRingContext }: Props) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const [page, setPage] = useState<'location' | 'houses' | 'stars' | null>(null);
-  if (page === 'stars') return <View style={{ flex: 1, backgroundColor: t.color.bgSolidBase, paddingTop: insets.top, paddingBottom: insets.bottom }}><StarLibraryPanel onBack={() => setPage(null)} onClose={onClose} /></View>;
+  if (page === 'stars') return <View style={{ flex: 1, backgroundColor: t.color.bgSolidBase, paddingTop: insets.top, paddingBottom: insets.bottom }}><StarLibraryPanel onBack={() => setPage(null)} onClose={onClose} ringContext={starRingContext} /></View>;
   return <View style={{ flex: 1, backgroundColor: t.color.bgSolidBase, paddingTop: insets.top, paddingBottom: insets.bottom }}>
     <SheetHeader title={scope === 'defaults' ? 'Default chart settings' : 'Chart settings'} closeLabel="Close chart settings" onClose={onClose} />
     {page && <SheetBackRow title={page === 'location' ? 'Location' : 'House system'} onBack={() => setPage(null)} />}

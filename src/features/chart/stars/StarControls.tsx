@@ -1,5 +1,6 @@
+import { StarText as Text } from './StarText';
 import { Canvas, Path, Skia } from '@shopify/react-native-skia';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useTheme } from '@/theme';
 const paths = {
   search: 'M14 14L20 20M16 9A7 7 0 1 1 2 9A7 7 0 1 1 16 9',
@@ -21,4 +22,9 @@ export function LibraryHeader({ title = 'Personal star library', onBack, onClose
     <Text accessibilityRole="header" style={[t.type.whyteMd, { flex: 1, color: t.color.txPrimary }]}>{title}</Text>
     {onClose && <Pressable accessibilityRole="button" accessibilityLabel="Close star library" onPress={onClose} style={{ minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' }}><StarIcon name="close" color={t.color.txSecondary} /></Pressable>}
   </View>;
+}
+/** Feature action uses readable foreground and the canonical card pressed role. */
+export function StarAction({ label, onPress, disabled = false }: { label: string; onPress: () => void; disabled?: boolean }) {
+  const t = useTheme();
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={({ pressed }) => ({ minHeight: 44, paddingHorizontal: 12, paddingVertical: 10, marginVertical: 6, justifyContent: 'center', borderRadius: t.radius.md, borderWidth: t.border.thin, borderColor: t.color.bdCard, backgroundColor: pressed ? t.color.bgSolidCardPressed : t.color.bgSolidCardSecondary, opacity: disabled ? .5 : 1 })}><Text style={[t.type.whyteSm, { color: t.color.txPrimary }]}>{label}</Text></Pressable>;
 }

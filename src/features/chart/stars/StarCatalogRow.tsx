@@ -1,5 +1,6 @@
+import { StarText as Text } from './StarText';
 import { memo, type Ref } from 'react';
-import { Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, View, useWindowDimensions } from 'react-native';
 import { Canvas } from '@shopify/react-native-skia';
 import { useTheme } from '@/theme';
 import { Glyph } from '../render/Glyph';
@@ -23,9 +24,9 @@ export const StarCatalogRow = memo(function StarCatalogRow({ star, selected, dis
   const t = useTheme();
   const { width, fontScale } = useWindowDimensions();
   const reflow = width < 350 || fontScale > 1.2;
-  return <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: t.color.bgSolidCard, borderRadius: t.radius.md, borderWidth: t.border.hairline, borderColor: selected ? t.color.bdPrimary : t.color.bdCard, marginBottom: t.space.xs }}>
-    <Pressable accessibilityRole="checkbox" accessibilityLabel={`${selected ? 'Remove' : 'Add'} ${star.name}`} accessibilityHint={`${star.displayDesignation}, ${star.constellation}. Magnitude ${star.magnitude.toFixed(2)}. Reference ${referencePosition(star)}.`} accessibilityState={{ checked: selected, disabled }} disabled={disabled} onPress={onToggle} style={({ pressed }) => ({ flex: 1, paddingVertical: 12, paddingLeft: 12, opacity: pressed || disabled ? .6 : 1, flexDirection: 'row', alignItems: 'center', gap: 12 })}>
-      <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 1, borderColor: selected ? t.color.txAccent : t.color.bdPrimary, backgroundColor: selected ? t.color.bgSolidCardSecondary : 'transparent', alignItems: 'center', justifyContent: 'center' }}>{selected && <StarIcon name="check" color={t.color.txAccent} />}</View>
+  return <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: t.color.bgSolidCard, borderRadius: t.radius.md, borderWidth: t.border.thin, borderColor: selected ? t.color.bdPrimary : t.color.bdCard, marginBottom: t.space.xs }}>
+    <Pressable accessibilityRole="checkbox" accessibilityLabel={`${selected ? 'Remove' : 'Add'} ${star.name}`} accessibilityHint={`${star.displayDesignation}, ${star.constellation}. Magnitude ${star.magnitude.toFixed(2)}. Reference ${referencePosition(star)}.`} accessibilityState={{ checked: selected, disabled }} disabled={disabled} onPress={onToggle} style={({ pressed }) => ({ flex: 1, paddingVertical: 12, paddingLeft: 12, opacity: disabled ? .6 : 1, backgroundColor: pressed ? t.color.bgSolidCardPressed : 'transparent', borderRadius: t.radius.md, flexDirection: 'row', alignItems: 'center', gap: 12 })}>
+      <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 1, borderColor: t.color.txSecondary, backgroundColor: selected ? t.color.bgSolidCardSecondary : 'transparent', alignItems: 'center', justifyContent: 'center' }}>{selected && <StarIcon name="check" color={t.color.txPrimary} />}</View>
       <View style={{ flex: 1, gap: 6 }}>
         <View style={{ flexDirection: reflow ? 'column' : 'row', alignItems: reflow ? 'flex-start' : 'center', gap: 8 }}>
           <Text style={[t.type.whyteSm, { color: t.color.txPrimary, flex: reflow ? undefined : 1, flexShrink: 1 }]}>{star.name}</Text>

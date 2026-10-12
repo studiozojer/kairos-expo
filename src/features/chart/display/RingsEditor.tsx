@@ -3,8 +3,11 @@ import { View } from 'react-native';
 import { Action, Choices, LinkRow, Note, NumberRow, Section, Toggle } from './controls';
 import type { ColorValue } from '../schema/core-types';
 import { createRing, editRing, moveRing, RING_KINDS, RING_TITLES, type ChartCount, type DisplayPreset, type DisplayRing, type RingKind } from './model';
-export function RingsEditor({ preset, count, onCount, onChange, onOpenStars }: { preset: DisplayPreset; count: ChartCount; onCount: (count: ChartCount) => void; onChange: (preset: DisplayPreset) => void; onOpenStars?: () => void }) {
-  const [selected, setSelected] = useState<{ id: string; kind: RingKind; sourceSlot?: number } | null>(null);
+export interface RingSelection { id: string; kind: RingKind; sourceSlot?: number }
+export function RingsEditor({ preset, count, onCount, onChange, onOpenStars, selection, onSelect }: { preset: DisplayPreset; count: ChartCount; onCount: (count: ChartCount) => void; onChange: (preset: DisplayPreset) => void; onOpenStars?: (sourceSlot: number) => void; selection?: RingSelection | null; onSelect?: (selection: RingSelection | null) => void }) {
+  const [localSelection, setLocalSelection] = useState<RingSelection | null>(null);
+  const selected = selection === undefined ? localSelection : selection;
+  const setSelected = onSelect ?? setLocalSelection;
   const rings = preset.layouts[count].rings;
   const ring = selected ? rings.find(item => item.id === selected.id) ?? rings.find(item => item.kind === selected.kind && ('sourceSlot' in item ? item.sourceSlot : undefined) === selected.sourceSlot) : undefined;
   const change = (update: (ring: DisplayRing) => DisplayRing) => { if (ring) onChange(editRing(preset,count,ring.id,update)); };
@@ -21,7 +24,7 @@ export function RingsEditor({ preset, count, onCount, onChange, onOpenStars }: {
     {ring ? <>
       <Action label="Back to rings" onPress={() => setSelected(null)} />
       <Section title={RING_TITLES[ring.kind]}>
-        {ring.kind === 'fixedStars' && <><Note>This ring shows your personal star library. An empty library keeps the ring shell visible.</Note>{onOpenStars && <Action label="Choose stars" onPress={onOpenStars} />}</>}
+        {ring.kind === 'fixedStars' && <><Note>This ring shows your personal star library. An empty library keeps the ring shell visible.</Note>{onOpenStars && <Action label="Choose stars" onPress={() => onOpenStars(ring.sourceSlot)} />}</>}
         <Toggle label="Show ring" value={ring.enabled} onChange={enabled => change(item => ({ ...item, enabled }))} />
         {'sourceSlot' in ring && ring.kind !== 'planets' && <Choices label="Chart source" value={ring.sourceSlot} options={Array.from({ length: count },(_,i) => [i+1,`${i+1}${i === 0 ? ' · Inner chart' : ''}`] as const)} onChange={value => change(item => ({ ...item, sourceSlot: value } as DisplayRing))} />}
         {'system' in ring.options && <Choices label="Rulership system" value={ring.options.system} options={(ring.kind === 'signRulers' ? ['traditional','modern'] : ring.kind === 'decans' ? ['chaldean','triplicity','modern'] : ['egyptian','ptolemaic','chaldean']).map(system => [system,system.charAt(0).toUpperCase()+system.slice(1)] as const)} onChange={value => option('system',value)} />}

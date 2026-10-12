@@ -3,6 +3,8 @@ import TestRenderer, { act } from 'react-test-renderer';
 import { SegmentedControl } from '@expo/ui/community/segmented-control';
 import { MenuView } from '@react-native-menu/menu';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StarLibraryPanel } from '../../stars/StarLibraryPanel';
+import { RingsEditor } from '../RingsEditor';
 import { DisplaySheet } from '../DisplaySheet';
 import { useDisplayPresets } from '../useDisplayPresets';
 import { renderingPreset, applyAppearance } from '../model';
@@ -52,4 +54,25 @@ test('editing a missing chart-count preview does not fabricate chart data',async
   expect(tree.root.findAllByType(Note).some(node => Array.isArray(node.props.children) && node.props.children[0] === 'Open ' && node.props.children[1] === 3)).toBe(true);
   expect(tree.root.findAllByType(RulerSegmentsRing)).toHaveLength(0);
   act(()=>tree.unmount());
+});
+
+test('a fixed-star shortcut preserves selected ring and editing layout, and Manage mutates no preset', async () => {
+  let tree!: TestRenderer.ReactTestRenderer; await act(async () => { tree = TestRenderer.create(<Harness />); });
+  act(() => tree.root.findByType(SegmentedControl).props.onValueChange('Details'));
+  act(() => tree.root.findAllByType(LinkRow).find(row => row.props.label === 'Rings')!.props.onPress());
+  act(() => tree.root.findAllByType(Choices).find(row => row.props.label === 'Layout')!.props.onChange(3));
+  await act(async () => tree.root.findAllByType(Action).find(row => row.props.label === 'Add fixed stars')!.props.onPress());
+  act(() => tree.root.findAllByType(LinkRow).find(row => row.props.label === 'Fixed stars · Chart 1')!.props.onPress());
+  const editor = tree.root.findByType(RingsEditor), selected = editor.props.selection;
+  const stored = await AsyncStorage.getItem('kairos.display-presets.v1'); expect(stored).not.toBeNull();
+  await act(async () => tree.root.findAllByType(Action).find(row => row.props.label === 'Choose stars')!.props.onPress());
+  expect(tree.root.findByType(StarLibraryPanel).props.ringContext.message).toContain('inactive layout');
+  act(() => tree.root.findByType(StarLibraryPanel).props.onBack());
+  expect(tree.root.findByType(RingsEditor)).toBe(editor);
+  expect(editor.props.selection).toEqual(selected); expect(editor.props.count).toBe(3);
+  await act(async () => tree.root.findAllByType(Action).find(row => row.props.label === 'Choose stars')!.props.onPress());
+  act(() => tree.root.findByType(StarLibraryPanel).props.ringContext.onManage());
+  expect(editor.props.selection).toEqual(selected); expect(editor.props.count).toBe(3);
+  expect(await AsyncStorage.getItem('kairos.display-presets.v1')).toBe(stored);
+  act(() => tree.unmount());
 });
