@@ -72,8 +72,8 @@ export default function RootLayout() {
                 leaves the tabs behind, reachable from the journal home. */}
             <Stack.Screen name="charts" options={{ presentation: 'formSheet', headerShown: false, sheetAllowedDetents: [1], sheetGrabberVisible: true, contentStyle: { backgroundColor: 'transparent' } }} />
             <Stack.Screen name="chart-editor" options={{ title: 'Chart', presentation: 'modal' }} />
-            <Stack.Screen name="star-library" options={{ title: "Personal star library" }} />
-            <Stack.Screen name="chart-defaults" options={{ title: "Default chart settings" }} />
+            <Stack.Screen name="star-library" options={{ headerShown: false }} />
+            <Stack.Screen name="chart-defaults" options={{ headerShown: false }} />
             <Stack.Screen name="chart-transfers" options={{ title: 'Chart exceptions' }} />
             <Stack.Screen name="account" options={{ title: 'Account', presentation: 'modal' }} />
           </Stack>
