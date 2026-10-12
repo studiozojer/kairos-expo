@@ -1,3 +1,4 @@
+import { useStarLibrary } from '@/features/chart/stars/useStarLibrary';
 import { rotateOrientation, resetOrientation } from '@/features/chart/interaction/orientation';
 import { wheelFrame } from '@/features/chart/interaction/wheelFrame';
 import { ReplacementChooser } from '@/features/chart/active/ReplacementChooser';
@@ -54,6 +55,7 @@ export default function ChartHome() {
   const { size: wheelSize, center: wheelCenter } = wheelFrame(width, chartArea, failed.length > 0);
   const insets = useSafeAreaInsets();
 
+  const stars = useStarLibrary();
   const display = useDisplayPresets();
   const localPreset = display.preset;
   const preset = useMemo(() => renderingPreset(localPreset), [localPreset]);
@@ -69,7 +71,7 @@ export default function ChartHome() {
     return calculation ? bodyChoices(calculation.chart) : [];
   }))].sort(), [session.active, session.calculations]);
 
-  const { config, previousArrangement } = useActiveConfiguration(session.active, session.calculations, preset, orientationMode);
+  const { config, previousArrangement } = useActiveConfiguration(session.active, session.calculations, preset, orientationMode, stars.names);
 
   const actions = useActionRegistry({
     enabled: focused && !sheetOpen && !settingsOpen && !replaceNow && !capturing,
@@ -93,7 +95,7 @@ export default function ChartHome() {
   const selectPreset = (id: string) => { void display.select(id); };
   const previewCharts = session.active.flatMap(item => {
     const chart = session.calculations[item.id]?.result?.chart;
-    return chart ? [{ instanceId: item.id, name: item.name, chart }] : [];
+    return chart ? [{ instanceId: item.id, name: item.name, chart, starNames: stars.names }] : [];
   });
 
   return (
@@ -115,6 +117,8 @@ export default function ChartHome() {
 
       {display.state.loadError && <View><Pressable accessibilityRole="button" onPress={() => { void display.load(); }}><Text accessibilityRole="alert" style={{color:theme.color.txAccent}}>Couldn’t restore display presets. Tap to retry.</Text></Pressable><Pressable accessibilityRole="button" onPress={() => Alert.alert('Reset display presets?', 'This replaces all saved custom presets on this device.',[{text:'Cancel',style:'cancel'},{text:'Reset',style:'destructive',onPress:()=>{void display.reset();}}])}><Text style={{color:theme.color.txAccent}}>Reset display presets</Text></Pressable></View>}
       {display.state.saveError && !sheetOpen && <Pressable accessibilityRole="button" onPress={() => { void display.retrySave(); }}><Text accessibilityRole="alert" style={{color:theme.color.txAccent}}>Display changes haven’t been saved. Tap to retry.</Text></Pressable>}
+      {(stars.state.loadError || stars.state.saveError) && <Pressable accessibilityRole="button" onPress={() => router.push('/star-library')}><Text accessibilityRole="alert" style={[theme.type.whyteXs,{ color:theme.color.txAccent,paddingHorizontal:24 }]}>{stars.state.loadError ? 'Couldn’t restore your star library. Open to retry.' : 'Star changes haven’t been saved. Open to retry.'}</Text></Pressable>}
+      {session.active.some(item => (session.calculations[item.id]?.result?.chart.missingStars?.length ?? 0) > 0) && <Pressable accessibilityRole="button" onPress={() => router.push('/star-library')}><Text accessibilityRole="alert" style={[theme.type.whyteXs,{color:theme.color.txAccent,paddingHorizontal:24}]}>{session.active.flatMap(item => { const missing = session.calculations[item.id]?.result?.chart.missingStars ?? []; return missing.length ? [`${item.name}: ${missing.join(', ')}`] : []; }).join(' · ')} could not be calculated. Review star library.</Text></Pressable>}
       <ActiveChartCards session={cardDrag} chartActions={actions} updatingArrangement={previousArrangement} />
       {(session.loadError || session.saveError) && <Pressable accessibilityRole="button"
         onPress={session.loadError ? session.retryLoad : session.retryPersistence} style={{ paddingHorizontal: theme.space.lg, paddingVertical: theme.space.sm }}>

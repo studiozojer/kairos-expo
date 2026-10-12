@@ -12,6 +12,7 @@ typedef struct KairosResult {
 KairosResult kairos_init(const char *atlas_db_path, const char *ephemeris_path);
 KairosResult kairos_calculate_chart(const char *request_json);
 KairosResult kairos_search_locations(const char *query, int limit);
+KairosResult kairos_get_all_star_positions(const char *request_json);
 void kairos_result_free(KairosResult result);
 #ifdef __cplusplus
 }

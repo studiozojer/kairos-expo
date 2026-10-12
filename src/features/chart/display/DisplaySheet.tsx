@@ -1,3 +1,4 @@
+import { StarLibraryPanel } from '../stars/StarLibraryPanel';
 import { RingsEditor } from './RingsEditor';
 import { renderingPreset, type DisplayPreset, type ChartCount } from './model';
 import type { PresetRepository } from './repository';
@@ -40,7 +41,7 @@ const DISPLAY_TABS = ['Bodies', 'Details', 'Style'];
 const LOTS = ['Part of Fortune', 'Lot of Spirit', 'Lot of Eros'];
 const POINTS = ['Ascendant', 'Midheaven', 'Descendant', 'Imum Coeli', 'North Node', 'South Node', 'Vertex', 'Black Moon Lilith'];
 const ASTEROIDS = [...SKY_ASTEROIDS];
-const TITLES: Record<string, string> = { asteroids: 'Asteroids', lots: 'Lots', aspects: 'Aspect types & orbs', patterns: 'Aspect patterns', filters: 'Aspect filtering', lines: 'Aspect line styling', selection: 'Selection', orientation: 'Static orientation', rings: 'Rings', presets: 'Manage presets' };
+const TITLES: Record<string, string> = { asteroids: 'Asteroids', lots: 'Lots', aspects: 'Aspect types & orbs', patterns: 'Aspect patterns', filters: 'Aspect filtering', lines: 'Aspect line styling', selection: 'Selection', orientation: 'Static orientation', rings: 'Rings', stars: 'Personal star library', presets: 'Manage presets' };
 const FILTERS = [['showSeparatingAspects', 'Separating aspects'], ['showFalseAspects', 'False aspects'], ['mutualAspectsOnly', 'Mutual aspects only'], ['interAspectsOnly', 'Inter aspects only'], ['filterBySelection', 'Filter by selection']] as const;
 const SELECTION = [
     ['showBackgroundCircle', 'Highlight selected'], ['includeAspectedPlanets', 'Include aspected planets'],
@@ -101,8 +102,10 @@ function DisplayEditor({ displayPreset, repository, previewCharts, preset, prese
     const preview = displayPreset && previewCharts && layoutCount <= previewCharts.length
       ? buildMultiConfiguration(previewCharts.slice(0,layoutCount),renderingPreset(displayPreset),displayPreset.orientation.mode) : config;
     let content;
+    const openStars = () => setPage('stars');
     if (page === 'rings' && displayPreset && repository)
-        content = <RingsEditor preset={displayPreset} count={layoutCount} onCount={setLayoutCount} onChange={next => { void repository.update(next); }} />;
+        content = <RingsEditor preset={displayPreset} count={layoutCount} onCount={setLayoutCount} onChange={next => { void repository.update(next); }} onOpenStars={openStars} />;
+    else if (page === 'stars') content = <StarLibraryPanel />;
     else if (page === 'presets' && repository)
         content = <Section title="Your presets"><Action label="Duplicate preset" onPress={() => { void repository.duplicate(); }} />
           {repository.state.custom.some(item => item.id === repository.state.selected) && <>
@@ -141,10 +144,10 @@ function DisplayEditor({ displayPreset, repository, previewCharts, preset, prese
     <Toggle label="Dash separating aspects" value={preset.aspectOverlay.useDashedForSeparating} onChange={v => line({ useDashedForSeparating: v })}/>
   </Section>;
     else if (page === 'selection')
-        content = <><Note>Tap chart objects to select them. Tap empty space to clear selection.</Note><Section title="Highlight & related bodies">{SELECTION.slice(0, 3).map(([key, label]) => <Toggle key={key} label={label} value={preset.selection[key]} onChange={v => selection({ [key]: v })}/>)}</Section><Section title="Dimming"><NumberRow label="Unselected opacity" value={preset.selection.unselectedOpacity * 100} max={100} step={5} suffix="%" onChange={v => selection({ unselectedOpacity: v / 100 })}/><NumberRow label="Related opacity" value={preset.selection.relatedOpacity * 100} max={100} step={5} suffix="%" onChange={v => selection({ relatedOpacity: v / 100 })}/>{SELECTION.slice(3).map(([key, label]) => <Toggle key={key} label={label} value={preset.selection[key]} onChange={v => selection({ [key]: v })}/>)}</Section></>;
+        content = <><Note>Tap chart objects to select them. Tap empty space to clear selection.</Note><Section title="Highlight & related bodies">{SELECTION.slice(0, 3).map(([key, label]) => <Toggle key={key} label={label} value={preset.selection[key]} onChange={v => selection({ [key]: v })}/>)}</Section><Section title="Fixed star relationships"><Toggle label="Include conjunct fixed stars" value={preset.selection.includeConjunctFixedStars} onChange={value => selection({includeConjunctFixedStars:value})} /><NumberRow label="Fixed star conjunction orb ±" value={preset.selection.conjunctFixedStarsOrb} min={0} max={15} step={.25} onChange={value => selection({conjunctFixedStarsOrb:value})} /></Section><Section title="Dimming"><NumberRow label="Unselected opacity" value={preset.selection.unselectedOpacity * 100} max={100} step={5} suffix="%" onChange={v => selection({ unselectedOpacity: v / 100 })}/><NumberRow label="Related opacity" value={preset.selection.relatedOpacity * 100} max={100} step={5} suffix="%" onChange={v => selection({ relatedOpacity: v / 100 })}/>{SELECTION.slice(3).map(([key, label]) => <Toggle key={key} label={label} value={preset.selection[key]} onChange={v => selection({ [key]: v })}/>)}</Section></>;
     else if (tab === 'Bodies')
         content = <><Section title="Planets"><PlanetPicker enabledBodies={preset.visibility.enabledBodies} colors={preset.colors}
-              onToggle={name => change(toggleBody(preset, name, !isBodyEnabled(preset, name)))} /></Section><Section title="Points">{POINTS.filter(n => bodyNames.includes(n)).map(bodyToggle)}</Section><Section title="More bodies"><LinkRow label="Asteroids" detail={enabledCount(ASTEROIDS)} onPress={() => setPage('asteroids')}/><LinkRow label="Lots" detail={enabledCount(LOTS)} onPress={() => setPage('lots')}/></Section></>;
+              onToggle={name => change(toggleBody(preset, name, !isBodyEnabled(preset, name)))} /></Section><Section title="Points">{POINTS.filter(n => bodyNames.includes(n)).map(bodyToggle)}</Section><Section title="More bodies"><LinkRow label="Asteroids" detail={enabledCount(ASTEROIDS)} onPress={() => setPage('asteroids')}/><LinkRow label="Lots" detail={enabledCount(LOTS)} onPress={() => setPage('lots')}/><LinkRow label="Personal star library" onPress={openStars} /></Section></>;
     else if (tab === 'Details')
         content = <>{displayPreset && <Section title="Composition"><LinkRow label="Rings" onPress={() => setPage('rings')} /></Section>}<Section title="Beside each planet">{LABEL_CONTROLS.map(([key, label]) => {
                 const all = styles.length > 0 && styles.every(s => s[key]);
@@ -157,8 +160,8 @@ function DisplayEditor({ displayPreset, repository, previewCharts, preset, prese
     <DisplayHeader presetName={presetName} onClose={onClose} onSelectPreset={onSelectPreset} choices={repository?.choices} selectedId={repository?.state.selected} />
     {repository?.state.saveError && <Action label="Changes haven’t been saved. Tap to retry." onPress={() => { void repository.retrySave(); }} />}
     <View style={{ flex: 1 }} onLayout={({ nativeEvent: { layout } }) => setFrame(previous => previous.width === layout.width && previous.height === layout.height ? previous : { width: layout.width, height: layout.height })}><View style={{ position: 'absolute', top: 0, alignSelf: 'center' }}>{displayPreset && previewCharts && layoutCount > previewCharts.length ? <View style={{width,height:previewHeight,padding:24,justifyContent:'center'}}><Note>Open {layoutCount} charts to preview this layout.</Note></View> : <ChartWheel config={preview} size={width}/>}</View>
-      <Animated.View testID="preview-cover" style={{ position: 'absolute', top: cover, bottom: 0, width: '100%', backgroundColor: t.color.bgSolidCard, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: t.border.hairline, borderColor: t.color.bdCard }}>
-        <GestureDetector gesture={handleGesture}>
+      <Animated.View testID="preview-cover" style={{ position: 'absolute', top: page === 'stars' ? 0 : cover, bottom: 0, width: '100%', backgroundColor: t.color.bgSolidCard, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: t.border.hairline, borderColor: t.color.bdCard }}>
+        {page !== 'stars' && <GestureDetector gesture={handleGesture}>
           <View testID="preview-handle" collapsable={false} accessible accessibilityRole="button"
             accessibilityLabel={previewShown ? 'Hide chart preview' : 'Show chart preview'}
             accessibilityHint="Drag to adjust the chart preview height, or double tap to toggle it."
@@ -166,12 +169,12 @@ function DisplayEditor({ displayPreset, repository, previewCharts, preset, prese
             style={{ height: 28, alignItems: 'center', justifyContent: 'center' }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: t.color.txTertiary }}/>
           </View>
-        </GestureDetector>
+        </GestureDetector>}
         {page ? <SheetBackRow title={TITLES[page]} onBack={() => setPage(null)} /> : <View style={{ paddingHorizontal: t.space.lg, paddingBottom: t.space.sm }}>
           <SegmentedControl testID="display-tabs" values={DISPLAY_TABS} selectedIndex={DISPLAY_TABS.indexOf(tab)}
             onValueChange={setTab} appearance={t.scheme} style={{ width: '100%' }} />
         </View>}
-        <ScrollView key={page ?? tab} contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 18, paddingBottom: insets.bottom + 28 }}>{content}</ScrollView>
+        {page === 'stars' ? content : <ScrollView key={page ?? tab} contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 18, paddingBottom: insets.bottom + 28 }}>{content}</ScrollView>}
       </Animated.View>
     </View>
   </View>;

@@ -5,3 +5,7 @@ export async function calculateChart(_requestJson: string): Promise<string> {
 export async function searchLocations(_query: string): Promise<string> {
   throw new Error('Atlas search requires the iOS or Android app.');
 }
+
+export async function getAllStarPositions(_requestJson: string): Promise<string> {
+  throw new Error('The star catalog requires the iOS or Android app.');
+}

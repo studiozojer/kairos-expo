@@ -14,6 +14,7 @@ internal object KairosNative {
   external fun initialize(path: String, atlasPath: String): String
   external fun search(query: String): String
   external fun calculate(request: String): String
+  external fun starPositions(request: String): String
 
   private fun initializeIfNeeded(context: Context) {
     if (!loaded) {
@@ -45,6 +46,12 @@ internal object KairosNative {
   }
 
   @Synchronized
+  fun catalog(context: Context, request: String): String {
+    initializeIfNeeded(context)
+    return starPositions(request)
+  }
+
+  @Synchronized
   fun locations(context: Context, query: String): String {
     initializeIfNeeded(context)
     return search(query)
@@ -54,6 +61,10 @@ internal object KairosNative {
 class KairosModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("Kairos")
+    AsyncFunction("getAllStarPositions") { request: String ->
+      val context = appContext.reactContext ?: error("React context unavailable")
+      KairosNative.catalog(context, request)
+    }
     AsyncFunction("searchLocations") { query: String ->
       val context = appContext.reactContext ?: error("React context unavailable")
       KairosNative.locations(context, query)

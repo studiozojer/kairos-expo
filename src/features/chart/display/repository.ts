@@ -12,6 +12,7 @@ export function parseCollection(raw: string | null): PresetCollection {
   if (!value || value.version !== 1 || !Array.isArray(value.custom) || typeof value.selected !== 'string') throw new Error('Invalid preset storage');
   const ids = new Set<string>();
   value.custom.forEach(preset => {
+    preset.selection = Object.assign({ includeConjunctFixedStars: false, conjunctFixedStarsOrb: 1 }, preset.selection);
     validateDisplayPreset(preset);
     if (ids.has(preset.id)) throw new Error('Duplicate preset identity'); ids.add(preset.id);
   });

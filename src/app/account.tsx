@@ -60,6 +60,7 @@ export default function AccountScreen() {
         padding: theme.space.xl,
         gap: theme.space.lg,
       }}>
+      <Pressable accessibilityRole="button" onPress={() => router.push('/star-library')} style={buttonStyle(true)}><Text style={{ ...theme.type.whyteSm, color: theme.color.txButton }}>Personal star library</Text></Pressable>
       <Pressable accessibilityRole="button" onPress={() => router.push('/chart-defaults')} style={buttonStyle(true)}>
         <Text style={{ ...theme.type.whyteSm, color: theme.color.txButton }}>Default chart settings</Text>
       </Pressable>

@@ -12,6 +12,10 @@ public class KairosModule: Module {
             try Self.initializeIfNeeded()
             return try Self.unwrap(request.withCString { kairos_calculate_chart($0) })
         }.runOnQueue(Self.engineQueue)
+        AsyncFunction("getAllStarPositions") { (request: String) -> String in
+            try Self.initializeIfNeeded()
+            return try Self.unwrap(request.withCString { kairos_get_all_star_positions($0) })
+        }.runOnQueue(Self.engineQueue)
         AsyncFunction("searchLocations") { (query: String) -> String in
             try Self.initializeIfNeeded()
             return try Self.unwrap(query.withCString { kairos_search_locations($0, 30) })

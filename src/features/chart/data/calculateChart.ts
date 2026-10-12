@@ -6,7 +6,7 @@ import { SKY_BODIES } from './skyBodies';
 export { SKY_BODIES } from './skyBodies';
 export { DEFAULT_LOCATION } from '../settings/chartSettings';
 
-export function chartRequest(datetime: string, settings: ChartSettings = DEFAULT_SETTINGS) {
+export function chartRequest(datetime: string, settings: ChartSettings = DEFAULT_SETTINGS, starNames: readonly string[] = []) {
   const time = Date.parse(datetime);
   // Deliberate first-slice coverage inside the bundled contemporary ephemeris.
   if (!Number.isFinite(time) || time < Date.UTC(1900, 0, 1) || time >= Date.UTC(2100, 0, 1)) {
@@ -19,12 +19,12 @@ export function chartRequest(datetime: string, settings: ChartSettings = DEFAULT
     longitude: settings.location.longitude,
     elevation: settings.location.elevation,
     chart_kind: 'Transit', house_system: settings.houseSystem, zodiac_system: calculation.zodiacSystem,
-    lunar_node_type: calculation.lunarNodeType, black_moon_lilith_type: calculation.blackMoonLilithType, fortune_calculation_method: calculation.lotCalculationMethod, enabled_bodies: SKY_BODIES.map(body => body === 'MeanNode' && calculation.lunarNodeType === 'True' ? 'TrueNode' : body === 'MeanApogee' && calculation.blackMoonLilithType === 'Osculating' ? 'OscuApogee' : body), enabled_stars: [],
+    lunar_node_type: calculation.lunarNodeType, black_moon_lilith_type: calculation.blackMoonLilithType, fortune_calculation_method: calculation.lotCalculationMethod, enabled_bodies: SKY_BODIES.map(body => body === 'MeanNode' && calculation.lunarNodeType === 'True' ? 'TrueNode' : body === 'MeanApogee' && calculation.blackMoonLilithType === 'Osculating' ? 'OscuApogee' : body), enabled_stars: [], selected_star_names: [...new Set(starNames)].sort(),
   };
 }
 
-export async function calculateChart(datetime: string, settings: ChartSettings = DEFAULT_SETTINGS): Promise<ChartCalculationResponse> {
-  const request = chartRequest(datetime, settings);
+export async function calculateChart(datetime: string, settings: ChartSettings = DEFAULT_SETTINGS, starNames: readonly string[] = []): Promise<ChartCalculationResponse> {
+  const request = chartRequest(datetime, settings, starNames);
   const chart: ChartCalculationResponse = JSON.parse(await nativeCalculate(JSON.stringify(request)));
   // Check the native boundary before feeding geometry; a cast is not validation.
   if (!chart?.celestial || !Array.isArray(chart.celestial.nodes) ||
@@ -44,5 +44,7 @@ export async function calculateChart(datetime: string, settings: ChartSettings =
       !chart.celestial.edges.every(e => ids.has(e.from) && ids.has(e.to) && Number.isFinite(e.orb))) {
     throw new Error('Incomplete chart response from the native engine.');
   }
+  const calculatedStars = new Set(chart.celestial.nodes.filter(node => node.node_type === 'fixed_star').map(node => node.body.toLowerCase()));
+  chart.missingStars = request.selected_star_names.filter(name => !calculatedStars.has(name.toLowerCase()));
   return chart;
 }

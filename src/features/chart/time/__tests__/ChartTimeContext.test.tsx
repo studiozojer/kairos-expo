@@ -50,7 +50,7 @@ test('rapid steps accumulate; unit changes preserve time; reset uses fresh Now a
   await act(async () => { clock.reset(); });
   expect(clock.datetime).toBe('2026-09-16T12:15:00.000Z');
   expect(clock.time).toBe(clock.origin);
-  expect(calculate).toHaveBeenLastCalledWith(clock.datetime, changed);
+  expect(calculate).toHaveBeenLastCalledWith(clock.datetime, changed, []);
 });
 
 test('leaving the chart disables controls without losing its selected time or unit', async () => {

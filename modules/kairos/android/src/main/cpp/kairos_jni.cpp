@@ -43,3 +43,12 @@ Java_studio_zojer_kairos_engine_KairosNative_search(JNIEnv *env, jobject, jstrin
   env->ReleaseStringUTFChars(query, value);
   return unwrap(env, result);
 }
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_studio_zojer_kairos_engine_KairosNative_starPositions(JNIEnv *env, jobject, jstring request) {
+  const char *value = env->GetStringUTFChars(request, nullptr);
+  if (!value) return nullptr;
+  auto result = kairos_get_all_star_positions(value);
+  env->ReleaseStringUTFChars(request, value);
+  return unwrap(env, result);
+}

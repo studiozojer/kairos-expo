@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import { Alert, View } from 'react-native';
+import { ChartSheet, SheetHeader } from '../components/ChartSheet';
+import { Action, Note } from '../display/controls';
+import { Alert, FlatList, View } from 'react-native';
 import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import type { ChartRenderingConfiguration } from '../config/ChartRenderingConfiguration';
 import type { SelectionStyleOverride } from '../schema/preset';
@@ -34,10 +36,16 @@ export function InteractiveChartWheel({ config, size, selectionStyle, enabled = 
     if (selected.some(id => !visible.has(id))) setSelected(old => old.filter(id => visible.has(id)));
   }, [targets, selected, setSelected]);
   const paint = useMemo(() => selectionPaint(selected, targets, config, selectionStyle), [selected, targets, config, selectionStyle]);
-  const tap = useCallback((id: string | null) => setSelected(old => toggleSelection(old, id)), [setSelected]);
+  const [group, setGroup] = useState<string[] | null>(null);
+  const tap = useCallback((id: string | null) => {
+    const target = targets.find(t => t.id === id);
+    if (target?.kind === 'starGroup') setGroup(target.members ?? []);
+    else setSelected(old => toggleSelection(old, id));
+  }, [setSelected,targets]);
   const hold = useCallback((id: string) => {
     const target = targets.find(t => t.id === id);
     if (!target) return;
+    if (target.kind === 'star') { Alert.alert(target.label,target.detail); return; }
     if (target.kind !== 'body') { tap(id); if (target.kind === 'segment') Alert.alert(target.label, target.detail); return; }
     Alert.alert(target.label, target.detail, [
       { text: 'Cancel', style: 'cancel' },
@@ -53,5 +61,11 @@ export function InteractiveChartWheel({ config, size, selectionStyle, enabled = 
         </View>
       </GestureDetector>
     </GestureHandlerRootView>
+    <ChartSheet visible={group !== null} onClose={() => setGroup(null)}>
+      <SheetHeader title="Nearby stars" closeLabel="Close nearby stars" onClose={() => setGroup(null)} />
+      <FlatList data={targets.filter(t => group?.includes(t.id))} keyExtractor={target => target.id} contentContainerStyle={{ padding: 24 }}
+        ListHeaderComponent={<Note>These stars share a marker. Choose one to select it at its true longitude.</Note>}
+        renderItem={({item:target}) => <View><Action label={target.label} onPress={() => { setSelected(old => toggleSelection(old,target.id)); setGroup(null); }} /><Note>{target.detail}</Note></View>} />
+    </ChartSheet>
   </View>;
 }

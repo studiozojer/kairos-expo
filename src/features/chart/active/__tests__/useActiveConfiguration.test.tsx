@@ -10,7 +10,7 @@ import fixture from '../../fixtures/engine/seattle-2026.json';
 const preset = bundledPreset('classic')!.preset;
 const first = nowInstance(DEFAULT_SETTINGS, Date.parse('2026-09-01T00:00:00Z'));
 const second = { ...first, id: 'second' };
-const ready: ActiveCalculation = { result: { chart: fixture, datetime: fixture.chart_metadata.datetime, settings: DEFAULT_SETTINGS, attempt: 0 }, status: 'ready', retry: jest.fn() };
+const ready: ActiveCalculation = { result: { chart: fixture, datetime: fixture.chart_metadata.datetime, settings: DEFAULT_SETTINGS, attempt: 0, starKey: '[]' }, status: 'ready', retry: jest.fn() };
 let output: ReturnType<typeof useActiveConfiguration>;
 let view: ReactTestRenderer;
 function Probe({ active, calculations }: { active: ActiveChart[]; calculations: Record<string, ActiveCalculation> }) {

@@ -451,6 +451,8 @@ export function serializeLunarMansionsContent(c: LunarMansionsContent): unknown 
  */
 export interface FixedStarsContent {
   $type: typeof FIXED_STARS_CONTENT_TYPE;
+  /** Resolved local ring options; historical portable documents omit these. */
+  showDegrees?: boolean; showSign?: boolean; showMinutes?: boolean;
 }
 
 export const FIXED_STARS_CONTENT_DEFAULT: FixedStarsContent = {

@@ -21,7 +21,7 @@ it('navigates the agreed pages, applies global labels, and keeps preview size fi
   act(() => { renderer = TestRenderer.create(<DisplaySheet visible preset={preset} presetName="classic" bodyNames={[]} config={buildConfiguration(chart as ChartCalculationResponse, preset)} onChangePreset={onChange} onSelectPreset={jest.fn()} onClose={jest.fn()} />); });
   const root = renderer.root;
   const size = root.findByType(ChartWheel).props.size;
-  expect(root.findAllByType(LinkRow).map(n => n.props.label)).toEqual(['Asteroids', 'Lots']);
+  expect(root.findAllByType(LinkRow).map(n => n.props.label)).toEqual(['Asteroids', 'Lots', 'Personal star library']);
   act(() => root.findByType(SegmentedControl).props.onValueChange('Details'));
   expect(root.findAllByType(LinkRow).map(n => n.props.label)).toEqual(['Aspect types & orbs', 'Aspect patterns', 'Aspect filtering', 'Static orientation']);
   act(() => root.findAllByType(Toggle).find(n => n.props.label === 'Minutes')!.props.onChange(true));

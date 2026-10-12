@@ -60,7 +60,7 @@ export function validateDisplayPreset(value: unknown): asserts value is DisplayP
   const ids = new Set<string>();
   for (const count of [1,2,3] as const) {
     const layout = preset.layouts[count];
-    if (!object(layout) || !Array.isArray(layout.rings) || layout.rings.length > 9) fail(`layout ${count}`);
+    if (!object(layout) || !Array.isArray(layout.rings) || layout.rings.length > 10) fail(`layout ${count}`);
     shape(layout.geometry, baseline.layouts[count].geometry, 'geometry');
     if (!object(layout.geometry.moduleHitRadiusOverrides) || Object.values(layout.geometry.moduleHitRadiusOverrides).some(v => !Number.isFinite(v) || v < 0 || v > 100)) fail('hit radii');
     const kinds = new Set<string>(), sources = new Set<number>();
@@ -87,6 +87,7 @@ export function validateDisplayPreset(value: unknown): asserts value is DisplayP
     }
     if (sources.size !== count) fail('managed planet sources');
   }
+  if (preset.selection.conjunctFixedStarsOrb > 15) fail('fixed star orb');
   const aspects = preset.aspects;
   if (aspects.enabledTypes.some(type => !Object.hasOwn(ASPECT_ORBS_DEFAULT.orbs,type)) || Object.entries(aspects.orbs.orbs).some(([key,v]) => !Object.hasOwn(ASPECT_ORBS_DEFAULT.orbs,key) || !Number.isFinite(v) || v < 0 || v > 15)) fail('aspect orbs');
   if (aspects.patterns && (aspects.patterns.enabledTypes.some(type => !(PATTERN_NAMES as readonly string[]).includes(type)) || aspects.patterns.orb < 0 || aspects.patterns.orb > 15)) fail('patterns');

@@ -3,12 +3,13 @@ import type { ChartCalculationResponse } from '../config/engine-types';
 import { calculateChart } from '../data/calculateChart';
 import type { ChartSettings } from '../settings/chartSettings';
 
-type Request = { datetime: string; settings: ChartSettings; attempt: number };
+type Request = { datetime: string; settings: ChartSettings; attempt: number; starKey: string };
 type Result = Request & { chart: ChartCalculationResponse };
 
 /** One running native calculation and one replaceable pending request.
  * Keep the last rendered chart/time together while the newest target computes. */
-export function useSteppedChart(datetime: string, settings: ChartSettings, enabled: boolean) {
+export function useSteppedChart(datetime: string, settings: ChartSettings, enabled: boolean, starNames: readonly string[] = []) {
+  const starKey = JSON.stringify([...new Set(starNames)].sort());
   const [result, setResult] = useState<Result>();
   const [settled, setSettled] = useState<{ request: Request; status: 'ready' | 'error' }>();
   const [attempt, setAttempt] = useState(0);
@@ -18,7 +19,7 @@ export function useSteppedChart(datetime: string, settings: ChartSettings, enabl
   useEffect(() => {
     const state = queue.current;
     if (!enabled) return;
-    const request = { datetime, settings, attempt };
+    const request = { datetime, settings, attempt, starKey };
     state.pending = state.latest = request;
 
     async function drain() {
@@ -29,7 +30,7 @@ export function useSteppedChart(datetime: string, settings: ChartSettings, enabl
           const next = state.pending;
           state.pending = undefined;
           try {
-            const chart = await calculateChart(next.datetime, next.settings);
+            const chart = await calculateChart(next.datetime, next.settings, JSON.parse(next.starKey));
             if (state.latest === next) {
               setResult({ ...next, chart });
               setSettled({ request: next, status: 'ready' });
@@ -51,9 +52,9 @@ export function useSteppedChart(datetime: string, settings: ChartSettings, enabl
       if (state.latest === request) state.latest = undefined;
       if (state.pending === request) state.pending = undefined;
     };
-  }, [datetime, settings, enabled, attempt]);
+  }, [datetime, settings, enabled, attempt, starKey]);
 
-  const status = settled?.request.datetime === datetime && settled.request.settings === settings && settled.request.attempt === attempt
+  const status = settled?.request.datetime === datetime && settled.request.settings === settings && settled.request.attempt === attempt && settled.request.starKey === starKey
     ? settled.status : 'loading';
   return { result, status, retry };
 }

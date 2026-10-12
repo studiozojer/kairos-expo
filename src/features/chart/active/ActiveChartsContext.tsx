@@ -1,3 +1,4 @@
+import { useStarLibrary } from '../stars/useStarLibrary';
 import { DEFAULT_LIBRARY_PREFERENCES, type LibraryPreferences, type LibrarySort } from '../library/preferences';
 import { AppState } from 'react-native';
 import { captureSession, isCurrentSession, type SessionSnapshot } from '@/auth/session';
@@ -16,7 +17,8 @@ import { seekEvent, type EventSeekSnapshot, changeTarget, moveInstance, newChart
 export type ActiveCalculation = ReturnType<typeof useSteppedChart>;
 type PublishedCalculation = ActiveCalculation & { requestedTime: number; requestedSettings: ChartSettings };
 function CalculationWorker({ chart, publish }: { chart: ActiveChart; publish: (id: string, value: PublishedCalculation) => void }) {
-  const calculation = useSteppedChart(new Date(chart.time).toISOString(), chart.settings, true);
+  const stars = useStarLibrary();
+  const calculation = useSteppedChart(new Date(chart.time).toISOString(), chart.settings, stars.ready || stars.state.loadError, stars.names);
   const { result, status, retry } = calculation;
   useEffect(() => { publish(chart.id, { result, status, retry, requestedTime: chart.time, requestedSettings: chart.settings }); }, [chart.id, chart.time, chart.settings, result, status, retry, publish]);
   return null;
