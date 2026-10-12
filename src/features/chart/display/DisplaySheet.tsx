@@ -77,6 +77,7 @@ function DisplayEditor({ displayPreset, repository, previewCharts, preset, prese
     const [layoutCount, setLayoutCount] = useState<ChartCount>((config.chartCount || 1) as ChartCount);
     const [rename, setRename] = useState(presetName);
     const [page, setPage] = useState<string | null>(null);
+    const [libraryOpen, setLibraryOpen] = useState(false);
     const previewHeight = Math.max(0, Math.min(width, frame.height - insets.bottom - 144));
     const restingPosition = Math.max(0, Math.min(previewHeight, previewPosition ?? width / 2));
     const [cover] = useState(() => new Animated.Value(restingPosition));
@@ -102,10 +103,9 @@ function DisplayEditor({ displayPreset, repository, previewCharts, preset, prese
     const preview = displayPreset && previewCharts && layoutCount <= previewCharts.length
       ? buildMultiConfiguration(previewCharts.slice(0,layoutCount),renderingPreset(displayPreset),displayPreset.orientation.mode) : config;
     let content;
-    const openStars = () => setPage('stars');
+    const openStars = () => setLibraryOpen(true);
     if (page === 'rings' && displayPreset && repository)
         content = <RingsEditor preset={displayPreset} count={layoutCount} onCount={setLayoutCount} onChange={next => { void repository.update(next); }} onOpenStars={openStars} />;
-    else if (page === 'stars') content = <StarLibraryPanel />;
     else if (page === 'presets' && repository)
         content = <Section title="Your presets"><Action label="Duplicate preset" onPress={() => { void repository.duplicate(); }} />
           {repository.state.custom.some(item => item.id === repository.state.selected) && <>
@@ -157,6 +157,8 @@ function DisplayEditor({ displayPreset, repository, previewCharts, preset, prese
     else
         content = <>{repository && <Section title="Presets"><LinkRow label="Manage presets" onPress={() => { setRename(repository.preset.name); setPage('presets'); }} /></Section>}<Section title="Reading comfort"><Choices label="Symbol size" value={sizeValue('glyphSize')} options={[[16, 'S'], [20, 'M'], [24, 'L']]} onChange={v => change(updatePlanetStyles(preset, { glyphSize: v }))}/><Choices label="Annotation size" value={sizeValue('degreeTextFontSize')} options={[[7.5, 'S'], [9.6, 'M'], [12, 'L']]} onChange={v => change(updatePlanetStyles(preset, { degreeTextFontSize: v }))}/></Section><Section title="Aspect lines"><LinkRow label="Aspect line styling" detail="Color, shape, weight, and opacity" onPress={() => setPage('lines')}/></Section><Section title="Aspect patterns"><LinkRow label="Aspect patterns" detail="Base opacity and orb weighting" onPress={() => setPage('patterns')}/></Section><Section title="Interaction"><LinkRow label="Selection" detail="Highlighting, dimming, and related bodies" onPress={() => setPage('selection')}/></Section></>;
     return <View style={{ flex: 1, backgroundColor: t.color.bgSolidBase, paddingTop: insets.top }}>
+    {libraryOpen && <StarLibraryPanel onBack={() => setLibraryOpen(false)} onClose={onClose} />}
+    <View style={{ flex: 1, display: libraryOpen ? 'none' : 'flex' }} accessibilityElementsHidden={libraryOpen} importantForAccessibility={libraryOpen ? 'no-hide-descendants' : 'auto'}>
     <DisplayHeader presetName={presetName} onClose={onClose} onSelectPreset={onSelectPreset} choices={repository?.choices} selectedId={repository?.state.selected} />
     {repository?.state.saveError && <Action label="Changes haven’t been saved. Tap to retry." onPress={() => { void repository.retrySave(); }} />}
     <View style={{ flex: 1 }} onLayout={({ nativeEvent: { layout } }) => setFrame(previous => previous.width === layout.width && previous.height === layout.height ? previous : { width: layout.width, height: layout.height })}><View style={{ position: 'absolute', top: 0, alignSelf: 'center' }}>{displayPreset && previewCharts && layoutCount > previewCharts.length ? <View style={{width,height:previewHeight,padding:24,justifyContent:'center'}}><Note>Open {layoutCount} charts to preview this layout.</Note></View> : <ChartWheel config={preview} size={width}/>}</View>
@@ -176,6 +178,7 @@ function DisplayEditor({ displayPreset, repository, previewCharts, preset, prese
         </View>}
         {page === 'stars' ? content : <ScrollView key={page ?? tab} contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 18, paddingBottom: insets.bottom + 28 }}>{content}</ScrollView>}
       </Animated.View>
+    </View>
     </View>
   </View>;
 }

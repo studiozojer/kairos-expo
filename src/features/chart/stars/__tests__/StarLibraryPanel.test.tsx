@@ -33,3 +33,25 @@ test('real personal-library owner persists UI edits, survives remount and isolat
   expect(JSON.parse(native.mock.calls[0][0])).toEqual({datetime:'2000-01-01T12:00:00.000Z',zodiac_system:'Tropical'});
   act(()=>view.unmount());
 });
+test('inspection does not change membership; detail return preserves populated search and independent removal', async () => {
+  mockAccount = { ready: true, account: { did: 'did:plc:ux' } };
+  let view!: TestRenderer.ReactTestRenderer;
+  await act(async () => { view = TestRenderer.create(<StarLibraryPanel />); });
+  const press = (label: string) => view.root.findAll(node => typeof node.props.onPress === 'function').find(node => node.props.accessibilityLabel === label)!;
+  act(() => view.root.findByType(TextInput).props.onChangeText('Arcturus'));
+  act(() => press('Details for Arcturus').props.onPress());
+  expect(await AsyncStorage.getItem('kairos.star-library.v1:did:plc:ux')).toBeNull();
+  await act(async () => press('Add to my stars').props.onPress());
+  expect(JSON.parse((await AsyncStorage.getItem('kairos.star-library.v1:did:plc:ux'))!).stars).toHaveLength(1);
+  act(() => press('Back').props.onPress());
+  expect(view.root.findByType(TextInput).props.value).toBe('Arcturus');
+  act(() => press('Inspect Arcturus').props.onPress());
+  expect(press('Remove from my stars')).toBeDefined();
+  act(() => press('Back').props.onPress());
+  await act(async () => press('Remove Arcturus').props.onPress());
+  expect(JSON.parse((await AsyncStorage.getItem('kairos.star-library.v1:did:plc:ux'))!).stars).toEqual([]);
+  act(() => press('Clear star search').props.onPress());
+  expect(view.root.findByType(TextInput).props.value).toBe('');
+  expect(press('Add Regulus')).toBeDefined();
+  act(() => view.unmount());
+});
