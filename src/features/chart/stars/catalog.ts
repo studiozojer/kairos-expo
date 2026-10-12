@@ -23,7 +23,10 @@ export function parseCatalog(raw: string): CatalogStar[] {
 }
 let loaded: CatalogStar[] | undefined;
 let loading: Promise<CatalogStar[]> | undefined;
+let uxFixture: { failures: number; stars: CatalogStar[] } | undefined;
+export function configureUXFixture(value: { failures: number; stars: CatalogStar[] }) { uxFixture = value; }
 export function loadStarCatalog(): Promise<CatalogStar[]> {
+  if (uxFixture) return uxFixture.failures-- > 0 ? Promise.reject(new Error('QA catalog failure')) : Promise.resolve(uxFixture.stars);
   if (loaded) return Promise.resolve(loaded);
   if (loading) return loading;
   loading = Promise.resolve().then(() => getAllStarPositions(JSON.stringify({ datetime: CATALOG_REFERENCE, zodiac_system: 'Tropical' })))

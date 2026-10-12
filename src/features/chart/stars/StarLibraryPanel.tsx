@@ -21,7 +21,7 @@ export function StarLibraryPanel(props: StarLibraryPanelProps) {
   const library = useStarLibrary();
   return <StarLibraryContent key={library.scope ?? 'anonymous'} {...props} library={library} />;
 }
-function StarLibraryContent({ onBack, onClose, ringContext, library }: StarLibraryPanelProps & { library: ReturnType<typeof useStarLibrary> }) {
+export function StarLibraryContent({ onBack, onClose, ringContext, library }: StarLibraryPanelProps & { library: ReturnType<typeof useStarLibrary> }) {
   const t = useTheme();
   const { fontScale } = useWindowDimensions();
   const expanded = fontScale > 1.2;
