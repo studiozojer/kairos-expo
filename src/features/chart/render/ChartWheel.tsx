@@ -1,3 +1,5 @@
+import { Text, View } from "react-native";
+import { RulerSegmentsRing } from "./rings/RulerSegmentsRing";
 import { PatternOverlay } from './PatternOverlay';
 /**
  * ChartWheel — the wheel shell. A Skia Canvas uses the viewport dimensions
@@ -70,6 +72,7 @@ export const RING_RENDERERS: Record<RingContentType["kind"], RingRendererCompone
   houseNumbers: HouseNumbersRing,
   cuspAnnotations: CuspAnnotationRing,
   empty: UnrenderedRing,
+  rulerSegments: RulerSegmentsRing,
 };
 
 /** Skia Group transform wrapping all rings. Defaults to identity. */
@@ -103,6 +106,7 @@ export function ChartWheelCanvas({ config, size, transform = IDENTITY_TRANSFORM,
   // render churns ChartPaintContext and defeats the layout/ring memos.
   const theme = useMemo(() => liveTheme, [liveTheme.scheme]);
 
+  if (layout.feasible === false) return <View accessibilityRole="alert" style={{ width: viewport?.width ?? size, height: viewport?.height ?? size, justifyContent: 'center', alignItems: 'center', padding: 24 }}><Text style={{ color: theme.color.txPrimary }}>This layout needs more room. Reduce ring widths or hide rings.</Text></View>;
   return (
     <Canvas style={{ width: viewport?.width ?? size, height: viewport?.height ?? size }}>
       <ChartPaintProvider value={theme}>
@@ -122,7 +126,7 @@ export function ChartWheelCanvas({ config, size, transform = IDENTITY_TRANSFORM,
             if (!Renderer) return null; // unknown kinds are skipped, not fatal
             return (
               <Renderer
-                key={`ring-${ringIndex}`}
+                key={ring.id ?? `ring-${ringIndex}`}
                 ring={ring}
                 ringIndex={ringIndex}
                 layout={layout}

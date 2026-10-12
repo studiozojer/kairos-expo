@@ -1,0 +1,623 @@
+{
+  "schemaVersion": 1,
+  "id": "2b978f67-3455-5719-86db-88e33a2b3273",
+  "name": "Classic",
+  "templateId": "classic",
+  "colors": {
+    "celestialBodyColors": {
+      "angles": {
+        "defaultColor": {
+          "layer": "ic",
+          "source": "semantic",
+          "value": "primary"
+        }
+      },
+      "otherBodies": {
+        "defaultColor": {
+          "layer": "ic",
+          "source": "semantic",
+          "value": "primary"
+        }
+      },
+      "planetHues": {
+        "jupiter": "green",
+        "mars": "red",
+        "mercury": "blue",
+        "moon": "gold",
+        "neptune": "indigo",
+        "pluto": "magenta",
+        "saturn": "orange",
+        "sun": "gold",
+        "uranus": "sky",
+        "venus": "byzantium"
+      }
+    },
+    "zodiacColors": {
+      "zodiacHues": {
+        "signs": [
+          "red",
+          "orange",
+          "yellow",
+          "lime",
+          "green",
+          "aqua",
+          "sky",
+          "blue",
+          "indigo",
+          "purple",
+          "byzantium",
+          "magenta"
+        ],
+        "variant": "coloredBackground"
+      }
+    }
+  },
+  "selection": {
+    "selectedColor": {
+      "layer": "primitive",
+      "source": "semantic",
+      "value": "accent"
+    },
+    "unselectedColor": {
+      "layer": "primitive",
+      "source": "semantic",
+      "value": "secondary"
+    },
+    "unselectedOpacity": 0.20000000000000004,
+    "relatedOpacity": 1,
+    "includeAspectedPlanets": false,
+    "includeRulershipPlanets": false,
+    "ignoreZodiacRingOpacity": false,
+    "affectsGlyphs": true,
+    "affectsDegreeText": true,
+    "affectsDegreeMarks": true,
+    "affectsHouseNumbers": true,
+    "affectsCuspLines": true,
+    "showBackgroundCircle": false
+  },
+  "aspects": {
+    "enabledTypes": [
+      "Trine",
+      "Opposition",
+      "Square",
+      "Conjunction",
+      "Quincunx",
+      "Semisextile",
+      "Sextile"
+    ],
+    "enabled": true,
+    "orbs": {
+      "orbs": {
+        "Biquintile": 2,
+        "Conjunction": 8,
+        "Opposition": 8,
+        "Quincunx": 3,
+        "Quintile": 2,
+        "Semisextile": 2,
+        "Semisquare": 2,
+        "Sesquisquare": 2,
+        "Sextile": 6,
+        "Square": 8,
+        "Trine": 8
+      }
+    },
+    "showSeparatingAspects": true,
+    "showFalseAspects": false,
+    "mutualAspectsOnly": true,
+    "interAspectsOnly": true,
+    "filterBySelection": true,
+    "showPatterns": true,
+    "patterns": {
+      "enabledTypes": [
+        "Grand Trine",
+        "T-square",
+        "Grand Cross",
+        "Yod",
+        "Kite",
+        "Mystic Rectangle"
+      ],
+      "orb": 5
+    }
+  },
+  "aspectOverlay": {
+    "colorMode": "byType",
+    "monochromeColor": {
+      "source": "semantic",
+      "value": "tertiary",
+      "layer": "primitive"
+    },
+    "lineWidth": 0.5,
+    "orbWeighting": 1,
+    "patternOpacity": 0.05,
+    "patternOrbWeighting": 0.75,
+    "opacity": 0.4,
+    "useDashedForSeparating": false,
+    "dashPattern": [
+      4,
+      4
+    ],
+    "renderMode": "straight",
+    "bezierCurveStrength": 0.3,
+    "showMajorAspectsOnly": false,
+    "minimumStrength": 0,
+    "maximumAspectCount": 0,
+    "aspectHues": {
+      "conjunction": "red",
+      "opposition": "red",
+      "trine": "blue",
+      "square": "orange",
+      "sextile": "green",
+      "quincunx": "purple",
+      "semiSextile": "yellow",
+      "semiSquare": "magenta",
+      "sesquiquadrate": "indigo",
+      "quintile": "aqua",
+      "biquintile": "sky",
+      "minorAspectHue": "greyscale"
+    }
+  },
+  "visibility": {
+    "enabledBodies": [
+      "Neptune",
+      "Uranus",
+      "Mercury",
+      "Saturn",
+      "Midheaven",
+      "Descendant",
+      "Chiron",
+      "North Node",
+      "Moon",
+      "Sun",
+      "Juno",
+      "Jupiter",
+      "Venus",
+      "South Node",
+      "Mars",
+      "Pluto",
+      "Ceres",
+      "Pallas",
+      "Ascendant",
+      "Imum Coeli"
+    ]
+  },
+  "orientation": {
+    "mode": "static",
+    "degree": 300
+  },
+  "layouts": {
+    "1": {
+      "rings": [
+        {
+          "id": "fb1c37e8-33a6-5603-a2f9-2309f7711aa6",
+          "kind": "zodiac",
+          "enabled": true,
+          "thickness": {
+            "kind": "fixed",
+            "value": 20
+          },
+          "style": {
+            "glyphSize": 15,
+            "rotateGlyphs": true,
+            "segmentBorderWidth": 1,
+            "radialLineWidth": 0.5,
+            "majorMarkInterval": 10,
+            "minorMarkInterval": 1,
+            "majorMarkLength": 8,
+            "minorMarkLength": 4,
+            "majorMarkWidth": 0.5,
+            "minorMarkWidth": 0.5
+          },
+          "options": {
+            "showBoundaries": true,
+            "showDegrees": false,
+            "showSymbols": true
+          }
+        },
+        {
+          "id": "90118f0c-9b4f-5db9-8a88-ee96c1e010d5",
+          "kind": "planets",
+          "enabled": true,
+          "thickness": {
+            "kind": "auto"
+          },
+          "style": {
+            "useGlyphs": true,
+            "showFrameDerivedPoints": true,
+            "glyphSize": 18,
+            "showSignGlyph": true,
+            "showRetrogradeGlyph": false,
+            "circleRadius": 8,
+            "showDegreeText": true,
+            "showMinuteText": false,
+            "degreeTextFontSize": 10,
+            "degreeTextOffset": 4,
+            "degreeTextLineSpacing": 3,
+            "degreeMarkLength": 4,
+            "degreeMarkWidth": 1,
+            "connectionLineWidth": 0.5,
+            "glyphInsetFromAnchor": 20,
+            "anchorFromInnerEdge": true,
+            "invertGlyphOrder": true,
+            "showTicksOnBothEdges": false,
+            "showConnectionOnBothEdges": false,
+            "innerBoundaryLineWidth": 0,
+            "outerBoundaryLineWidth": 0,
+            "overlapPrevention": {
+              "enabled": true,
+              "nudgeDistance": 8
+            },
+            "showCuspLines": true,
+            "cuspLineWidth": 0.5,
+            "angularCuspLineWidth": 1
+          },
+          "options": {},
+          "sourceSlot": 1
+        },
+        {
+          "id": "2e01884a-af90-5d4d-a815-fe3a7cf8f409",
+          "kind": "houses",
+          "enabled": true,
+          "thickness": {
+            "kind": "fixed",
+            "value": 15
+          },
+          "style": {
+            "numberFontSize": 10,
+            "rotateNumbers": true,
+            "cuspLineWidth": 0.5,
+            "angularCuspLineWidth": 1,
+            "innerBoundaryLineWidth": 0.5,
+            "outerBoundaryLineWidth": 0.5,
+            "boundaryLineColor": {
+              "layer": "bd",
+              "source": "semantic",
+              "value": "primary"
+            }
+          },
+          "options": {
+            "showCusps": true,
+            "showNumbers": true
+          },
+          "sourceSlot": 1
+        }
+      ],
+      "geometry": {
+        "margin": 8,
+        "minimumInnerRadius": 75,
+        "ringGap": 0,
+        "defaultHitRadius": 20,
+        "moduleHitRadiusOverrides": {},
+        "overlapPrevention": {
+          "enabled": true,
+          "nudgeDistance": 1
+        }
+      }
+    },
+    "2": {
+      "rings": [
+        {
+          "id": "3fc34064-2240-596b-9aef-aa439bd2bc0f",
+          "kind": "zodiac",
+          "enabled": true,
+          "thickness": {
+            "kind": "fixed",
+            "value": 20
+          },
+          "style": {
+            "glyphSize": 15,
+            "rotateGlyphs": true,
+            "segmentBorderWidth": 1,
+            "radialLineWidth": 0.5,
+            "majorMarkInterval": 10,
+            "minorMarkInterval": 1,
+            "majorMarkLength": 8,
+            "minorMarkLength": 2,
+            "majorMarkWidth": 0.5,
+            "minorMarkWidth": 0.5
+          },
+          "options": {
+            "showBoundaries": true,
+            "showDegrees": false,
+            "showSymbols": true
+          }
+        },
+        {
+          "id": "74f7841a-494c-5628-a10d-0f445a453575",
+          "kind": "planets",
+          "enabled": true,
+          "thickness": {
+            "kind": "auto"
+          },
+          "style": {
+            "useGlyphs": true,
+            "showFrameDerivedPoints": false,
+            "glyphSize": 16,
+            "showSignGlyph": true,
+            "showRetrogradeGlyph": false,
+            "circleRadius": 8,
+            "showDegreeText": true,
+            "showMinuteText": false,
+            "degreeTextFontSize": 8,
+            "degreeTextOffset": 1,
+            "degreeTextLineSpacing": 3,
+            "degreeMarkLength": 4,
+            "degreeMarkWidth": 1,
+            "connectionLineWidth": 0.5,
+            "glyphInsetFromAnchor": 14,
+            "anchorFromInnerEdge": true,
+            "invertGlyphOrder": true,
+            "showTicksOnBothEdges": false,
+            "showConnectionOnBothEdges": false,
+            "innerBoundaryLineWidth": 0.5,
+            "outerBoundaryLineWidth": 0,
+            "overlapPrevention": {
+              "enabled": true,
+              "nudgeDistance": 8
+            },
+            "showCuspLines": true,
+            "cuspLineWidth": 0.5,
+            "angularCuspLineWidth": 1
+          },
+          "options": {},
+          "sourceSlot": 2
+        },
+        {
+          "id": "fdea695e-9c4e-51b8-ba3e-aa313969bb82",
+          "kind": "planets",
+          "enabled": true,
+          "thickness": {
+            "kind": "auto"
+          },
+          "style": {
+            "useGlyphs": true,
+            "showFrameDerivedPoints": true,
+            "glyphSize": 16,
+            "showSignGlyph": true,
+            "showRetrogradeGlyph": false,
+            "circleRadius": 8,
+            "showDegreeText": true,
+            "showMinuteText": false,
+            "degreeTextFontSize": 8,
+            "degreeTextOffset": 2,
+            "degreeTextLineSpacing": 3,
+            "degreeMarkLength": 4,
+            "degreeMarkWidth": 1,
+            "connectionLineWidth": 0.5,
+            "glyphInsetFromAnchor": 13,
+            "anchorFromInnerEdge": false,
+            "invertGlyphOrder": true,
+            "showTicksOnBothEdges": false,
+            "showConnectionOnBothEdges": false,
+            "innerBoundaryLineWidth": 0,
+            "outerBoundaryLineWidth": 0,
+            "overlapPrevention": {
+              "enabled": true,
+              "nudgeDistance": 8
+            },
+            "showCuspLines": true,
+            "cuspLineWidth": 0.5,
+            "angularCuspLineWidth": 1
+          },
+          "options": {},
+          "sourceSlot": 1
+        },
+        {
+          "id": "357d0033-a886-57f1-9d3c-a1a35869dc4b",
+          "kind": "houses",
+          "enabled": true,
+          "thickness": {
+            "kind": "fixed",
+            "value": 15
+          },
+          "style": {
+            "numberFontSize": 9,
+            "rotateNumbers": true,
+            "cuspLineWidth": 0.5,
+            "angularCuspLineWidth": 1,
+            "innerBoundaryLineWidth": 0.5,
+            "outerBoundaryLineWidth": 0.5
+          },
+          "options": {
+            "showCusps": true,
+            "showNumbers": true
+          },
+          "sourceSlot": 1
+        }
+      ],
+      "geometry": {
+        "margin": 8,
+        "minimumInnerRadius": 45,
+        "ringGap": 0,
+        "defaultHitRadius": 20,
+        "moduleHitRadiusOverrides": {},
+        "overlapPrevention": {
+          "enabled": true,
+          "nudgeDistance": 0
+        }
+      }
+    },
+    "3": {
+      "rings": [
+        {
+          "id": "dda86bf7-cf8a-5f3f-bd63-6830e17bcc66",
+          "kind": "zodiac",
+          "enabled": true,
+          "thickness": {
+            "kind": "fixed",
+            "value": 15
+          },
+          "style": {
+            "glyphSize": 13,
+            "rotateGlyphs": true,
+            "segmentBorderWidth": 1,
+            "radialLineWidth": 0.5,
+            "majorMarkInterval": 10,
+            "minorMarkInterval": 1,
+            "majorMarkLength": 8,
+            "minorMarkLength": 4,
+            "majorMarkWidth": 1,
+            "minorMarkWidth": 0.5
+          },
+          "options": {
+            "showBoundaries": true,
+            "showDegrees": false,
+            "showSymbols": true
+          }
+        },
+        {
+          "id": "1e078055-de46-58c3-8263-d03156ba5c3c",
+          "kind": "planets",
+          "enabled": true,
+          "thickness": {
+            "kind": "auto"
+          },
+          "style": {
+            "useGlyphs": true,
+            "showFrameDerivedPoints": true,
+            "glyphSize": 14,
+            "showSignGlyph": true,
+            "showRetrogradeGlyph": false,
+            "circleRadius": 8,
+            "showDegreeText": true,
+            "showMinuteText": false,
+            "degreeTextFontSize": 7,
+            "degreeTextOffset": 2,
+            "degreeTextLineSpacing": 3,
+            "degreeMarkLength": 4,
+            "degreeMarkWidth": 1,
+            "connectionLineWidth": 0.5,
+            "glyphInsetFromAnchor": 10,
+            "anchorFromInnerEdge": true,
+            "invertGlyphOrder": true,
+            "showTicksOnBothEdges": false,
+            "showConnectionOnBothEdges": false,
+            "innerBoundaryLineWidth": 0.5,
+            "outerBoundaryLineWidth": 0,
+            "overlapPrevention": {
+              "enabled": true,
+              "nudgeDistance": 8
+            },
+            "showCuspLines": true,
+            "cuspLineWidth": 0.5,
+            "angularCuspLineWidth": 1
+          },
+          "options": {},
+          "sourceSlot": 3
+        },
+        {
+          "id": "41db6c1d-e64b-5730-970b-be3e534117b4",
+          "kind": "planets",
+          "enabled": true,
+          "thickness": {
+            "kind": "auto"
+          },
+          "style": {
+            "useGlyphs": true,
+            "showFrameDerivedPoints": true,
+            "glyphSize": 13,
+            "showSignGlyph": true,
+            "showRetrogradeGlyph": false,
+            "circleRadius": 8,
+            "showDegreeText": true,
+            "showMinuteText": false,
+            "degreeTextFontSize": 7,
+            "degreeTextOffset": 2,
+            "degreeTextLineSpacing": 3,
+            "degreeMarkLength": 4,
+            "degreeMarkWidth": 1,
+            "connectionLineWidth": 0.5,
+            "glyphInsetFromAnchor": 11,
+            "anchorFromInnerEdge": false,
+            "invertGlyphOrder": false,
+            "showTicksOnBothEdges": true,
+            "showConnectionOnBothEdges": true,
+            "innerBoundaryLineWidth": 0.5,
+            "outerBoundaryLineWidth": 0,
+            "overlapPrevention": {
+              "enabled": true,
+              "nudgeDistance": 8
+            },
+            "showCuspLines": true,
+            "cuspLineWidth": 0.5,
+            "angularCuspLineWidth": 1
+          },
+          "options": {},
+          "sourceSlot": 2
+        },
+        {
+          "id": "b4bd57c6-1b80-5269-8acc-ce9e0068c5e8",
+          "kind": "planets",
+          "enabled": true,
+          "thickness": {
+            "kind": "auto"
+          },
+          "style": {
+            "useGlyphs": true,
+            "showFrameDerivedPoints": true,
+            "glyphSize": 12,
+            "showSignGlyph": true,
+            "showRetrogradeGlyph": false,
+            "circleRadius": 8,
+            "showDegreeText": true,
+            "showMinuteText": false,
+            "degreeTextFontSize": 7,
+            "degreeTextOffset": 1,
+            "degreeTextLineSpacing": 3,
+            "degreeMarkLength": 4,
+            "degreeMarkWidth": 1,
+            "connectionLineWidth": 0.5,
+            "glyphInsetFromAnchor": 11,
+            "anchorFromInnerEdge": false,
+            "invertGlyphOrder": true,
+            "showTicksOnBothEdges": false,
+            "showConnectionOnBothEdges": false,
+            "innerBoundaryLineWidth": 0,
+            "outerBoundaryLineWidth": 0,
+            "overlapPrevention": {
+              "enabled": true,
+              "nudgeDistance": 8
+            },
+            "showCuspLines": true,
+            "cuspLineWidth": 0.5,
+            "angularCuspLineWidth": 1
+          },
+          "options": {},
+          "sourceSlot": 1
+        },
+        {
+          "id": "7d1816cd-a74d-53bc-bcfd-2b87ee039cfb",
+          "kind": "houses",
+          "enabled": true,
+          "thickness": {
+            "kind": "fixed",
+            "value": 10
+          },
+          "style": {
+            "numberFontSize": 8,
+            "rotateNumbers": true,
+            "cuspLineWidth": 0.5,
+            "angularCuspLineWidth": 1,
+            "innerBoundaryLineWidth": 0.5,
+            "outerBoundaryLineWidth": 0.5
+          },
+          "options": {
+            "showCusps": true,
+            "showNumbers": true
+          },
+          "sourceSlot": 1
+        }
+      ],
+      "geometry": {
+        "margin": 8,
+        "minimumInnerRadius": 40,
+        "ringGap": 0,
+        "defaultHitRadius": 20,
+        "moduleHitRadiusOverrides": {},
+        "overlapPrevention": {
+          "enabled": true,
+          "nudgeDistance": 1
+        }
+      }
+    }
+  }
+}

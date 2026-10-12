@@ -44,6 +44,7 @@
  *    render-time concerns, not builder concerns.
  */
 
+import { rulerSegments } from "../geometry/RulerSegments";
 import { calculateCrossChartAspects } from "../geometry/CrossChartAspects";
 import { placementIdentifier } from "./identifiers";
 import { CELESTIAL_BODIES, type CelestialBodyId } from "../schema/enums.gen";
@@ -178,9 +179,12 @@ function buildCharts(charts: RenderChart[], preset: Preset, qualified: boolean, 
   for (const ringModule of slot.rings) {
     if (!ringModule.enabled) continue;
 
+    const owner = sources[(ringModule.sourceSlot ?? 1) - 1];
+    const ringReference = qualified && owner ? { chartInstanceId: owner.instanceId, chartName: owner.name, houseCusps: owner.cusps } : reference;
     switch (ringModule.type) {
       case "zodiac":
         rings.push({
+          id: ringModule.id, content: ringModule.content,
           type: { kind: "zodiacSigns" },
           style: ringModule.style,
           thickness: ringModule.thickness,
@@ -188,7 +192,7 @@ function buildCharts(charts: RenderChart[], preset: Preset, qualified: boolean, 
         break;
 
       case "planets": {
-        const ringNumber = qualified ? planetModules.length - planetModules.indexOf(ringModule) : 1;
+        const ringNumber = ringModule.sourceSlot ?? (qualified ? planetModules.length - planetModules.indexOf(ringModule) : 1);
         const source = sources[ringNumber - 1];
         if (!source) break;
         const style = planetsStyleOf(ringModule);
@@ -199,6 +203,7 @@ function buildCharts(charts: RenderChart[], preset: Preset, qualified: boolean, 
         });
         if (filtered.length > 0) {
           rings.push({
+            id: ringModule.id, content: ringModule.content,
             type: {
               kind: "planets",
               // Displacement window per placement (house, else sign) — see
@@ -219,8 +224,9 @@ function buildCharts(charts: RenderChart[], preset: Preset, qualified: boolean, 
 
       case "houses":
         rings.push({
+          id: ringModule.id, content: ringModule.content,
           type: { kind: "houseNumbers" },
-          ...reference,
+          ...ringReference,
           // See the houseNumbers note in ChartRenderingConfiguration.ts: iOS
           // packs a ZodiacRingStyle here that its renderer never reads; we
           // carry the ring's own HousesRingStyle (rotateNumbers & co.) so the
@@ -232,20 +238,31 @@ function buildCharts(charts: RenderChart[], preset: Preset, qualified: boolean, 
 
       case "cuspAnnotations":
         rings.push({
+          id: ringModule.id, content: ringModule.content,
           type: { kind: "cuspAnnotations" },
-          ...reference,
+          ...ringReference,
           style: ringModule.style,
           thickness: ringModule.thickness,
         });
         break;
 
+      case "signRulers":
+      case "decans":
+      case "terms": {
+        const content = ringModule.content;
+        if (!("system" in content)) break;
+        rings.push({ id: ringModule.id, content,
+          type: { kind: "rulerSegments", ringKind: ringModule.type, system: content.system, showNumbers: "showNumbers" in content && content.showNumbers === true, segments: rulerSegments(ringModule.type, content.system) },
+          style: ringModule.style, thickness: ringModule.thickness });
+        break;
+      }
       case "aspects":
         // Aspect overlays are not rings (Swift `continue`); the config carries
         // aspects + aspectEdges as top-level fields instead.
         break;
 
       default:
-        // decans / signRulers / terms / lunarMansions / fixedStars parse in
+        // lunarMansions / fixedStars parse in
         // the schema layer but don't render yet (Task 8+ territory).
         console.warn(
           `[buildConfiguration] ring type "${ringModule.type}" is not rendered yet; skipping`,

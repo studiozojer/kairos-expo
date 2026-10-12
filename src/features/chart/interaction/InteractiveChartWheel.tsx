@@ -38,7 +38,7 @@ export function InteractiveChartWheel({ config, size, selectionStyle, enabled = 
   const hold = useCallback((id: string) => {
     const target = targets.find(t => t.id === id);
     if (!target) return;
-    if (target.kind !== 'body') { tap(id); return; }
+    if (target.kind !== 'body') { tap(id); if (target.kind === 'segment') Alert.alert(target.label, target.detail); return; }
     Alert.alert(target.label, target.detail, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Hide from chart', onPress: () => onHideBody(target.label) },

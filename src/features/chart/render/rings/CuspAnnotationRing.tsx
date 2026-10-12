@@ -181,25 +181,25 @@ export function CuspAnnotationRing({ ring, ringIndex, layout, colors }: RingRend
 
         return (
           <React.Fragment key={`cusp-annotation-${index}`}>
-            <Glyph
+            {(!ring.content || !("showSignGlyph" in ring.content) || ring.content.showSignGlyph) && <Glyph
               name={`signs/${sign}` as GlyphName}
               size={style.glyphSize}
               color={glyphColor}
               x={annotationCenter.x}
               y={annotationCenter.y}
-            />
-            <CenteredText
+            />}
+            {(!ring.content || !("showDegrees" in ring.content) || ring.content.showDegrees) && <CenteredText
               text={`${String(degreesInSign(cuspDegree)).padStart(2, "0")}°`}
               center={degreesPosition}
               font={degreesFont}
               color={textColor}
-            />
-            <CenteredText
+            />}
+            {(!ring.content || !("showMinutes" in ring.content) || ring.content.showMinutes) && <CenteredText
               text={`${String(minutesInSign(cuspDegree)).padStart(2, "0")}'`}
               center={minutesPosition}
               font={minutesFont}
               color={textColor}
-            />
+            />}
           </React.Fragment>
         );
       })}

@@ -66,6 +66,8 @@ export function parseRingType(v: unknown): RingType {
 }
 
 export interface RingModule {
+  /** Resolved local authoring source; absent only in historical fixtures. */
+  sourceSlot?: 1 | 2 | 3;
   id: string;
   type: RingType;
   thickness: RingThickness;
