@@ -9,7 +9,7 @@ jest.mock('../MarkingMenu', () => ({ MarkingMenuButton: 'MarkingMenuButton' }));
 jest.mock('../MarkingIcon', () => ({ MarkingIcon: 'MarkingIcon' }));
 function Probe({ state }: { state: ActionContext }) {
   const actions = useActionRegistry(state);
-  return <ChartToolbar title="Natal" topInset={40} actions={actions} />;
+  return <ChartToolbar topInset={40} actions={actions} />;
 }
 test('toolbar dispatches through the live registry and supplies the iOS lock slots', async () => {
   const c = context(); let view!: ReturnType<typeof create>;

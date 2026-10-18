@@ -1,15 +1,12 @@
-import { Pressable, Switch, Text, View } from 'react-native';
+import { FieldSection, FieldRow, FieldToggle, FieldNavigation, FieldPicker, FieldStepper } from '@/components/fields';
+import { Pressable, Text } from 'react-native';
 import type { ReactNode } from 'react';
 import { useTheme } from '@/theme';
 export function Section({ title, children }: {
     title: string;
     children: ReactNode;
 }) {
-    const t = useTheme();
-    return <View style={{ marginBottom: 24 }}>
-    <Text style={[t.type.fraktionXxs, { color: t.color.txTertiary, marginBottom: 10, textTransform: 'uppercase' }]}>{title}</Text>
-    {children}
-  </View>;
+    return <FieldSection title={title}>{children}</FieldSection>;
 }
 export function Note({ children }: {
     children: ReactNode;
@@ -23,11 +20,7 @@ export function Row({ label, detail, children, leading }: {
     children?: ReactNode;
     leading?: ReactNode;
 }) {
-    const t = useTheme();
-    return <View style={{ minHeight: 54, paddingVertical: 9, flexDirection: 'row', gap: 12, alignItems: 'center', borderBottomWidth: t.border.hairline, borderColor: t.color.bdSecondary }}>
-    {leading}<View style={{ flex: 1 }}><Text style={[t.type.whyteSm, { color: t.color.txPrimary }]}>{label}</Text>
-      {detail && <Text style={[t.type.whyteXxs, { color: t.color.txTertiary, marginTop: 3 }]}>{detail}</Text>}</View>{children}
-  </View>;
+    return <FieldRow label={label} detail={detail} leading={leading} control={children} />;
 }
 export function Toggle({ label, value, onChange, detail, leading, disabled = false }: {
     label: string;
@@ -37,8 +30,7 @@ export function Toggle({ label, value, onChange, detail, leading, disabled = fal
     disabled?: boolean;
     leading?: ReactNode;
 }) {
-    const t = useTheme();
-    return <Row label={label} detail={detail} leading={leading}><Switch accessibilityLabel={label} value={value} disabled={disabled} onValueChange={onChange} trackColor={{ true: t.color.txAccent }}/></Row>;
+    return <FieldToggle label={label} detail={detail} leading={leading} value={value} onChange={onChange} disabled={disabled} />;
 }
 export function Action({ label, onPress }: {
     label: string;
@@ -54,10 +46,7 @@ export function LinkRow({ label, detail, onPress }: {
     detail?: string;
     onPress: () => void;
 }) {
-    const t = useTheme();
-    return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress}>
-    <Row label={label} detail={detail}><Text style={{ color: t.color.txTertiary, fontSize: 24 }}>›</Text></Row>
-  </Pressable>;
+    return <FieldNavigation label={label} detail={detail} onPress={onPress} />;
 }
 export function Choices<T extends string | number>({ label, value, options, onChange }: {
     label: string;
@@ -68,12 +57,11 @@ export function Choices<T extends string | number>({ label, value, options, onCh
     ])[];
     onChange: (v: T) => void;
 }) {
-    const t = useTheme();
-    return <View style={{ marginVertical: 10 }}><Text style={[t.type.whyteSm, { color: t.color.txPrimary, marginBottom: 8 }]}>{label}</Text>
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>{options.map(([v, name]) => <Pressable key={v} accessibilityRole="radio" accessibilityLabel={`${label}: ${name}`} accessibilityState={{ checked: value === v }} onPress={() => onChange(v)} style={{ minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, borderRadius: t.radius.md, backgroundColor: value === v ? t.color.bgSolidButton : t.color.bgSolidCardSecondary }}>
-        <Text style={[t.type.whyteXs, { color: value === v ? t.color.txButton : t.color.txSecondary }]}>{name}</Text>
-      </Pressable>)}</View>
-  </View>;
+    const selected = options.find(([option]) => option === value);
+    const choices = options.map(([option, title], index) => ({ value: String(index), label: title }));
+    return <FieldPicker label={label} value={selected ? String(options.indexOf(selected)) : '__unset'}
+      options={selected ? choices : [{ value: '__unset', label: 'Choose…', disabled: true }, ...choices]}
+      onChange={key => { const option = options[Number(key)]; if (option) onChange(option[0]); }} />;
 }
 export function NumberRow({ label, value, onChange, min = 0, max = 15, step = .5, suffix = '°' }: {
     label: string;
@@ -84,9 +72,6 @@ export function NumberRow({ label, value, onChange, min = 0, max = 15, step = .5
     step?: number;
     suffix?: string;
 }) {
-    const t = useTheme();
-    const button = (delta: number, text: string) => <Pressable accessibilityRole="button" accessibilityLabel={`${delta < 0 ? 'Decrease' : 'Increase'} ${label}`} disabled={delta < 0 ? value <= min : value >= max} onPress={() => onChange(Math.max(min, Math.min(max, Math.round((value + delta) * 100) / 100)))} style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center' }}>
-    <Text style={{ color: t.color.txAccent, fontSize: 22 }}>{text}</Text></Pressable>;
-    return <Row label={label}><View style={{ flexDirection: 'row', alignItems: 'center' }}>{button(-step, '−')}
-    <Text accessibilityLiveRegion="polite" style={[t.type.fraktionXs, { color: t.color.txSecondary }]}>{Math.round(value * 100) / 100}{suffix}</Text>{button(step, '+')}</View></Row>;
+    return <FieldStepper label={label} value={value} min={min} max={max} step={step}
+      format={number => `${Math.round(number * 100) / 100}${suffix}`} onChange={onChange} />;
 }

@@ -1,0 +1,36 @@
+import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { TextInput } from 'react-native';
+import AccountScreen from '@/app/account';
+const mockRouter = { push: jest.fn(), back: jest.fn() };
+const mockAuth = { account: null as { handle: string; did: string } | null, busy: false, signIn: jest.fn(), signOut: jest.fn() };
+jest.mock('expo-router', () => ({ useRouter: () => mockRouter }));
+jest.mock('@/auth/auth-context', () => ({ useAuth: () => mockAuth }));
+let view: ReactTestRenderer;
+const button = (label: string) => view.root.findAll(node => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')[0];
+beforeEach(() => { jest.clearAllMocks(); mockAuth.account = null; mockAuth.busy = false; mockAuth.signIn.mockResolvedValue(undefined); mockAuth.signOut.mockResolvedValue(undefined); });
+afterEach(() => act(() => view?.unmount()));
+test('grouped account preferences retain destinations and the controlled sign-in flow', async () => {
+  act(() => { view = create(<AccountScreen />); });
+  act(() => button('Personal star library').props.onPress());
+  expect(mockRouter.push).toHaveBeenCalledWith('/star-library');
+  act(() => button('Default chart settings').props.onPress());
+  expect(mockRouter.push).toHaveBeenCalledWith('/chart-defaults');
+  act(() => view.root.findByType(TextInput).props.onChangeText('example.bsky.social'));
+  await act(async () => button('Sign in with ATProto').props.onPress());
+  expect(mockAuth.signIn).toHaveBeenCalledWith('example.bsky.social');
+  expect(mockRouter.back).toHaveBeenCalledTimes(1);
+  mockAuth.busy = true;
+  act(() => view.update(<AccountScreen />));
+  expect(view.root.findByType(TextInput).props.editable).toBe(false);
+  expect(button('Signing in…').props.disabled).toBe(true);
+});
+test('signed-in rows preserve chart destinations and sign-out action', async () => {
+  mockAuth.account = { handle: 'example.bsky.social', did: 'did:plc:example' };
+  act(() => { view = create(<AccountScreen />); });
+  act(() => button('Saved charts').props.onPress());
+  expect(mockRouter.push).toHaveBeenCalledWith('/charts');
+  act(() => button('Chart exceptions').props.onPress());
+  expect(mockRouter.push).toHaveBeenCalledWith('/chart-transfers');
+  await act(async () => button('Sign out').props.onPress());
+  expect(mockAuth.signOut).toHaveBeenCalledTimes(1);
+});

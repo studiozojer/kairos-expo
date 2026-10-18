@@ -74,7 +74,9 @@ test('ambiguous local time requires explicit occurrence; choosing later saves th
   act(() => { view = create(<ChartEditorScreen />); });
   field('Chart name', 'Fold'); field('Date · YYYY-MM-DD', '2026-11-01'); field('Time · HH:mm:ss (24-hour)', '01:30');
   await act(async () => { action('Save chart').props.onPress(); }); expect(mockState.saveChart).not.toHaveBeenCalled();
-  act(() => button('This time occurs twice: Later · 2026-11-01T09:30:00.000Z').props.onPress());
+  const occurrence = view.root.findAllByType(MenuView).find(menu => menu.props.title === 'This time occurs twice')!;
+  const later = occurrence.props.actions.find((option: any) => option.title === 'Later · 2026-11-01T09:30:00.000Z');
+  act(() => occurrence.props.onPressAction({ nativeEvent: { event: later.id } }));
   await act(async () => { action('Save chart').props.onPress(); });
   expect(mockState.saveChart.mock.calls[0][0].datetime).toBe('2026-11-01T09:30:00.000Z');
 });
@@ -149,7 +151,7 @@ test('a remote deletion keeps the open editor draft and its original baseline', 
 
 test('tips toggle hides card/Add captions while retaining calculation status and actions', async () => {
   mockState.active = [instance('a')];
-  mockState.calculations = { a: { status: 'loading' } };
+  mockState.calculations = { a: { status: 'error' } };
   await act(async () => { view = create(<ContextualTipsProvider><ContextualTipsSetting /><Cards /></ContextualTipsProvider>); });
   const hasText = (text: string) => view.root.findAllByType(Text).some(node => node.props.children === text);
   expect(hasText('Add')).toBe(true);
@@ -157,7 +159,26 @@ test('tips toggle hides card/Add captions while retaining calculation status and
   await act(async () => view.root.findByType(Switch).props.onValueChange(false));
   expect(hasText('Add')).toBe(false);
   expect(hasText('Drag down to put away · Tap to step')).toBe(false);
-  expect(hasText('Updating…')).toBe(true);
+  expect(hasText('Calculation failed')).toBe(true);
   expect(button('Add / saved charts')).toBeDefined();
+  mockState.calculations = {};
+});
+
+test('time recalculation keeps the location line stable while loading', () => {
+  mockState.active = [instance('a')];
+  mockState.calculations = { a: { status: 'ready' } };
+  act(() => { view = create(<Cards />); });
+  const hasText = (text: string) => view.root.findAllByType(Text).some(node => node.props.children === text);
+  expect(hasText(DEFAULT_SETTINGS.location.name)).toBe(true);
+  for (let step = 0; step < 3; step++) {
+    mockState.active[0].time += 60_000;
+    mockState.calculations = { a: { status: 'loading' } };
+    act(() => view.update(<Cards />));
+    expect(hasText(DEFAULT_SETTINGS.location.name)).toBe(true);
+    expect(hasText('Updating…')).toBe(false);
+    mockState.calculations = { a: { status: 'ready' } };
+    act(() => view.update(<Cards />));
+    expect(hasText(DEFAULT_SETTINGS.location.name)).toBe(true);
+  }
   mockState.calculations = {};
 });

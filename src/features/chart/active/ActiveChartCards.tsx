@@ -15,6 +15,9 @@ import { useCardDrag } from './useCardDrag';
 import type { CardDragSession } from './useCardDragSession';
 
 const GAP = 8;
+const CARD_PADDING = 8;
+const CARD_BORDER = 1;
+const DATE_GAP = 4;
 function CardFace({ chart, index, count, selected, calculation }: {
   chart: ActiveChart; index: number; count: number; selected: boolean; calculation?: ActiveCalculation;
 }) {
@@ -22,16 +25,16 @@ function CardFace({ chart, index, count, selected, calculation }: {
   const timezone = chart.settings.location.timezone;
   const date = new Intl.DateTimeFormat(undefined, { timeZone: timezone, year: 'numeric', month: 'short', day: 'numeric' }).format(chart.time);
   const time = new Intl.DateTimeFormat(undefined, { timeZone: timezone, hour: 'numeric', minute: '2-digit' }).format(chart.time);
-  return <View pointerEvents="none" style={{ flex: 1, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 6,
-    borderWidth: 1, borderColor: selected ? t.color.bdAccent : t.color.bdSecondary, backgroundColor: t.color.bgSolidCardSecondary }}>
+  return <View pointerEvents="none" style={{ flex: 1, paddingHorizontal: 10, paddingVertical: CARD_PADDING, borderRadius: 6,
+    borderWidth: CARD_BORDER, borderColor: selected ? t.color.bdAccent : t.color.bdSecondary, backgroundColor: t.color.bgSolidCardSecondary }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
       <Text numberOfLines={1} style={[t.type.whyteSm, { flex: 1, color: t.color.txPrimary }]}>{chart.name}</Text>
       <Text style={[t.type.whyteXxs, { color: selected ? t.color.txAccent : t.color.txTertiary }]}>{count > 1 ? index + 1 : ''}{selected ? '•' : ''}</Text>
     </View>
-    <Text numberOfLines={1} style={[t.type.whyteXs, { color: t.color.txSecondary, marginTop: 4 }]}>{date}</Text>
+    <Text numberOfLines={1} style={[t.type.whyteXs, { color: t.color.txSecondary, marginTop: DATE_GAP }]}>{date}</Text>
     <Text numberOfLines={1} style={[t.type.whyteXs, { color: t.color.txSecondary }]}>{time}</Text>
     <Text numberOfLines={1} style={[t.type.whyteXs, { color: calculation?.status === 'error' ? t.color.txAccent : t.color.txTertiary }]}>
-      {calculation?.status === 'loading' ? 'Updating…' : calculation?.status === 'error' ? 'Calculation failed' : chart.kind === 'snapshot' ? 'Unsaved snapshot' : chart.settings.location.name}
+      {calculation?.status === 'error' ? 'Calculation failed' : chart.kind === 'snapshot' ? 'Unsaved snapshot' : chart.settings.location.name}
     </Text>
   </View>;
 }
@@ -86,7 +89,7 @@ function CardSlot({ chart, index, ids, width, height, session }: {
 /** Swift's fitted active row: every card is visible, slots indicate ring order,
  * and only a completed drop changes membership order. Secondary actions use the
  * platform's anchored menu instead of filling each card with buttons. */
-export function ActiveChartCards({ session, chartActions, updatingArrangement = false }: { session: CardDragSession; chartActions: ChartActions; updatingArrangement?: boolean }) {
+export function ActiveChartCards({ session, chartActions }: { session: CardDragSession; chartActions: ChartActions }) {
   const state = useActiveCharts();
   const router = useRouter();
   const t = useTheme();
@@ -97,7 +100,9 @@ export function ActiveChartCards({ session, chartActions, updatingArrangement = 
   const ids = state.active.map(chart => chart.id);
   const selectedIndex = state.active.findIndex(chart => chart.id === state.targetId);
   const selected = state.active[selectedIndex];
-  const height = Math.ceil(100 * Math.max(1, fontScale));
+  // Fit the four text lines; keep padding/gap fixed as Dynamic Type scales.
+  const height = Math.ceil((t.type.whyteSm.lineHeight + 3 * t.type.whyteXs.lineHeight) * fontScale
+    + DATE_GAP + 2 * (CARD_PADDING + CARD_BORDER));
   const { invalidate } = session;
   useLayoutEffect(() => { invalidate(); }, [width, height, collapsed, invalidate]);
   const openLibrary = () => router.push('/charts');
@@ -122,9 +127,9 @@ export function ActiveChartCards({ session, chartActions, updatingArrangement = 
     </View>}
     {!!ids.length && <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
       {collapsed ? <Pressable accessibilityRole="button" onPress={() => setCollapsed(false)} style={{ minHeight: 44, justifyContent: 'center' }}>
-        <Text style={[t.type.whyteXs, { color: t.color.txAccent }]}>{updatingArrangement ? 'Show cards · Updating…' : 'Show cards'}</Text>
+        <Text style={[t.type.whyteXs, { color: t.color.txAccent }]}>Show cards</Text>
       </Pressable> : <Text accessibilityLiveRegion="polite" style={[t.type.whyteXs, { flex: 1, color: t.color.txTertiary }]}>
-        {updatingArrangement ? 'Updating chart arrangement…' : state.active.some(chart => state.calculations[chart.id]?.result && state.calculations[chart.id]?.status !== 'ready') ? 'Showing previous positions while updating' : tips.isVisible('dragChartCard') ? 'Drag down to put away · Tap to step' : ''}
+        {tips.isVisible('dragChartCard') ? 'Drag down to put away · Tap to step' : ''}
       </Text>}
       <MenuView {...menuAccessibility} title={selected ? `${selected.name} · Ring ${selectedIndex + 1}` : 'Charts'} themeVariant={t.scheme}
         shouldOpenOnLongPress={false} isAnchoredToRight actions={actions} style={{ minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' }}

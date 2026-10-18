@@ -116,7 +116,7 @@ it('selects presets from the native menu without replacing the active settings s
   const root = renderer.root;
   act(() => root.findByType(SegmentedControl).props.onValueChange('Style'));
   act(() => root.findAllByType(LinkRow).find(n => n.props.label === 'Aspect line styling')!.props.onPress());
-  const menu = root.findByType(MenuView);
+  const menu = root.findAllByType(MenuView).find(menu => menu.props.title === 'Display preset')!;
   expect(menu.props.shouldOpenOnLongPress).toBe(false);
   expect(menu.props.actions.find((a: { id: string }) => a.id === 'classic').state).toBe('on');
   act(() => menu.props.onPressAction({ nativeEvent: { event: 'classic' } }));
