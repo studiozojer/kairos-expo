@@ -23,10 +23,12 @@ export function LibraryRow({ chart, onOpen, onAction }: { chart: SavedChart; onO
         <Text numberOfLines={1} style={[t.type.whyteXs, { color: t.color.txTertiary }]}>{date.time} <Text style={{ color: t.color.txDisabled }}>{date.offset}</Text></Text>
       </View>
     </Pressable>
+    <View style={{ width: 44, height: 44 }}>
     {favorite && <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${chart.name} from favorites`} onPress={() => onAction('favorite')}
       style={({ pressed }) => ({ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .6 : 1 })}>
       <LibraryIcon name="star" color={t.color.txWarning} />
     </Pressable>}
+    </View>
     <MenuView {...accessibility} title={chart.name} themeVariant={t.scheme} shouldOpenOnLongPress={false} isAnchoredToRight
       actions={[
         { id: 'favorite', title: favorite ? 'Remove favorite' : 'Add favorite', image: Platform.OS === 'ios' ? (favorite ? 'star.slash' : 'star') : undefined },
