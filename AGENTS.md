@@ -35,3 +35,7 @@ Navigation, motion, gestures, and system chrome follow `zojercommons/practices/p
 ## Fonts
 
 The studio faces (ABC Whyte, PP Fraktion) are commercially licensed. Coverage for kairos-expo as a newly shipping app is David's to confirm before App Store submission (D9).
+
+## Shared Field components
+
+`src/components/fields.generated/` contains verbatim committed sources from daoUI `rn/fields/`. Never edit them here. Run `npm run sync-fields` with `DAOUI_PATH` pointing at the daoUI checkout (and optional `DAOUI_REF`), then commit the copied files and SHA-256 receipt. `npm run check:fields` verifies them without the sibling checkout. App token injection lives in `src/components/fields.tsx`; settings/preset compatibility wrappers live in `src/features/chart/display/controls.tsx`. Native menus use the already-installed `@react-native-menu/menu`; keep web adapters when syncing.

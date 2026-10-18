@@ -30,7 +30,7 @@ test('ring creation, system changes and removal render and survive relaunch',asy
   act(()=>root().findAllByType(LinkRow).find(row=>row.props.label==='Rings')!.props.onPress());
   await act(async()=>root().findAllByType(Action).find(row=>row.props.label==='Add sign rulers')!.props.onPress());
   expect(root().findAllByType(RulerSegmentsRing)).toHaveLength(1);
-  expect(root().findByType(MenuView).props.actions.some((entry:{title:string})=>entry.title==='Classic custom')).toBe(true);
+  expect(root().findAllByType(MenuView).find(menu => menu.props.title === 'Display preset')!.props.actions.some((entry:{title:string})=>entry.title==='Classic custom')).toBe(true);
   act(()=>root().findAllByType(LinkRow).find(row=>row.props.label==='Sign rulers')!.props.onPress());
   await act(async()=>root().findAllByType(Choices).find(row=>row.props.label==='Rulership system')!.props.onChange('modern'));
   expect(root().findByType(RulerSegmentsRing).props.ring.type.system).toBe('modern');

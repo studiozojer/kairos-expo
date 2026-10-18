@@ -74,7 +74,9 @@ test('ambiguous local time requires explicit occurrence; choosing later saves th
   act(() => { view = create(<ChartEditorScreen />); });
   field('Chart name', 'Fold'); field('Date · YYYY-MM-DD', '2026-11-01'); field('Time · HH:mm:ss (24-hour)', '01:30');
   await act(async () => { action('Save chart').props.onPress(); }); expect(mockState.saveChart).not.toHaveBeenCalled();
-  act(() => button('This time occurs twice: Later · 2026-11-01T09:30:00.000Z').props.onPress());
+  const occurrence = view.root.findAllByType(MenuView).find(menu => menu.props.title === 'This time occurs twice')!;
+  const later = occurrence.props.actions.find((option: any) => option.title === 'Later · 2026-11-01T09:30:00.000Z');
+  act(() => occurrence.props.onPressAction({ nativeEvent: { event: later.id } }));
   await act(async () => { action('Save chart').props.onPress(); });
   expect(mockState.saveChart.mock.calls[0][0].datetime).toBe('2026-11-01T09:30:00.000Z');
 });

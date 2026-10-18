@@ -1,8 +1,9 @@
+import { FieldText } from '@/components/fields';
 import { ContextualTipsSetting } from '@/features/tips/ContextualTips';
 import { StarLibraryPanel, type StarLibraryPanelProps } from '../stars/StarLibraryPanel';
 import { ChartSheet, SheetHeader, SheetBackRow } from '../components/ChartSheet';
 import { useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
 import { Action, Choices, LinkRow, Note, Row, Section } from '../display/controls';
@@ -68,9 +69,8 @@ function LocationPicker({ selected, onSelect }: { selected: ChartLocation; onSel
     return () => { active = false; clearTimeout(timer); };
   }, [query, attempt]);
   return <View style={{ flex: 1, paddingHorizontal: t.space.lg }}>
-    <TextInput accessibilityLabel="Search atlas" placeholder="Search city, region or country" placeholderTextColor={t.color.txTertiary}
-      autoCorrect={false} autoCapitalize="words" value={query} onChangeText={value => { setQuery(value); setResults([]); setStatus(value.trim().length < 2 ? 'idle' : 'loading'); }} returnKeyType="search"
-      style={[t.type.whyteSm, { minHeight: 48, padding: t.space.md, color: t.color.txPrimary, backgroundColor: t.color.bgSolidCardSecondary, borderRadius: t.radius.md }]} />
+    <Section title="Atlas"><FieldText label="Search atlas" placeholder="Search city, region or country"
+      autoCorrect={false} autoCapitalize="words" value={query} onChangeText={value => { setQuery(value); setResults([]); setStatus(value.trim().length < 2 ? 'idle' : 'loading'); }} returnKeyType="search" /></Section>
     <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingVertical: t.space.lg }}>
       {status === 'idle' && <><Note>Search the offline atlas to choose a city.</Note><Row label={selected.name} detail="Current location" /></>}
       {status === 'loading' && <ActivityIndicator accessibilityLabel="Searching atlas" color={t.color.txAccent} />}

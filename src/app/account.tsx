@@ -1,7 +1,8 @@
+import { FieldSection, FieldRow, FieldNavigation, FieldText } from '@/components/fields';
 import { ContextualTipsSetting } from '@/features/tips/ContextualTips';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, ScrollView, Text } from 'react-native';
 
 import { useAuth } from '@/auth/auth-context';
 import { SignInError } from '@/auth/signIn';
@@ -36,91 +37,29 @@ export default function AccountScreen() {
     }
   };
 
-  const fieldStyle = {
-    backgroundColor: theme.color.bgSolidCard,
-    borderColor: theme.color.bdCard,
-    borderWidth: theme.border.hairline,
-    borderRadius: theme.radius.md,
-    padding: theme.space.md,
-    color: theme.color.txPrimary,
-    ...theme.type.whyteSm,
+  const requestSignOut = () => {
+    void signOut().catch(() => Alert.alert('Could not finish signing out', 'The saved session could not be cleared from this device. Please try again.', [{ text: 'Retry', onPress: () => { void signOut().catch(() => Alert.alert('Sign-out failed', 'Device storage is unavailable. Try again when it is available.')); } }]));
   };
 
-  const buttonStyle = (enabled: boolean) => ({
-    backgroundColor: enabled ? theme.color.bgSolidButton : theme.color.bgSolidButtonDisabled,
-    borderRadius: theme.radius.md,
-    padding: theme.space.md,
-    alignItems: 'center' as const,
-  });
-
-  return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.color.bgSolidBase }}
-      keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{
-        padding: theme.space.xl,
-        gap: theme.space.lg,
-      }}>
-      <Pressable accessibilityRole="button" onPress={() => router.push('/star-library')} style={buttonStyle(true)}><Text style={{ ...theme.type.whyteSm, color: theme.color.txButton }}>Personal star library</Text></Pressable>
-      <Pressable accessibilityRole="button" onPress={() => router.push('/chart-defaults')} style={buttonStyle(true)}>
-        <Text style={{ ...theme.type.whyteSm, color: theme.color.txButton }}>Default chart settings</Text>
-      </Pressable>
-      <ContextualTipsSetting />
-      {account ? (
-        <>
-          <View style={{ gap: theme.space.xs }}>
-            <Text style={{ ...theme.type.whyteMd, color: theme.color.txPrimary }}>
-              @{account.handle}
-            </Text>
-            <Text style={{ ...theme.type.fraktionXxs, color: theme.color.txTertiary }}>
-              {account.did}
-            </Text>
-          </View>
-          <Text style={{ ...theme.type.whyteSm, color: theme.color.txSecondary }}>
-            Signing out stops chart sync and hides this account’s charts on this device. Local charts outside the account remain available.
-          </Text>
-          <Pressable onPress={() => router.push('/charts')} style={buttonStyle(true)}>
-            <Text style={{ ...theme.type.whyteSm, color: theme.color.txButton }}>Saved charts</Text>
-          </Pressable>
-          <Pressable onPress={() => router.push('/chart-transfers')} style={buttonStyle(true)}>
-            <Text style={{ ...theme.type.whyteSm, color: theme.color.txButton }}>Chart exceptions</Text>
-          </Pressable>
-          {error && <Text accessibilityRole="alert" style={{ color: theme.color.txError }}>{error}</Text>}
-          <Pressable onPress={() => { void signOut().catch(() => Alert.alert('Could not finish signing out', 'The saved session could not be cleared from this device. Please try again.', [{ text: 'Retry', onPress: () => { void signOut().catch(() => Alert.alert('Sign-out failed', 'Device storage is unavailable. Try again when it is available.')); } }])); }} style={buttonStyle(true)}>
-            <Text style={{ ...theme.type.whyteSm, color: theme.color.txButton }}>Sign out</Text>
-          </Pressable>
-        </>
-      ) : (
-        <>
-          <Text style={{ ...theme.type.whyteSm, color: theme.color.txSecondary }}>
-            Sign in with your ATProto handle. Your permanent account identity is its DID; changing your handle keeps the same account.
-          </Text>
-          <TextInput
-            style={fieldStyle}
-            placeholder="you.bsky.social"
-            placeholderTextColor={theme.color.txTertiary}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="go"
-            value={handle}
-            onChangeText={setHandle}
-            onSubmitEditing={() => void submit()}
-            editable={!busy}
-          />
-          {error ? (
-            <Text style={{ ...theme.type.whyteXs, color: theme.color.txError }}>{error}</Text>
-          ) : null}
-          <Pressable onPress={() => void submit()} disabled={busy} style={buttonStyle(!busy)}>
-            <Text
-              style={{
-                ...theme.type.whyteSm,
-                color: busy ? theme.color.txDisabled : theme.color.txButton,
-              }}>
-              {busy ? 'Signing in…' : 'Sign in with ATProto'}
-            </Text>
-          </Pressable>
-        </>
-      )}
-    </ScrollView>
-  );
+  return <ScrollView style={{ flex: 1, backgroundColor: theme.color.bgSolidBase }} keyboardShouldPersistTaps="handled"
+    contentContainerStyle={{ padding: theme.space.lg }}>
+    <FieldSection title="Chart preferences" footer="Defaults apply to new charts. Your personal star library is shared across charts and display presets.">
+      <FieldNavigation label="Default chart settings" onPress={() => router.push('/chart-defaults')} />
+      <FieldNavigation label="Personal star library" onPress={() => router.push('/star-library')} />
+    </FieldSection>
+    <FieldSection title="Help"><ContextualTipsSetting /></FieldSection>
+    {account ? <>
+      <FieldSection title="Account" footer="Signing out stops chart sync and hides this account’s charts on this device. Local charts outside the account remain available.">
+        <FieldRow label={`@${account.handle}`} detail={account.did} />
+        <FieldNavigation label="Saved charts" onPress={() => router.push('/charts')} />
+        <FieldNavigation label="Chart exceptions" onPress={() => router.push('/chart-transfers')} />
+        <FieldNavigation label="Sign out" destructive onPress={requestSignOut} />
+      </FieldSection>
+      {error && <Text accessibilityRole="alert" style={[theme.type.whyteXs, { color: theme.color.txError }]}>{error}</Text>}
+    </> : <FieldSection title="Account" footer="Sign in with your ATProto handle. Your permanent account identity is its DID; changing your handle keeps the same account.">
+      <FieldText label="ATProto handle" placeholder="you.bsky.social" autoCapitalize="none" autoCorrect={false}
+        returnKeyType="go" value={handle} onChangeText={setHandle} onSubmitEditing={() => void submit()} disabled={busy} error={error ?? undefined} />
+      <FieldNavigation label={busy ? 'Signing in…' : 'Sign in with ATProto'} disabled={busy} onPress={() => void submit()} />
+    </FieldSection>}
+  </ScrollView>;
 }

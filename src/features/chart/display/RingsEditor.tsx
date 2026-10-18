@@ -1,3 +1,6 @@
+import { FieldColor } from '@/components/fields';
+import { useTheme } from '@/theme';
+import { resolveColorValue } from '../render/colors';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { Action, Choices, LinkRow, Note, NumberRow, Section, Toggle } from './controls';
@@ -5,6 +8,7 @@ import type { ColorValue } from '../schema/core-types';
 import { createRing, editRing, moveRing, RING_KINDS, RING_TITLES, type ChartCount, type DisplayPreset, type DisplayRing, type RingKind } from './model';
 export interface RingSelection { id: string; kind: RingKind; sourceSlot?: number }
 export function RingsEditor({ preset, count, onCount, onChange, onOpenStars, selection, onSelect }: { preset: DisplayPreset; count: ChartCount; onCount: (count: ChartCount) => void; onChange: (preset: DisplayPreset) => void; onOpenStars?: (sourceSlot: number) => void; selection?: RingSelection | null; onSelect?: (selection: RingSelection | null) => void }) {
+  const theme = useTheme();
   const [localSelection, setLocalSelection] = useState<RingSelection | null>(null);
   const selected = selection === undefined ? localSelection : selection;
   const setSelected = onSelect ?? setLocalSelection;
@@ -35,7 +39,14 @@ export function RingsEditor({ preset, count, onCount, onChange, onOpenStars, sel
         {ring.kind === 'fixedStars' && (['glyphColor','textColor','boundaryLineColor','backgroundColor'] as const).map(key => {
           const value = ring.style[key];
           const colorName = value?.source === 'semantic' ? value.value : value ? 'custom' : 'default';
-          return <Choices key={key} label={({glyphColor:'Symbol color',textColor:'Annotation color',boundaryLineColor:'Boundary color',backgroundColor:'Background'})[key]} value={colorName} options={[["default","Default"],["primary","Primary"],["accent","Accent"],["secondary","Secondary"]]} onChange={name => style(key,name === 'default' ? undefined : {source:'semantic',value:name,layer:key === 'backgroundColor' ? 'bg' : key === 'boundaryLineColor' ? 'bd' : key === 'textColor' ? 'tx' : 'ic'} satisfies ColorValue)} />;
+          const layer = key === 'backgroundColor' ? 'bg' : key === 'boundaryLineColor' ? 'bd' : key === 'textColor' ? 'tx' : 'ic';
+          const options = [
+            { value: 'default', label: 'Default' },
+            ...['primary', 'accent', 'secondary'].map(name => ({ value: name, label: name.charAt(0).toUpperCase() + name.slice(1), color: resolveColorValue({ source: 'semantic', value: name, layer }, theme) })),
+            ...(!['default', 'primary', 'accent', 'secondary'].includes(colorName) && value ? [{ value: colorName, label: 'Custom', color: resolveColorValue(value, theme) }] : []),
+          ];
+          return <FieldColor key={key} label={({glyphColor:'Symbol color',textColor:'Annotation color',boundaryLineColor:'Boundary color',backgroundColor:'Background'})[key]} value={colorName} options={options}
+            onChange={name => { if (name !== colorName) style(key, name === 'default' ? undefined : { source: 'semantic', value: name, layer } satisfies ColorValue); }} />;
         })}
         {'rotateGlyphs' in ring.style && <Toggle label="Rotate symbols" value={ring.style.rotateGlyphs} onChange={value => style('rotateGlyphs',value)} />}
         {['textSize','textOffset','numberFontSize','degreeTextFontSize','degreesFontSize','minutesFontSize','boundaryLineWidth','outerBoundaryWidth','innerBoundaryWidth','innerBoundaryLineWidth','outerBoundaryLineWidth','radialLineWidth','segmentBorderWidth'].filter(key => key in ring.style).map(key => <NumberRow key={key} label={({textSize:'Annotation size',textOffset:'Annotation offset',numberFontSize:ring.kind === 'decans' ? 'Decan number size' : 'House number size',degreeTextFontSize:'Annotation size',degreesFontSize:'Degree size',minutesFontSize:'Minute size',boundaryLineWidth:'Divider thickness',outerBoundaryWidth:'Outer boundary',innerBoundaryWidth:'Inner boundary',innerBoundaryLineWidth:'Inner boundary',outerBoundaryLineWidth:'Outer boundary',radialLineWidth:'Divider thickness',segmentBorderWidth:'Segment borders'} as Record<string,string>)[key]} value={(ring.style as unknown as Record<string,number>)[key]} min={(key.includes('FontSize') || key === 'textSize') ? 4 : 0} max={(key.includes('FontSize') || key === 'textSize') ? 24 : 4} step={(key.includes('FontSize') || key === 'textSize') ? 1 : .25} suffix="" onChange={value => style(key,value)} />)}

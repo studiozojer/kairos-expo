@@ -53,7 +53,9 @@
     "sync-fonts": "node scripts/sync-fonts.mjs",
     "sync-type": "node scripts/sync-type.mjs",
     "sync-engine-enums": "node scripts/sync-engine-enums.mjs",
-    "sync-glyphs": "node scripts/sync-chart-glyphs.mjs"
+    "sync-glyphs": "node scripts/sync-chart-glyphs.mjs",
+    "sync-fields": "node scripts/sync-fields.mjs",
+    "check:fields": "node scripts/sync-fields.mjs --check"
   },
   "private": true
 }
