@@ -130,7 +130,7 @@ export default function ChartHome() {
         baseCenter={wheelCenter} selectedIds={selectedIds} onSelectionChange={setSelectedIds}
         selectionStyle={preset.selection} enabled={display.state.loaded && !sheetOpen && !settingsOpen && !replaceNow && !menuActive && !capturing && !previousArrangement}
         onHideBody={name => changePreset(toggleBody(preset,name,false))} />}
-      <ChartToolbar title={session.active.find(item => item.id === session.targetId)?.name ?? 'Chart'} topInset={insets.top}
+      <ChartToolbar topInset={insets.top}
         actions={actions} />
 
       {display.state.loadError && <View><Pressable accessibilityRole="button" onPress={() => { void display.load(); }}><Text accessibilityRole="alert" style={{color:theme.color.txAccent}}>Couldn’t restore display presets. Tap to retry.</Text></Pressable><Pressable accessibilityRole="button" onPress={() => Alert.alert('Reset display presets?', 'This replaces all saved custom presets on this device.',[{text:'Cancel',style:'cancel'},{text:'Reset',style:'destructive',onPress:()=>{void display.reset();}}])}><Text style={{color:theme.color.txAccent}}>Reset display presets</Text></Pressable></View>}
