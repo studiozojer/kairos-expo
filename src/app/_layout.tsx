@@ -1,3 +1,4 @@
+import { ContextualTipsProvider } from '@/features/tips/ContextualTips';
 import { useFonts } from 'expo-font';
 import { ThemeProvider } from 'expo-router/react-navigation';
 import { Stack } from 'expo-router/stack';
@@ -62,6 +63,7 @@ export default function RootLayout() {
 
   return (
     <ThemeModeProvider>
+      <ContextualTipsProvider>
       <NavigationChrome>
         <AuthProvider>
           <ActiveChartsProvider>
@@ -81,6 +83,7 @@ export default function RootLayout() {
           </ActiveChartsProvider>
         </AuthProvider>
       </NavigationChrome>
+      </ContextualTipsProvider>
     </ThemeModeProvider>
   );
 }

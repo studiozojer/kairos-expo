@@ -1,3 +1,5 @@
+import { View } from 'react-native';
+import { ContextualTip } from '@/features/tips/ContextualTips';
 import { useMemo } from 'react';
 import type { ChartRenderingConfiguration } from '../config/ChartRenderingConfiguration';
 import { useActiveCharts } from '../active/ActiveChartsContext';
@@ -35,12 +37,14 @@ export function SelectionStepper({ config, selectedIds, enabled, active }: {
   // produce the same longitude. Reordering alone leaves this key unchanged.
   const dependencyKey = JSON.stringify(snapshot.charts
     .map(chart => [chart.id, chart.id === session.targetId ? null : chart.time, chart.settings]).sort());
-  return <TimeStepperSurface>
+  return <View><TimeStepperSurface>
     {eventAvailable && mode && capabilities ? <EventStepper key={`${mode.key}:${dependencyKey}`}
       colors={config!.colors} aspectHues={config!.aspectOverlayStyle.aspectHues}
       mode={mode} capabilities={capabilities} time={clock.time} timezone={clock.settings.location.timezone}
       origin={clock.origin} kind={clock.kind ?? 'now'} enabled={enabled}
       onSeek={time => enabled && session.seek(snapshot, time)} onReset={clock.reset} onRequestFailure={availability.reportFailure} />
       : <ChartTimeProvider enabled={enabled}><TimeStepper key={session.targetId ?? 'empty'} /></ChartTimeProvider>}
-  </TimeStepperSurface>;
+  </TimeStepperSurface>
+    <ContextualTip visible={enabled && !!session.targetId && Math.abs(clock.time - clock.origin) >= 60_000}>Double tap the stepper to reset</ContextualTip>
+  </View>;
 }

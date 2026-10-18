@@ -1,7 +1,8 @@
+import { ContextualTipsProvider, ContextualTipsSetting } from '@/features/tips/ContextualTips';
 import { context } from '../../actions/testContext';
 import { useActionRegistry } from '../../actions/useActionRegistry';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Modal, TextInput } from 'react-native';
+import { Modal, Switch, Text, TextInput } from 'react-native';
 import { MenuView } from '@react-native-menu/menu';
 import ChartEditorScreen from '@/app/chart-editor';
 import SavedChartsScreen from '@/app/charts';
@@ -144,4 +145,19 @@ test('a remote deletion keeps the open editor draft and its original baseline', 
   expect(mockState.saveChart).toHaveBeenCalledWith(expect.objectContaining({ name: 'My unsaved edit' }), 'editing', {
     name: original.name, datetime: original.datetime, settings: original.settings,
   });
+});
+
+test('tips toggle hides card/Add captions while retaining calculation status and actions', async () => {
+  mockState.active = [instance('a')];
+  mockState.calculations = { a: { status: 'loading' } };
+  await act(async () => { view = create(<ContextualTipsProvider><ContextualTipsSetting /><Cards /></ContextualTipsProvider>); });
+  const hasText = (text: string) => view.root.findAllByType(Text).some(node => node.props.children === text);
+  expect(hasText('Add')).toBe(true);
+  expect(hasText('Drag down to put away · Tap to step')).toBe(true);
+  await act(async () => view.root.findByType(Switch).props.onValueChange(false));
+  expect(hasText('Add')).toBe(false);
+  expect(hasText('Drag down to put away · Tap to step')).toBe(false);
+  expect(hasText('Updating…')).toBe(true);
+  expect(button('Add / saved charts')).toBeDefined();
+  mockState.calculations = {};
 });
