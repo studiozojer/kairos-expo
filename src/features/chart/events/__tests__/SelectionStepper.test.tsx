@@ -1,3 +1,4 @@
+import { Text } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { SelectionStepper } from '../SelectionStepper';
 import { EventStepper } from '../EventStepper';
@@ -76,4 +77,17 @@ test('negotiates the enabled aspect subset across old and expanded servers', () 
   act(() => view.update(pair()));
   expect(view.root.findAllByType(EventStepper)).toHaveLength(0);
   expect(view.root.findAllByType(TimeStepper)).toHaveLength(1);
+});
+
+test('inline reset reminder requires a minute differential and an enabled target in both modes', () => {
+  const clock = jest.mocked(useChartTime).mock.results[0].value;
+  const hasReminder = () => view.root.findAllByType(Text).some(node => node.props.children === 'Double tap the stepper to reset');
+  expect(hasReminder()).toBe(false);
+  jest.mocked(useChartTime).mockReturnValue({ ...clock, time: first.time + 60_000 });
+  act(() => view.update(render()));
+  expect(hasReminder()).toBe(true);
+  act(() => view.update(render([])));
+  expect(hasReminder()).toBe(true);
+  act(() => view.update(render([], false)));
+  expect(hasReminder()).toBe(false);
 });

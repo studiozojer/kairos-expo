@@ -1,3 +1,4 @@
+import { useContextualTips } from '@/features/tips/ContextualTips';
 import { useStarLibrary } from '@/features/chart/stars/useStarLibrary';
 import { rotateOrientation, resetOrientation } from '@/features/chart/interaction/orientation';
 import { wheelFrame } from '@/features/chart/interaction/wheelFrame';
@@ -67,8 +68,9 @@ export default function ChartHome() {
   const orientationMode = localPreset.orientation.mode;
   const changePreset = (next: Preset) => { void display.update(applyAppearance(display.preset,next)); };
   const [sheetOpen, setSheetOpen] = useState(false);
+  const tips = useContextualTips();
   const cardDrag = useCardDragSession({ ids: session.active.map(chart => chart.id), viewport: windowRect, enabled: focused && !sheetOpen && !settingsOpen && !replaceNow && !menuActive && !capturing,
-    onDrop: drop => { if (drop.kind === 'remove') session.remove(drop.id); else session.moveTo(drop.id, drop.targetId); } });
+    onDrop: drop => { tips.dismiss('dragChartCard'); if (drop.kind === 'remove') session.remove(drop.id); else session.moveTo(drop.id, drop.targetId); } });
 
   const bodyNames = useMemo(() => [...new Set(session.active.flatMap(item => {
     const calculation = session.calculations[item.id]?.result;

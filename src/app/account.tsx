@@ -1,6 +1,7 @@
+import { ContextualTipsSetting } from '@/features/tips/ContextualTips';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { useAuth } from '@/auth/auth-context';
 import { SignInError } from '@/auth/signIn';
@@ -53,10 +54,10 @@ export default function AccountScreen() {
   });
 
   return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: theme.color.bgSolidBase,
+    <ScrollView
+      style={{ flex: 1, backgroundColor: theme.color.bgSolidBase }}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={{
         padding: theme.space.xl,
         gap: theme.space.lg,
       }}>
@@ -64,6 +65,7 @@ export default function AccountScreen() {
       <Pressable accessibilityRole="button" onPress={() => router.push('/chart-defaults')} style={buttonStyle(true)}>
         <Text style={{ ...theme.type.whyteSm, color: theme.color.txButton }}>Default chart settings</Text>
       </Pressable>
+      <ContextualTipsSetting />
       {account ? (
         <>
           <View style={{ gap: theme.space.xs }}>
@@ -119,6 +121,6 @@ export default function AccountScreen() {
           </Pressable>
         </>
       )}
-    </View>
+    </ScrollView>
   );
 }

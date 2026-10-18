@@ -1,3 +1,4 @@
+import { ContextualTipsSetting } from '@/features/tips/ContextualTips';
 import { StarLibraryPanel, type StarLibraryPanelProps } from '../stars/StarLibraryPanel';
 import { ChartSheet, SheetHeader, SheetBackRow } from '../components/ChartSheet';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -44,6 +45,7 @@ export function SettingsEditor({ settings, saveError, onChange, onClose, scope =
         </Section> : <>
           <Note>{scope === 'defaults' ? 'Location and calculation defaults apply to new charts. Existing saved and open charts keep their settings.' : 'Location and calculation changes apply to this open chart only. Saved charts remain unchanged.'}</Note><Section title="Location"><LinkRow label="Location" detail={settings.location.name} onPress={() => setPage('location')} /></Section>
           <Section title="Calculation"><Choices label="Lunar node" value={calculationSettings(settings).lunarNodeType} options={[["Mean", "Mean"], ["True", "True"]]} onChange={node => onChange(withLunarNode(settings, node))} /><Row label="Zodiac" detail="Tropical" /><Choices label="Lilith" value={calculationSettings(settings).blackMoonLilithType} options={[["Mean", "Mean"], ["Osculating", "Osculating"]]} onChange={value => onChange(withCalculation(settings, { blackMoonLilithType: value }))} /><Choices label="Lots" value={calculationSettings(settings).lotCalculationMethod} options={[["Traditional", "Traditional"], ["Fixed", "Fixed"]]} onChange={value => onChange(withCalculation(settings, { lotCalculationMethod: value }))} /><LinkRow label="House system" detail={settings.houseSystem} onPress={() => setPage('houses')} /></Section>
+          <Section title="Help"><ContextualTipsSetting /></Section>
           <Section title="Personal library"><LinkRow label="Personal star library" detail="Your selected stars, shared across all charts and display presets" onPress={() => onOpenStars ? onOpenStars() : setPage('stars')} /></Section>
         </>}
       </ScrollView>}

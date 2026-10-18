@@ -1,3 +1,4 @@
+import { useContextualTips } from '@/features/tips/ContextualTips';
 import { AddChartButton } from './AddChartButton';
 import type { ChartActions } from '../actions/useActionRegistry';
 import { useLayoutEffect, useState } from 'react';
@@ -92,6 +93,7 @@ export function ActiveChartCards({ session, chartActions, updatingArrangement = 
   const { fontScale } = useWindowDimensions();
   const [width, setWidth] = useState(0);
   const [collapsed, setCollapsed] = useState(false);
+  const tips = useContextualTips();
   const ids = state.active.map(chart => chart.id);
   const selectedIndex = state.active.findIndex(chart => chart.id === state.targetId);
   const selected = state.active[selectedIndex];
@@ -121,8 +123,8 @@ export function ActiveChartCards({ session, chartActions, updatingArrangement = 
     {!!ids.length && <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
       {collapsed ? <Pressable accessibilityRole="button" onPress={() => setCollapsed(false)} style={{ minHeight: 44, justifyContent: 'center' }}>
         <Text style={[t.type.whyteXs, { color: t.color.txAccent }]}>{updatingArrangement ? 'Show cards · Updating…' : 'Show cards'}</Text>
-      </Pressable> : <Text numberOfLines={1} accessibilityLiveRegion="polite" style={[t.type.whyteXxs, { flex: 1, color: t.color.txTertiary }]}>
-        {updatingArrangement ? 'Updating chart arrangement…' : state.active.some(chart => state.calculations[chart.id]?.result && state.calculations[chart.id]?.status !== 'ready') ? 'Showing previous positions while updating' : 'Drag down to put away · Tap to step'}
+      </Pressable> : <Text accessibilityLiveRegion="polite" style={[t.type.whyteXs, { flex: 1, color: t.color.txTertiary }]}>
+        {updatingArrangement ? 'Updating chart arrangement…' : state.active.some(chart => state.calculations[chart.id]?.result && state.calculations[chart.id]?.status !== 'ready') ? 'Showing previous positions while updating' : tips.isVisible('dragChartCard') ? 'Drag down to put away · Tap to step' : ''}
       </Text>}
       <MenuView {...menuAccessibility} title={selected ? `${selected.name} · Ring ${selectedIndex + 1}` : 'Charts'} themeVariant={t.scheme}
         shouldOpenOnLongPress={false} isAnchoredToRight actions={actions} style={{ minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' }}
