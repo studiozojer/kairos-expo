@@ -37,14 +37,18 @@ export function SelectionStepper({ config, selectedIds, enabled, active }: {
   // produce the same longitude. Reordering alone leaves this key unchanged.
   const dependencyKey = JSON.stringify(snapshot.charts
     .map(chart => [chart.id, chart.id === session.targetId ? null : chart.time, chart.settings]).sort());
-  return <View><TimeStepperSurface>
+  return <View>
+    {/* Keep the reminder outside layout so it never lifts the anchored stepper. */}
+    <View pointerEvents="none" style={{ position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: 4 }}>
+      <ContextualTip visible={enabled && !!session.targetId && Math.abs(clock.time - clock.origin) >= 60_000}>Double tap the stepper to reset</ContextualTip>
+    </View>
+    <TimeStepperSurface>
     {eventAvailable && mode && capabilities ? <EventStepper key={`${mode.key}:${dependencyKey}`}
       colors={config!.colors} aspectHues={config!.aspectOverlayStyle.aspectHues}
       mode={mode} capabilities={capabilities} time={clock.time} timezone={clock.settings.location.timezone}
       origin={clock.origin} kind={clock.kind ?? 'now'} enabled={enabled}
       onSeek={time => enabled && session.seek(snapshot, time)} onReset={clock.reset} onRequestFailure={availability.reportFailure} />
       : <ChartTimeProvider enabled={enabled}><TimeStepper key={session.targetId ?? 'empty'} /></ChartTimeProvider>}
-  </TimeStepperSurface>
-    <ContextualTip visible={enabled && !!session.targetId && Math.abs(clock.time - clock.origin) >= 60_000}>Double tap the stepper to reset</ContextualTip>
+    </TimeStepperSurface>
   </View>;
 }
