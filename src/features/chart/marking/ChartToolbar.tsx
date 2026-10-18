@@ -18,8 +18,8 @@ export function ChartToolbar({ topInset, actions, slots }: {
     const assigned = slots?.[id] ?? (id === 'lock' ? LOCK_SLOTS : undefined);
     return <MarkingMenuButton id={id} label={action.label} hint={action.hint}
       onPress={() => actions.invoke(actionId)} disabled={!action.enabled}
-      options={assigned ? markingActions(assigned, actions, t.color.txAccent) : undefined}>
-      <MarkingIcon name={action.icon} color={t.color.txAccent} />
+      options={assigned ? markingActions(assigned, actions, t.color.icAccent) : undefined}>
+      <MarkingIcon name={action.icon} color={t.color.icAccent} />
     </MarkingMenuButton>;
   };
   return <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: topInset + 8, paddingBottom: 8, borderBottomWidth: 1, borderColor: t.color.bdSecondary, backgroundColor: t.color.bgSolidBase }}>
