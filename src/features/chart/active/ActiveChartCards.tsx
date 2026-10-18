@@ -34,7 +34,7 @@ function CardFace({ chart, index, count, selected, calculation }: {
     <Text numberOfLines={1} style={[t.type.whyteXs, { color: t.color.txSecondary, marginTop: DATE_GAP }]}>{date}</Text>
     <Text numberOfLines={1} style={[t.type.whyteXs, { color: t.color.txSecondary }]}>{time}</Text>
     <Text numberOfLines={1} style={[t.type.whyteXs, { color: calculation?.status === 'error' ? t.color.txAccent : t.color.txTertiary }]}>
-      {calculation?.status === 'loading' ? 'Updating…' : calculation?.status === 'error' ? 'Calculation failed' : chart.kind === 'snapshot' ? 'Unsaved snapshot' : chart.settings.location.name}
+      {calculation?.status === 'error' ? 'Calculation failed' : chart.kind === 'snapshot' ? 'Unsaved snapshot' : chart.settings.location.name}
     </Text>
   </View>;
 }
