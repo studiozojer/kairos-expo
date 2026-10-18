@@ -25,11 +25,11 @@ function CardFace({ chart, index, count, selected, calculation }: {
     borderWidth: 1, borderColor: selected ? t.color.bdAccent : t.color.bdSecondary, backgroundColor: t.color.bgSolidCardSecondary }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
       <Text numberOfLines={1} style={[t.type.whyteSm, { flex: 1, color: t.color.txPrimary }]}>{chart.name}</Text>
-      <Text style={[t.type.fraktionXxs, { color: selected ? t.color.txAccent : t.color.txTertiary }]}>{count > 1 ? index + 1 : ''}{selected ? '•' : ''}</Text>
+      <Text style={[t.type.whyteXxs, { color: selected ? t.color.txAccent : t.color.txTertiary }]}>{count > 1 ? index + 1 : ''}{selected ? '•' : ''}</Text>
     </View>
-    <Text numberOfLines={1} style={[t.type.fraktionXs, { color: t.color.txSecondary, marginTop: 4 }]}>{date}</Text>
-    <Text numberOfLines={1} style={[t.type.fraktionXs, { color: t.color.txSecondary }]}>{time}</Text>
-    <Text numberOfLines={1} style={[t.type.fraktionXs, { color: calculation?.status === 'error' ? t.color.txAccent : t.color.txTertiary }]}>
+    <Text numberOfLines={1} style={[t.type.whyteXs, { color: t.color.txSecondary, marginTop: 4 }]}>{date}</Text>
+    <Text numberOfLines={1} style={[t.type.whyteXs, { color: t.color.txSecondary }]}>{time}</Text>
+    <Text numberOfLines={1} style={[t.type.whyteXs, { color: calculation?.status === 'error' ? t.color.txAccent : t.color.txTertiary }]}>
       {calculation?.status === 'loading' ? 'Updating…' : calculation?.status === 'error' ? 'Calculation failed' : chart.kind === 'snapshot' ? 'Unsaved snapshot' : chart.settings.location.name}
     </Text>
   </View>;
@@ -121,7 +121,7 @@ export function ActiveChartCards({ session, chartActions, updatingArrangement = 
     {!!ids.length && <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
       {collapsed ? <Pressable accessibilityRole="button" onPress={() => setCollapsed(false)} style={{ minHeight: 44, justifyContent: 'center' }}>
         <Text style={[t.type.whyteXs, { color: t.color.txAccent }]}>{updatingArrangement ? 'Show cards · Updating…' : 'Show cards'}</Text>
-      </Pressable> : <Text numberOfLines={1} accessibilityLiveRegion="polite" style={[t.type.fraktionXxs, { flex: 1, color: t.color.txTertiary }]}>
+      </Pressable> : <Text numberOfLines={1} accessibilityLiveRegion="polite" style={[t.type.whyteXxs, { flex: 1, color: t.color.txTertiary }]}>
         {updatingArrangement ? 'Updating chart arrangement…' : state.active.some(chart => state.calculations[chart.id]?.result && state.calculations[chart.id]?.status !== 'ready') ? 'Showing previous positions while updating' : 'Drag down to put away · Tap to step'}
       </Text>}
       <MenuView {...menuAccessibility} title={selected ? `${selected.name} · Ring ${selectedIndex + 1}` : 'Charts'} themeVariant={t.scheme}
