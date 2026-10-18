@@ -15,9 +15,12 @@ export function AddChartButton({ actions, expanded }: { actions: ChartActions; e
     <MarkingMenuButton id="add-chart" label={action.label} hint={action.hint} disabled={!action.enabled}
       onPress={() => actions.invoke('chart.library')} options={markingActions(SLOTS, actions, t.color.txAccent)}
       menuContent={icon} style={expanded ? { width: '100%' } : undefined}>
-      <View style={{ alignItems: 'center' }}><View style={{ flexDirection: 'row', alignItems: 'center', gap: t.space.sm }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.space.sm }}>
         {icon}{expanded && <Text style={[t.type.whyteMd, { color: t.color.txSecondary }]}>Add chart to view</Text>}
-      </View>{!expanded && <ContextualTip>Add</ContextualTip>}</View>
+      </View>
     </MarkingMenuButton>
+    {!expanded && <View pointerEvents="none" style={{ position: 'absolute', top: '100%', left: 0, right: 0 }}>
+      <ContextualTip>Add</ContextualTip>
+    </View>}
   </View>;
 }
