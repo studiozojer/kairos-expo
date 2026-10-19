@@ -129,7 +129,7 @@ export function ActiveChartCards({ session, chartActions }: { session: CardDragS
       {collapsed ? <Pressable accessibilityRole="button" onPress={() => setCollapsed(false)} style={{ minHeight: 44, justifyContent: 'center' }}>
         <Text style={[t.type.whyteXs, { color: t.color.txAccent }]}>Show cards</Text>
       </Pressable> : <Text accessibilityLiveRegion="polite" style={[t.type.whyteXs, { flex: 1, color: t.color.txTertiary }]}>
-        {tips.isVisible('dragChartCard') ? 'Drag down to put away · Tap to step' : ''}
+        {tips.isVisible('dragChartCard') ? 'Press, hold, and drag me!' : ''}
       </Text>}
       <MenuView {...menuAccessibility} title={selected ? `${selected.name} · Ring ${selectedIndex + 1}` : 'Charts'} themeVariant={t.scheme}
         shouldOpenOnLongPress={false} isAnchoredToRight actions={actions} style={{ minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' }}
