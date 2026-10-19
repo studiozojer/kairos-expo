@@ -52,7 +52,7 @@ export function ContextualTip({ children, visible = true }: { children: ReactNod
   const t = useTheme();
   const { enabled } = useContextualTips();
   if (!enabled || !visible) return null;
-  return <Text pointerEvents="none" style={[t.type.whyteXs, { color: t.color.txSecondary, textAlign: 'center', paddingVertical: 4 }]}>{children}</Text>;
+  return <Text pointerEvents="none" style={[t.type.whyteXs, { color: t.color.txTertiary, textAlign: 'center', paddingVertical: 4 }]}>{children}</Text>;
 }
 export function ContextualTipsSetting() {
   const tips = useContextualTips();

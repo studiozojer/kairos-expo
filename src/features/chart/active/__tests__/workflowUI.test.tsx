@@ -155,10 +155,10 @@ test('tips toggle hides card/Add captions while retaining calculation status and
   await act(async () => { view = create(<ContextualTipsProvider><ContextualTipsSetting /><Cards /></ContextualTipsProvider>); });
   const hasText = (text: string) => view.root.findAllByType(Text).some(node => node.props.children === text);
   expect(hasText('Add')).toBe(true);
-  expect(hasText('Drag down to put away · Tap to step')).toBe(true);
+  expect(hasText('Press, hold, and drag me!')).toBe(true);
   await act(async () => view.root.findByType(Switch).props.onValueChange(false));
   expect(hasText('Add')).toBe(false);
-  expect(hasText('Drag down to put away · Tap to step')).toBe(false);
+  expect(hasText('Press, hold, and drag me!')).toBe(false);
   expect(hasText('Calculation failed')).toBe(true);
   expect(button('Add / saved charts')).toBeDefined();
   mockState.calculations = {};
