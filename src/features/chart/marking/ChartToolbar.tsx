@@ -8,6 +8,8 @@ import type { ChartActions } from '../actions/useActionRegistry';
 
 export const LOCK_SLOTS = { sw: 'orientation.left', s: 'orientation.reset', se: 'orientation.right' } as const satisfies ActionSlots;
 
+export const SCREENSHOT_SLOTS = { sw: 'chart.screenshotWheelOnly', s: 'chart.screenshotAndSave' } as const satisfies ActionSlots;
+
 type ToolbarButton = 'settings' | 'lock' | 'screenshot' | 'display';
 export function ChartToolbar({ topInset, actions, slots }: {
   topInset: number; actions: ChartActions; slots?: Partial<Record<ToolbarButton, ActionSlots>>;
@@ -15,7 +17,7 @@ export function ChartToolbar({ topInset, actions, slots }: {
   const t = useTheme();
   const button = (id: ToolbarButton, actionId: ActionId) => {
     const action = actions.describe(actionId);
-    const assigned = slots?.[id] ?? (id === 'lock' ? LOCK_SLOTS : undefined);
+    const assigned = slots?.[id] ?? (id === 'lock' ? LOCK_SLOTS : id === 'screenshot' ? SCREENSHOT_SLOTS : undefined);
     return <MarkingMenuButton id={id} label={action.label} hint={action.hint}
       onPress={() => actions.invoke(actionId)} disabled={!action.enabled}
       options={assigned ? markingActions(assigned, actions, t.color.icAccent) : undefined}>

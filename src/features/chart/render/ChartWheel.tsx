@@ -28,7 +28,7 @@ import type { Transforms3d } from "@shopify/react-native-skia";
 import type { SelectionPaint } from "../interaction/selection";
 import { Canvas, Group } from "@shopify/react-native-skia";
 
-import { useTheme } from "@/theme";
+import { useTheme, themeFor } from "@/theme";
 
 import type {
   ChartRenderingConfiguration,
@@ -106,7 +106,7 @@ export function ChartWheelCanvas({ config, size, transform = IDENTITY_TRANSFORM,
   // themeFor() builds a fresh object per useTheme() call; the color tables
   // are static per scheme, so pin the value to the scheme — otherwise every
   // render churns ChartPaintContext and defeats the layout/ring memos.
-  const theme = useMemo(() => liveTheme, [liveTheme.scheme]);
+  const theme = useMemo(() => themeFor(liveTheme.scheme), [liveTheme.scheme]);
 
   if (layout.feasible === false) return <View accessibilityRole="alert" style={{ width: viewport?.width ?? size, height: viewport?.height ?? size, justifyContent: 'center', alignItems: 'center', padding: 24 }}><Text style={{ color: theme.color.txPrimary }}>This layout needs more room. Reduce ring widths or hide rings.</Text></View>;
   return (
@@ -123,26 +123,33 @@ export function ChartWheelCanvas({ config, size, transform = IDENTITY_TRANSFORM,
             { translateY: transform.offsetY },
             { scale: transform.scale },
           ]}>
-          {layout.rings.map((ring, ringIndex) => {
-            const Renderer = RING_RENDERERS[ring.type.kind];
-            if (!Renderer) return null; // unknown kinds are skipped, not fatal
-            return (
-              <Renderer
-                key={ring.id ?? `ring-${ringIndex}`}
-                ring={ring}
-                ringIndex={ringIndex}
-                layout={layout}
-                selection={selection}
-                colors={config.colors}
-              />
-            );
-          })}
-          {/* Overlays draw last, on top of every ring (Swift
-              ChartWheelRenderer.swift: rings, then overlays). */}
-          <PatternOverlay config={config} layout={layout} selectedIdentifiers={selection?.selected} />
-          <AspectOverlay config={config} layout={layout} selectedIdentifiers={selection?.selectedBodies} />
+          <ChartWheelDrawing config={config} layout={layout} selection={selection} />
         </Group>
       </ChartPaintProvider>
     </Canvas>
   );
+}
+
+/** Shared drawing tree for the interactive Canvas and high-resolution exports. */
+export function ChartWheelDrawing({ config, layout, selection }: { config: ChartRenderingConfiguration; layout: WheelLayout; selection?: SelectionPaint }) {
+  return <Group>
+    {layout.rings.map((ring, ringIndex) => {
+      const Renderer = RING_RENDERERS[ring.type.kind];
+      if (!Renderer) return null; // unknown kinds are skipped, not fatal
+      return (
+        <Renderer
+          key={ring.id ?? `ring-${ringIndex}`}
+          ring={ring}
+          ringIndex={ringIndex}
+          layout={layout}
+          selection={selection}
+          colors={config.colors}
+        />
+      );
+    })}
+    {/* Overlays draw last, on top of every ring (Swift
+        ChartWheelRenderer.swift: rings, then overlays). */}
+    <PatternOverlay config={config} layout={layout} selectedIdentifiers={selection?.selected} />
+    <AspectOverlay config={config} layout={layout} selectedIdentifiers={selection?.selectedBodies} />
+  </Group>;
 }

@@ -4,7 +4,11 @@ import { context } from '../testContext';
 test('every listed action has a working handler, with explicit arguments', async () => {
   const c = context(); const registry = createActionRegistry(() => c);
   for (const id of ACTION_IDS) expect(await registry.execute(id)).toEqual({ status: 'executed' });
-  for (const fn of [c.resetOrientation, c.openLibrary, c.addNow, c.openSettings, c.openDisplay, c.toggleOrientation, c.screenshot, c.reset]) expect(fn).toHaveBeenCalledTimes(1);
+  for (const fn of [c.resetOrientation, c.openLibrary, c.addNow, c.openSettings, c.openDisplay, c.toggleOrientation, c.reset]) expect(fn).toHaveBeenCalledTimes(1);
+  expect(c.screenshot).toHaveBeenCalledTimes(3);
+  expect(c.screenshot).toHaveBeenNthCalledWith(1, { variant: 'full', destination: 'share' });
+  expect(c.screenshot).toHaveBeenNthCalledWith(2, { variant: 'full', destination: 'photos' });
+  expect(c.screenshot).toHaveBeenNthCalledWith(3, { variant: 'wheel', destination: 'photos' });
   expect(c.rotateOrientation).toHaveBeenNthCalledWith(1, -1); expect(c.rotateOrientation).toHaveBeenNthCalledWith(2, 1);
   expect(c.step).toHaveBeenNthCalledWith(1, -1); expect(c.step).toHaveBeenNthCalledWith(2, 1);
   expect(c.toggleDisplay).toHaveBeenNthCalledWith(1, 'enabled');
@@ -60,4 +64,18 @@ test('Now is available without a calculated chart, but waits for session hydrati
   expect(await registry.execute('chart.addNow')).toEqual({ status: 'unavailable' });
   expect(c.addNow).toHaveBeenCalledTimes(1);
   expect(registry.describe('chart.library').enabled).toBe(true);
+});
+
+test.each(['chart.screenshot', 'chart.screenshotAndSave', 'chart.screenshotWheelOnly'] as const)('%s excludes every export and mutation until it settles', async id => {
+  const c = context(); let complete!: () => void;
+  c.screenshot = jest.fn(() => new Promise<void>(resolve => { complete = resolve; }));
+  const registry = createActionRegistry(() => c);
+  const running = registry.execute(id);
+  expect(registry.isExporting()).toBe(true);
+  for (const other of ACTION_IDS) expect(registry.describe(other).enabled).toBe(false);
+  for (const other of ['chart.screenshot','chart.screenshotAndSave','chart.screenshotWheelOnly']) expect((await registry.execute(other)).status).toBe(other === id ? 'busy' : 'unavailable');
+  expect(c.screenshot).toHaveBeenCalledTimes(1);
+  complete(); await running;
+  expect(registry.isExporting()).toBe(false);
+  expect(registry.describe('chart.screenshotAndSave').enabled).toBe(true);
 });

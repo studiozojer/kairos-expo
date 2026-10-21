@@ -45,7 +45,8 @@
  * broken glyph reference.
  */
 
-import React, { useEffect, useMemo, useState } from "react";
+import { RenderAssetsContext } from "./assets";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 
 import { Group, ImageSVG, fitbox, rect, useSVG } from "@shopify/react-native-skia";
 
@@ -71,10 +72,15 @@ export interface GlyphProps {
 
 export const Glyph = React.memo(function Glyph({ name, size, color, x, y, selected = false, opacity = 1 }: GlyphProps) {
   const [broken, setBroken] = useState(false);
-  const svg = useSVG(GLYPH_ASSETS[name], () => setBroken(true));
-  const [dims, setDims] = useState<{ width: number; height: number } | null>(null);
+  const assets = useContext(RenderAssetsContext);
+  const preloaded = assets?.glyphs.get(name);
+  const liveSVG = useSVG(assets ? null : GLYPH_ASSETS[name], () => setBroken(true));
+  const svg = preloaded?.svg ?? liveSVG;
+  const [liveDims, setDims] = useState<{ width: number; height: number } | null>(null);
+  const dims = preloaded ?? liveDims;
 
   useEffect(() => {
+    if (assets) return;
     if (!svg) {
       setDims(null);
       return;
@@ -86,9 +92,11 @@ export const Glyph = React.memo(function Glyph({ name, size, color, x, y, select
       setBroken(true);
       setDims(null);
     }
-  }, [svg, name]);
+  }, [svg, name, assets]);
 
   const paint = useMemo(() => makeGlyphPaint(color, opacity, selected), [color, opacity, selected]);
+
+  if (assets && !preloaded) throw new Error(`Chart glyph was not loaded for export: ${name}`);
 
   // Not-yet-loaded (async asset read), the jest mock (useSVG returns null
   // there), a reported load error, or dimensions not yet validated. iOS
