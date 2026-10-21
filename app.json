@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Kairōs",
+    "name": "Kair\u014ds",
     "slug": "kairos-expo",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -38,7 +38,18 @@
       "expo-secure-store",
       "./plugins/with-kairos",
       "expo-sqlite",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Kair\u014ds accesses your photo library to save chart images in your Kair\u014ds album.",
+          "savePhotosPermission": "Kair\u014ds saves chart images when you choose Save to Photos or Save Wheel.",
+          "granularPermissions": [
+            "photo"
+          ],
+          "isAccessMediaLocationEnabled": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

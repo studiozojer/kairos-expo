@@ -11,7 +11,8 @@ import { useCardDragSession } from '@/features/chart/active/useCardDragSession';
 import { ChartPutAwayOverlay } from '@/features/chart/active/ChartPutAwayOverlay';
 import { MarkingMenuProvider } from '@/features/chart/marking/MarkingMenu';
 import { ChartToolbar } from '@/features/chart/marking/ChartToolbar';
-import { useChartScreenshot } from '@/features/chart/marking/useChartScreenshot';
+import { useChartExport } from '@/features/chart/screenshot/useChartExport';
+import { exportCards } from '@/features/chart/screenshot/model';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/theme';
@@ -53,7 +54,6 @@ export default function ChartHome() {
   const focused = useIsFocused();
   const [menuActive, setMenuActive] = useState(false);
 
-  const { capturing, capture } = useChartScreenshot(screen);
   const [windowRect, setWindowRect] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const [stepperTop, setStepperTop] = useState(window.height);
   const [chartArea, setChartArea] = useState({ y: 0, height: 0 });
@@ -69,6 +69,11 @@ export default function ChartHome() {
   const changePreset = (next: Preset) => { void display.update(applyAppearance(display.preset,next)); };
   const [sheetOpen, setSheetOpen] = useState(false);
   const tips = useContextualTips();
+  const { config, previousArrangement } = useActiveConfiguration(session.active, session.calculations, preset, orientationMode, stars.names);
+  const { capturing, capture, notice } = useChartExport(() => {
+    if (!config || previousArrangement || !display.state.loaded) return null;
+    return { config, width, theme, selectedIds, selectionStyle: preset.selection, cards: exportCards(session.active, session.calculations) };
+  }, focused && !sheetOpen && !settingsOpen && !replaceNow);
   const cardDrag = useCardDragSession({ ids: session.active.map(chart => chart.id), viewport: windowRect, enabled: focused && !sheetOpen && !settingsOpen && !replaceNow && !menuActive && !capturing,
     onDrop: drop => { tips.dismiss('dragChartCard'); if (drop.kind === 'remove') session.remove(drop.id); else session.moveTo(drop.id, drop.targetId); } });
 
@@ -77,7 +82,6 @@ export default function ChartHome() {
     return calculation ? bodyChoices(calculation.chart) : [];
   }))].sort(), [session.active, session.calculations]);
 
-  const { config, previousArrangement } = useActiveConfiguration(session.active, session.calculations, preset, orientationMode, stars.names);
 
   const actions = useActionRegistry({
     enabled: focused && !sheetOpen && !settingsOpen && !replaceNow && !capturing,
@@ -137,7 +141,7 @@ export default function ChartHome() {
       {display.state.saveError && !sheetOpen && <Pressable accessibilityRole="button" onPress={() => { void display.retrySave(); }}><Text accessibilityRole="alert" style={{color:theme.color.txAccent}}>Display changes haven’t been saved. Tap to retry.</Text></Pressable>}
       {(stars.state.loadError || stars.state.saveError) && <Pressable accessibilityRole="button" onPress={() => router.push('/star-library')}><Text accessibilityRole="alert" style={[theme.type.whyteXs,{ color:theme.color.txAccent,paddingHorizontal:24 }]}>{stars.state.loadError ? 'Couldn’t restore your star library. Open to retry.' : 'Star changes haven’t been saved. Open to retry.'}</Text></Pressable>}
       {session.active.some(item => (session.calculations[item.id]?.result?.chart.missingStars?.length ?? 0) > 0) && <Pressable accessibilityRole="button" onPress={() => router.push('/star-library')}><Text accessibilityRole="alert" style={[theme.type.whyteXs,{color:theme.color.txAccent,paddingHorizontal:24}]}>{session.active.flatMap(item => { const missing = session.calculations[item.id]?.result?.chart.missingStars ?? []; return missing.length ? [`${item.name}: ${missing.join(', ')}`] : []; }).join(' · ')} could not be calculated. Review star library.</Text></Pressable>}
-      <ActiveChartCards session={cardDrag} chartActions={actions} />
+      <ActiveChartCards session={cardDrag} chartActions={actions} enabled={!capturing} />
       {(session.loadError || session.saveError) && <Pressable accessibilityRole="button"
         onPress={session.loadError ? session.retryLoad : session.retryPersistence} style={{ paddingHorizontal: theme.space.lg, paddingVertical: theme.space.sm }}>
         <Text accessibilityRole="alert" style={[theme.type.whyteXs, { color: theme.color.txAccent }]}>
@@ -185,6 +189,9 @@ export default function ChartHome() {
         onChangePreset={changePreset}
         onClose={() => setSheetOpen(false)}
       />}
+      {notice && <View pointerEvents="none" style={{ position: 'absolute', bottom: insets.bottom + 88, alignSelf: 'center', paddingHorizontal: theme.space.lg, paddingVertical: theme.space.sm, borderRadius: theme.radius.md, backgroundColor: theme.color.bgSolidCardSecondary, borderWidth: 1, borderColor: theme.color.bdSecondary }}>
+        <Text accessibilityLiveRegion="polite" style={[theme.type.whyteXs, { color: theme.color.txPrimary }]}>{notice}</Text>
+      </View>}
     </View>
     </MarkingMenuProvider>
   );

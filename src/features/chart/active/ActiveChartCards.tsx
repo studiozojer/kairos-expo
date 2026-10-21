@@ -89,7 +89,7 @@ function CardSlot({ chart, index, ids, width, height, session }: {
 /** Swift's fitted active row: every card is visible, slots indicate ring order,
  * and only a completed drop changes membership order. Secondary actions use the
  * platform's anchored menu instead of filling each card with buttons. */
-export function ActiveChartCards({ session, chartActions }: { session: CardDragSession; chartActions: ChartActions }) {
+export function ActiveChartCards({ session, chartActions, enabled = true }: { session: CardDragSession; chartActions: ChartActions; enabled?: boolean }) {
   const state = useActiveCharts();
   const router = useRouter();
   const t = useTheme();
@@ -118,7 +118,7 @@ export function ActiveChartCards({ session, chartActions }: { session: CardDragS
   const menuAccessibility: Pick<ViewProps, 'accessible' | 'accessibilityRole' | 'accessibilityLabel'> = {
     accessible: true, accessibilityRole: 'button', accessibilityLabel: 'Chart actions',
   };
-  return <GestureHandlerRootView style={{ zIndex: 10, paddingHorizontal: t.space.md, paddingTop: t.space.sm }}>
+  return <GestureHandlerRootView pointerEvents={enabled ? "auto" : "none"} accessibilityElementsHidden={!enabled} importantForAccessibility={enabled ? "auto" : "no-hide-descendants"} style={{ zIndex: 10, paddingHorizontal: t.space.md, paddingTop: t.space.sm }}>
     {(!collapsed || !ids.length) && <View style={{ flexDirection: 'row', alignItems: 'center', gap: GAP }}>
       {!!ids.length && <View testID="active-card-slots" onLayout={event => setWidth(event.nativeEvent.layout.width)} style={{ flex: 1, flexDirection: 'row', gap: GAP }}>
         {state.active.map((chart, index) => <CardSlot key={chart.id} chart={chart} index={index} ids={ids} width={width} height={height} session={session} />)}

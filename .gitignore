@@ -46,3 +46,6 @@ yarn-error.*
 modules/kairos/android/.cxx/
 modules/kairos/android/build/
 modules/kairos/android/.gradle/
+
+# Remote simulator connection credentials
+.env.eas-simulator

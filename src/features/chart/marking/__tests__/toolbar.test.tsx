@@ -18,6 +18,7 @@ test('toolbar dispatches through the live registry and supplies the iOS lock slo
   expect(buttons().map(n => n.props.label)).toEqual(['Chart settings', 'Unlock chart', 'Screenshot', 'Display settings']);
   for (const button of buttons()) {
     if (button.props.id === 'lock') expect(button.props.options.map((o: {position: string}) => o.position)).toEqual(['se', 's', 'sw']);
+    else if (button.props.id === 'screenshot') expect(button.props.options.map((o: {position: string}) => o.position)).toEqual(['s', 'sw']);
     else expect(button.props.options).toBeUndefined();
     await act(async () => button.props.onPress());
   }
@@ -26,6 +27,11 @@ test('toolbar dispatches through the live registry and supplies the iOS lock slo
   expect(c.rotateOrientation).toHaveBeenNthCalledWith(1, 1);
   expect(c.rotateOrientation).toHaveBeenNthCalledWith(2, -1);
   expect(c.resetOrientation).toHaveBeenCalledTimes(1);
+  const camera = buttons()[2];
+  for (const option of camera.props.options) await act(async () => option.onSelect());
+  expect(c.screenshot).toHaveBeenNthCalledWith(1, { variant: 'full', destination: 'share' });
+  expect(c.screenshot).toHaveBeenNthCalledWith(2, { variant: 'full', destination: 'photos' });
+  expect(c.screenshot).toHaveBeenNthCalledWith(3, { variant: 'wheel', destination: 'photos' });
   const stalePress = buttons()[3].props.onPress;
   act(() => view.update(<Probe state={{ ...c, enabled: false, locked: false }} />));
   expect(buttons()[1].props.label).toBe('Lock chart');

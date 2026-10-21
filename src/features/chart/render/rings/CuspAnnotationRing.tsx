@@ -1,3 +1,4 @@
+import { useRenderFont } from "../assets";
 /**
  * CuspAnnotationRing — sign glyph + degree/minute annotation stacked
  * tangentially at each house cusp. Port of kairos-ios
@@ -27,7 +28,7 @@
 
 import React from "react";
 
-import { Group, Path, Skia, Text, useFont, type SkFont, type SkPath } from "@shopify/react-native-skia";
+import { Group, Path, Skia, Text,  type SkFont, type SkPath } from "@shopify/react-native-skia";
 
 import { families, fontMap } from "@/theme/fonts.gen";
 
@@ -103,8 +104,8 @@ export function CuspAnnotationRing({ ring, ringIndex, layout, colors }: RingRend
     ring.style.$type === CUSP_ANNOTATIONS_STYLE_TYPE ? ring.style : CUSP_ANNOTATIONS_STYLE_DEFAULT;
 
   const fraktion = fontMap[families.fraktion.book];
-  const degreesFont = useFont(fraktion, style.degreesFontSize);
-  const minutesFont = useFont(fraktion, style.minutesFontSize);
+  const degreesFont = useRenderFont(fraktion, style.degreesFontSize);
+  const minutesFont = useRenderFont(fraktion, style.minutesFontSize);
 
   const { geometry, coordinates } = layout;
   const houseCusps = ring.houseCusps ?? layout.houseCusps;

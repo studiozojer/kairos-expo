@@ -1,5 +1,6 @@
+import { useRenderFont } from "../assets";
 import { families, fontMap } from '@/theme/fonts.gen';
-import { Circle, Group, Path, Skia, Text, useFont } from '@shopify/react-native-skia';
+import { Circle, Group, Path, Skia, Text } from '@shopify/react-native-skia';
 import { CELESTIAL_BODIES } from '../../schema/enums.gen';
 import { rulerGlyphSize, segmentIdentifier } from '../../geometry/RulerSegments';
 import { selectionColor, selectionOpacity } from '../../interaction/selection';
@@ -12,7 +13,7 @@ export function RulerSegmentsRing({ ring, ringIndex, layout, colors, selection }
   const theme = useChartPaintTheme();
   const numberSize = ring.type.kind === 'rulerSegments' && 'numberFontSize' in ring.style
     ? rulerGlyphSize(ring.type.segments, layout.geometry.innerRadiusForRing(ringIndex) + layout.ringThicknesses[ringIndex] * .25, layout.ringThicknesses[ringIndex] * .5, ring.style.numberFontSize) : 10;
-  const font = useFont(fontMap[families.fraktion.book], Math.max(.1,numberSize));
+  const font = useRenderFont(fontMap[families.fraktion.book], Math.max(.1,numberSize));
   if (ring.type.kind !== 'rulerSegments' || !('glyphSize' in ring.style) || !('outerBoundaryWidth' in ring.style)) return null;
   const style = ring.style;
   const { coordinates, geometry } = layout;

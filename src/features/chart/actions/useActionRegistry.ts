@@ -24,7 +24,7 @@ export function useActionRegistry(context: ActionContext) {
     const next = presentation.describe(id);
     const running = runtime.registry.describe(id);
     return { ...next, busy: running.busy,
-      enabled: next.enabled && !runtime.registry.describe('chart.screenshot').busy && !running.busy,
+      enabled: next.enabled && !runtime.registry.isExporting() && !running.busy,
       label: running.busy ? running.label : next.label };
   };
   const invoke = (id: ActionId) => { void runtime.registry.execute(id).then(result => {

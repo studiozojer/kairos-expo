@@ -1,4 +1,5 @@
-import { Circle, Group, Line, Path, Skia, Text, useFont } from '@shopify/react-native-skia';
+import { useRenderFont } from "../assets";
+import { Circle, Group, Line, Path, Skia, Text } from '@shopify/react-native-skia';
 import { families, fontMap } from '@/theme/fonts.gen';
 import { FIXED_STARS_STYLE_DEFAULT, FIXED_STARS_STYLE_TYPE } from '../../schema/ring-styles';
 import { selectionColor, selectionOpacity } from '../../interaction/selection';
@@ -11,7 +12,7 @@ import type { GlyphName } from '../glyph-map.gen';
 export function FixedStarsRing({ ring, ringIndex, layout, selection }: RingRendererProps) {
   const theme = useChartPaintTheme();
   const style = ring.style.$type === FIXED_STARS_STYLE_TYPE ? ring.style : FIXED_STARS_STYLE_DEFAULT;
-  const font = useFont(fontMap[families.fraktion.book],style.textSize);
+  const font = useRenderFont(fontMap[families.fraktion.book],style.textSize);
   const { geometry, coordinates } = layout;
   const outer = geometry.radiusForRing(ringIndex), inner = geometry.innerRadiusForRing(ringIndex), mid = geometry.midRadiusForRing(ringIndex);
   const glyphSize = Math.min(style.glyphSize,Math.max(1,outer-inner-2));

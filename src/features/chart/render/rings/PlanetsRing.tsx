@@ -1,3 +1,4 @@
+import { useRenderFont } from "../assets";
 /**
  * PlanetsRing — glyphs, degree/minute/sign/℞ stacks, PAV-adjusted positions,
  * connection lines to true-position ticks. Port of kairos-ios
@@ -41,7 +42,6 @@ import {
   Path,
   Skia,
   Text,
-  useFont,
   type SkFont,
   type SkPath,
 } from "@shopify/react-native-skia";
@@ -272,8 +272,8 @@ export function PlanetsRing({ ring, ringIndex, layout, colors, selection }: Ring
   // Two fixed font sizes ring-wide (minutes render at 80% of the degrees
   // size, DegreeTextStack.stackElements) — loaded once, not per placement.
   const fraktion = fontMap[families.fraktion.book];
-  const degreesFont = useFont(fraktion, style.degreeTextFontSize);
-  const minutesFont = useFont(fraktion, style.degreeTextFontSize * 0.8);
+  const degreesFont = useRenderFont(fraktion, style.degreeTextFontSize);
+  const minutesFont = useRenderFont(fraktion, style.degreeTextFontSize * 0.8);
 
   const { geometry, coordinates } = layout;
   const positions = layout.planetLayouts.get(ringIndex) ?? [];

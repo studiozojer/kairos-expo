@@ -1,3 +1,4 @@
+import { useRenderFont } from "../assets";
 import { houseIdentifier } from '../../config/identifiers';
 /**
  * HouseNumbersRing — cusp lines + house numbers at wraparound-aware
@@ -36,7 +37,7 @@ import { houseIdentifier } from '../../config/identifiers';
 import { selectionOpacity, selectionColor, cuspSelectionOpacity } from "../../interaction/selection";
 import React from "react";
 
-import { Group, Path, Skia, Text, useFont, type SkFont, type SkPath } from "@shopify/react-native-skia";
+import { Group, Path, Skia, Text,  type SkFont, type SkPath } from "@shopify/react-native-skia";
 
 import { families, fontMap } from "@/theme/fonts.gen";
 import type { Theme } from "@/theme";
@@ -136,7 +137,7 @@ export function HouseNumbersRing({ ring, ringIndex, layout, selection }: RingRen
     ring.style.$type === HOUSES_STYLE_TYPE ? ring.style : HOUSES_RING_STYLE_DEFAULT;
 
   const fraktion = fontMap[families.fraktion.book];
-  const font = useFont(fraktion, style.numberFontSize);
+  const font = useRenderFont(fraktion, style.numberFontSize);
 
   const { geometry, coordinates } = layout;
   const houseCusps = ring.houseCusps ?? layout.houseCusps;

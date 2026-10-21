@@ -1,3 +1,4 @@
+import type { ExportRequest } from '../screenshot/model';
 import type { MarkingIconName } from '../marking/iconNames';
 
 export const ACTIONS = {
@@ -8,7 +9,9 @@ export const ACTIONS = {
   'chart.addNow': { label: 'Now', hint: 'Adds a chart for the current time.', icon: 'now', category: 'chart' },
   'chart.settings': { label: 'Chart settings', hint: 'Opens calculation settings for the selected chart.', icon: 'settings', category: 'chart' },
   'orientation.toggle': { label: 'Lock chart', hint: 'Switches between fixed and Ascendant orientation.', icon: 'lock', category: 'orientation' },
-  'chart.screenshot': { label: 'Screenshot', hint: 'Captures this chart page for sharing.', icon: 'screenshot', category: 'screenshot' },
+  'chart.screenshot': { label: 'Screenshot', hint: 'Shares the chart wheel with chart cards. Hold and drag down to save, or down-left to save the wheel.', icon: 'screenshot', category: 'screenshot' },
+  'chart.screenshotAndSave': { label: 'Save to Photos', hint: 'Saves the chart wheel and chart cards to the Kairōs album.', icon: 'savePhoto', category: 'screenshot' },
+  'chart.screenshotWheelOnly': { label: 'Save Wheel', hint: 'Saves a square wheel-only image to the Kairōs album.', icon: 'saveWheel', category: 'screenshot' },
   'display.settings': { label: 'Display settings', hint: 'Opens chart display options.', icon: 'display', category: 'display' },
   'display.aspects': { label: 'Aspect lines', hint: 'Shows or hides aspect lines and patterns.', icon: 'display', category: 'display' },
   'display.patterns': { label: 'Aspect patterns', hint: 'Shows or hides aspect pattern fills.', icon: 'display', category: 'display' },
@@ -28,7 +31,7 @@ export interface ActionContext {
   aspects: { enabled: boolean; showPatterns: boolean; showFalseAspects: boolean };
   openSettings: () => void; openDisplay: () => void; toggleOrientation: () => void;
   rotateOrientation: (direction: -1 | 1) => void; resetOrientation: () => void;
-  screenshot: () => void | Promise<void>;
+  screenshot: (request: ExportRequest) => void | Promise<void>;
   toggleDisplay: (key: DisplayToggle) => void;
   step: (direction: -1 | 1) => void; reset: () => void;
 }
@@ -43,6 +46,7 @@ const displayKeys = { 'display.aspects': 'enabled', 'display.patterns': 'showPat
  * menu closures store IDs, never a target chart or an old permission snapshot. */
 export function createActionRegistry(getContext: () => ActionContext, changed: () => void = () => {}) {
   const pending = new Set<ActionId>();
+  const isExporting = () => [...pending].some(id => ACTIONS[id].category === 'screenshot');
   function describe(id: ActionId): ActionPresentation {
     const c = getContext();
     let enabled = c.chartEnabled;
@@ -54,13 +58,14 @@ export function createActionRegistry(getContext: () => ActionContext, changed: (
       case 'chart.addNow': enabled = c.chartsLoaded; break;
       case 'chart.settings': enabled = c.settingsEnabled; break;
       case 'chart.screenshot': if (c.capturing || pending.has(id)) label = 'Capturing chart'; break;
+      case 'chart.screenshotAndSave': case 'chart.screenshotWheelOnly': if (c.capturing || pending.has(id)) label = 'Saving chart'; break;
       case 'orientation.toggle': selected = c.locked; label = c.locked ? 'Unlock chart' : 'Lock chart'; icon = c.locked ? 'lock' : 'unlock'; break;
       case 'time.backward': enabled = c.hasTarget && c.canStepBackward; break;
       case 'time.forward': enabled = c.hasTarget && c.canStepForward; break;
       case 'time.reset': enabled = c.hasTarget; label = c.targetKind === 'saved' ? 'Return to original time' : 'Return to now'; break;
       case 'display.aspects': case 'display.patterns': case 'display.falseAspects': selected = c.aspects[displayKeys[id]]; break;
     }
-    return { ...ACTIONS[id], id, label, icon, selected, busy: pending.has(id), enabled: enabled && c.enabled && !c.capturing && !pending.has('chart.screenshot') && !pending.has(id) };
+    return { ...ACTIONS[id], id, label, icon, selected, busy: pending.has(id), enabled: enabled && c.enabled && !c.capturing && !isExporting() && !pending.has(id) };
   }
   async function execute(id: string): Promise<ActionResult> {
     if (!isActionId(id)) return { status: 'unknown' };
@@ -78,7 +83,9 @@ export function createActionRegistry(getContext: () => ActionContext, changed: (
         case 'orientation.right': c.rotateOrientation(1); break;
         case 'orientation.reset': c.resetOrientation(); break;
         case 'orientation.toggle': c.toggleOrientation(); break;
-        case 'chart.screenshot': await c.screenshot(); break;
+        case 'chart.screenshot': await c.screenshot({ variant: 'full', destination: 'share' }); break;
+        case 'chart.screenshotAndSave': await c.screenshot({ variant: 'full', destination: 'photos' }); break;
+        case 'chart.screenshotWheelOnly': await c.screenshot({ variant: 'wheel', destination: 'photos' }); break;
         case 'display.aspects': case 'display.patterns': case 'display.falseAspects': c.toggleDisplay(displayKeys[id]); break;
         case 'time.backward': c.step(-1); break;
         case 'time.forward': c.step(1); break;
@@ -89,6 +96,6 @@ export function createActionRegistry(getContext: () => ActionContext, changed: (
       return { status: 'failed', error };
     } finally { pending.delete(id); changed(); }
   }
-  return { describe, execute, list: () => ACTION_IDS.map(describe) };
+  return { describe, execute, isExporting, list: () => ACTION_IDS.map(describe) };
 }
 export type ActionRegistry = ReturnType<typeof createActionRegistry>;
