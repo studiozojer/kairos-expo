@@ -7,7 +7,7 @@ import fixture from '../../fixtures/engine/sibly-1776.json';
 import type { ChartCalculationResponse } from '../../config/engine-types';
 import { nowInstance } from '../../active/model';
 
-export function snapshot(): ChartExportSnapshot {
+function snapshot(): ChartExportSnapshot {
   const preset = parsePreset(classic);
   return { width: 390, config: buildConfiguration(fixture as ChartCalculationResponse, preset), theme: themeFor('light'),
     selectionStyle: preset.selection, selectedIds: ['sun'], cards: [{ id: 'first', name: 'Synthetic chart', date: 'Jul 4, 1776', time: '5:10 PM', location: 'Philadelphia' }] };

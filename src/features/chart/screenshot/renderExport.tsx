@@ -143,8 +143,7 @@ export async function renderChartExport(snapshot: ChartExportSnapshot, variant: 
 }
 export function releaseChartExport(uri: string) { const file = new File(uri); if (file.exists) file.delete(); }
 
-/** Inspect the encoded file itself; native preview decoders can reject a valid
- * large PNG independently of the renderer or its destination. */
+/** Check the encoded PNG header without decoding another full-size bitmap. */
 export function chartExportSize(uri: string) {
   const handle = new File(uri).open();
   try {

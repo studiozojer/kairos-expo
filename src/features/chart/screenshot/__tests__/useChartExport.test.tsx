@@ -47,7 +47,7 @@ async function ready(view: ReturnType<typeof create>) {
   void view;
   await act(async () => finishRender('file:///tmp/chart.png'));
 }
-test('shares only the dedicated surface, guards simultaneous requests and releases the file', async () => {
+test('shares the rendered PNG, guards simultaneous requests and releases the file', async () => {
   const view = mount(); let running!: Promise<void>;
   await act(async () => { running = hook.capture({ variant: 'wheel', destination: 'share' }); await hook.capture({ variant: 'full', destination: 'photos' }); });
   expect(hook.capturing).toBe(true); expect(renderChartExport).toHaveBeenCalledTimes(1);
