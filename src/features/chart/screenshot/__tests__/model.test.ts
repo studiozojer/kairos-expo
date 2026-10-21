@@ -42,3 +42,17 @@ test('cards describe the displayed result instead of the pending requested time/
   expect(cards[0].date).toContain('2000'); expect(cards[0].time).toContain('3:04');
   expect(() => exportCards([chart], {})).toThrow('finish loading');
 });
+
+test('localized date and time use spaces supported by the export typeface', () => {
+  const format = jest.spyOn(Intl, 'DateTimeFormat').mockImplementation(() => ({
+    format: () => '3:04\u202fAM\u00a0UTC',
+  } as Intl.DateTimeFormat));
+  try {
+    const chart = nowInstance();
+    const cards = exportCards([chart], { [chart.id]: { status: 'ready', retry: jest.fn(), result: {
+      datetime: '2000-01-02T03:04:00Z', settings: chart.settings, attempt: 0, starKey: '[]', chart: fixture as ChartCalculationResponse,
+    } } });
+    expect(cards[0].date).toBe('3:04 AM UTC');
+    expect(cards[0].time).toBe('3:04 AM UTC');
+  } finally { format.mockRestore(); }
+});

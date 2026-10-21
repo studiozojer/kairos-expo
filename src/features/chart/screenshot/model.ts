@@ -20,8 +20,10 @@ export function exportCards(charts: ActiveChart[], calculations: Record<string, 
     const timezone = result.settings.location.timezone;
     const time = new Date(result.datetime);
     return { id: chart.id, name: chart.name,
-      date: new Intl.DateTimeFormat(undefined, { timeZone: timezone, year: 'numeric', month: 'short', day: 'numeric' }).format(time),
-      time: new Intl.DateTimeFormat(undefined, { timeZone: timezone, hour: 'numeric', minute: '2-digit' }).format(time),
+      // The export typeface has no narrow/nonbreaking space glyph. Intl uses
+      // those separators in some locales; ordinary spaces preserve the text.
+      date: new Intl.DateTimeFormat(undefined, { timeZone: timezone, year: 'numeric', month: 'short', day: 'numeric' }).format(time).replace(/[\u00a0\u202f]/g, ' '),
+      time: new Intl.DateTimeFormat(undefined, { timeZone: timezone, hour: 'numeric', minute: '2-digit' }).format(time).replace(/[\u00a0\u202f]/g, ' '),
       location: result.settings.location.name };
   });
 }
