@@ -1,0 +1,25 @@
+app.kairos.solar {
+    tls {
+        dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+    }
+    encode gzip zstd
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy no-referrer
+        -Server
+    }
+    handle /local/calculate {
+        request_body {
+            max_size 64KB
+        }
+        reverse_proxy 127.0.0.1:8766
+    }
+    handle /local/* {
+        respond 404
+    }
+    handle {
+        root * /opt/kairos-web/current/dist
+        file_server
+    }
+}

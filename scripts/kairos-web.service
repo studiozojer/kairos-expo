@@ -1,0 +1,21 @@
+[Unit]
+Description=Kairos web chart calculations
+After=network.target
+
+[Service]
+User=kairos-web
+Group=kairos-web
+WorkingDirectory=/opt/kairos-web/current/scripts
+Environment=KAIROS_WEB_LIBRARY=/opt/kairos-web/lib/libkairos.so
+Environment=KAIROS_WEB_ASSETS=/opt/kairos-web/assets
+ExecStart=/opt/kairos-web/venv/bin/gunicorn --bind 127.0.0.1:8766 --workers 2 --threads 1 --timeout 30 --backlog 32 web_api:application
+Restart=on-failure
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+MemoryMax=1G
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

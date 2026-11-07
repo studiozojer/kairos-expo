@@ -21,7 +21,7 @@ import urllib.request
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT = Path(__file__).resolve().parents[1]
-PRIMARY = Path(subprocess.check_output(
+PRIMARY = ROOT if os.environ.get('KAIROS_WEB_ASSETS') else Path(subprocess.check_output(
     ['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'], cwd=ROOT, text=True
 ).strip()).parent
 API = 'https://api.kairos.solar'
@@ -58,7 +58,7 @@ def calculate(body):
             lib.kairos_calculate_chart.argtypes = [ctypes.c_char_p]
             lib.kairos_calculate_chart.restype = Result
             lib.kairos_result_free.argtypes = [Result]
-            assets = PRIMARY / 'modules/kairos/assets'
+            assets = Path(os.environ.get('KAIROS_WEB_ASSETS', PRIMARY / 'modules/kairos/assets'))
             unwrap(lib, lib.kairos_init(
                 f'sqlite://{assets / "Atlas/atlas.db"}?mode=ro'.encode(),
                 str(assets / 'Ephemeris').encode()), parse=False)

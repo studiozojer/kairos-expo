@@ -11,7 +11,6 @@ import { DEFAULT_SETTINGS } from '../features/chart/settings/chartSettings';
 import { useTheme } from '../theme';
 import { ThemeModeProvider, useThemeMode } from '../theme/theme-context';
 import { fontMap } from '../theme/fonts.gen';
-import { loadAccountCharts, localRequest, type Account } from './account';
 import './desktop.css';
 
 const message = (error: unknown) => error instanceof Error ? error.message : String(error);
@@ -25,57 +24,17 @@ export function DesktopApp() {
 function DesktopCharts() {
   const theme = useTheme();
   const appearance = useThemeMode();
-  const [account, setAccount] = useState<Account | null>(null);
-  const [ready, setReady] = useState(false);
-  const [handle, setHandle] = useState('');
-  const [code, setCode] = useState('');
-  const [signingIn, setSigningIn] = useState(false);
   const [charts, setCharts] = useState<SavedChart[]>([]);
   const [selectedId, setSelectedId] = useState('now');
   const [search, setSearch] = useState('');
   const [preset, setPreset] = useState('classic');
   const [now, setNow] = useState(() => new Date().toISOString());
-  const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
-  const [exceptions, setExceptions] = useState(0);
-  const download = useRef<AbortController | null>(null);
   const wheelBox = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(640);
   const [chart, setChart] = useState<ChartCalculationResponse | null>(null);
   const [chartError, setChartError] = useState('');
-
-  useEffect(() => {
-    let live = true;
-    void localRequest<{ account: Account | null }>('session').then(result => {
-      if (live) setAccount(result.account);
-    }).catch(error => { if (live) setError(message(error)); }).finally(() => { if (live) setReady(true); });
-    return () => { live = false; download.current?.abort(); };
-  }, []);
-
-  async function refresh() {
-    download.current?.abort();
-    const controller = new AbortController();
-    download.current = controller;
-    setBusy(true); setError(''); setStatus('Opening your library…');
-    try {
-      const result = await loadAccountCharts(controller.signal, setStatus);
-      if (controller.signal.aborted) return;
-      setCharts(result.charts); setExceptions(result.exceptions); setStatus('');
-    } catch (error) {
-      if (!controller.signal.aborted) { setError(message(error)); setStatus(''); }
-    } finally {
-      if (!controller.signal.aborted) setBusy(false);
-    }
-  }
-
-  useEffect(() => {
-    if (account) void refresh();
-    // A new account must discard the previous account's charts immediately.
-    return () => { download.current?.abort(); };
-    // refresh captures no account-specific credentials; the local session owns them.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [account?.did]);
 
   const selected = charts.find(item => item.id === selectedId);
   const datetime = selected?.datetime ?? now;
@@ -113,21 +72,6 @@ function DesktopCharts() {
     colorScheme: theme.scheme,
   } as React.CSSProperties;
 
-  async function finishSignIn(event: React.FormEvent) {
-    event.preventDefault(); setSigningIn(true); setError('');
-    try {
-      const result = await localRequest<{ account: Account }>('sign-in', { code: code.trim() });
-      download.current?.abort(); setCharts([]); setSelectedId('now'); setAccount(result.account); setCode('');
-    } catch (error) { setError(message(error)); }
-    finally { setSigningIn(false); }
-  }
-
-  async function signOut() {
-    download.current?.abort(); setCharts([]); setSelectedId('now'); setAccount(null); setExceptions(0); setBusy(false); setStatus(''); setError('');
-    try { await localRequest('sign-out', {}); }
-    catch (error) { setError(message(error)); }
-  }
-
   async function importCharts(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -157,16 +101,10 @@ function DesktopCharts() {
         {filtered.map(item => <button key={item.id} aria-current={selectedId === item.id ? 'true' : undefined} className={`chart-row ${selectedId === item.id ? 'selected' : ''}`} onClick={() => setSelectedId(item.id)}>
           <span>{item.metadata?.favorite ? '☆ ' : ''}{item.name}</span><small>{item.settings.location.name} · {item.datetime.slice(0, 10)}</small>
         </button>)}
-        {!busy && !filtered.length && <p className="empty">{search ? 'No matching charts.' : account ? 'No charts loaded yet.' : 'Sign in below to open your account charts.'}</p>}
+        {!filtered.length && <p className="empty">{search ? 'No matching charts.' : 'Open a chart JSON file to view your charts.'}</p>}
       </nav>
       <footer className="account">
-        {account ? <><div className="account-name">@{account.handle}</div><div className="button-row"><button disabled={busy} onClick={() => void refresh()}>Refresh charts</button><button onClick={() => void signOut()}>Sign out</button></div></> : <details open>
-          <summary>Your account</summary>
-          <p>Enter your handle, sign in, then paste the one-time code here.</p>
-          <input aria-label="Account handle" placeholder="you.bsky.social" autoComplete="username" value={handle} onChange={event => setHandle(event.target.value)} />
-          <a className="button-link" aria-disabled={!handle.trim()} href={handle.trim() ? `https://api.kairos.solar/oauth/start?cli=1&handle=${encodeURIComponent(handle.trim().replace(/^@/, ''))}` : undefined} target="_blank" rel="noreferrer">Open sign-in ↗</a>
-          <form onSubmit={event => void finishSignIn(event)}><input aria-label="One-time sign-in code" placeholder="Paste code" autoComplete="off" value={code} onChange={event => setCode(event.target.value)} /><button disabled={!ready || !code.trim() || signingIn} type="submit">{signingIn ? 'Signing in…' : 'Load my charts'}</button></form>
-        </details>}
+        <p>Login coming soon</p>
         <label className="import-link">Open chart JSON<input type="file" accept=".json,application/json" onChange={event => void importCharts(event)} /></label>
       </footer>
     </aside>
@@ -176,7 +114,6 @@ function DesktopCharts() {
       </header>
       {status && <div role="status" className="notice">{status}</div>}
       {error && <div role="alert" className="notice error">{error}</div>}
-      {exceptions > 0 && <div className="notice">{exceptions} preserved charts need compatibility review in the app.</div>}
       <section className="chart-stage" aria-label="Chart wheel" ref={wheelBox}>
         {chartError ? <div role="alert" className="chart-message">{chartError}</div> : config ? <ChartWheel config={config} size={size} /> : <div className="chart-message" role="status">Calculating chart…</div>}
       </section>
