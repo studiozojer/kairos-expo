@@ -104,7 +104,7 @@ function DesktopCharts() {
     return () => { observer.disconnect(); window.removeEventListener('resize', measure); };
   }, []);
 
-  const config = useMemo(() => chart ? buildConfiguration(chart, bundledPreset(preset)!.preset) : null, [chart, preset]);
+  const config = useMemo(() => chart ? buildConfiguration(chart, bundledPreset(preset)!.preset, 'ascendant') : null, [chart, preset]);
   const filtered = useMemo(() => charts.filter(item => `${item.name} ${item.settings.location.name}`.toLocaleLowerCase().includes(search.toLocaleLowerCase())), [charts, search]);
   const style = {
     '--bg': theme.color.bgSolidBase, '--panel': theme.color.bgSolidCard,

@@ -117,8 +117,9 @@ function planetsStyleOf(ring: RingModule): PlanetsRingStyle {
 export function buildConfiguration(
   chart: ChartCalculationResponse,
   preset: Preset,
+  orientationMode: "static" | "ascendant" = "static",
 ): ChartRenderingConfiguration {
-  return buildCharts([{ instanceId: "", chart }], preset, false);
+  return buildCharts([{ instanceId: "", chart }], preset, false, orientationMode);
 }
 
 export interface RenderChart {
