@@ -1,3 +1,4 @@
+import { textWidth } from "../textWidth";
 import { useRenderFont } from "../assets";
 import { houseIdentifier } from '../../config/identifiers';
 /**
@@ -106,7 +107,7 @@ export function boundaryLineColor(style: HousesRingStyle, theme: Theme): string 
  *  Text x/y is baseline-left; Swift's `.center` anchor centers both axes). */
 function centeredTextOrigin(font: SkFont, text: string, center: Point): Point | null {
   try {
-    const width = font.measureText(text).width;
+    const width = textWidth(font, text);
     const { ascent, descent } = font.getMetrics();
     return { x: center.x - width / 2, y: center.y - (ascent + descent) / 2 };
   } catch {

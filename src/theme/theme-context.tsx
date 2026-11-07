@@ -30,7 +30,7 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
       if (touched.current) return;
       const stored = parseMode(raw);
       setModeState(stored);
-      Appearance.setColorScheme(appearanceOverride(stored));
+      Appearance.setColorScheme?.(appearanceOverride(stored));
     });
   }, []);
 
@@ -42,7 +42,7 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
         touched.current = true;
         setModeState(next);
         void AsyncStorage.setItem(THEME_MODE_KEY, next);
-        Appearance.setColorScheme(appearanceOverride(next));
+        Appearance.setColorScheme?.(appearanceOverride(next));
       },
     }),
     [mode, system],

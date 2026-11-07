@@ -1,0 +1,51 @@
+html, body, #root { height: 100%; margin: 0; }
+* { box-sizing: border-box; }
+.starting { padding: 48px; font: 20px system-ui; }
+.desktop { width: 100vw; height: 100vh; display: flex; background: var(--bg); color: var(--text); font: 16px/1.5 ABCWhyteEdu-Book, system-ui, sans-serif; }
+.mono { font-family: PPFraktionMono-Regular, monospace; font-size: 11px; letter-spacing: .08em; }
+.library { width: 310px; flex: 0 0 310px; display: flex; flex-direction: column; border-right: 1px solid var(--line); background: var(--panel); }
+.brand { display: flex; align-items: baseline; justify-content: space-between; padding: 28px 24px 20px; }
+.brand > :first-child { font: 30px ABCWhyteInktrap-Regular, system-ui; }
+.brand .mono, .section-label, .eyebrow { color: var(--muted); }
+.library-tools { padding: 0 16px; }
+.desktop input, .desktop select, .desktop button, .button-link { font: inherit; color: var(--text); border: 1px solid var(--line); border-radius: 6px; background: var(--bg); padding: 8px 12px; }
+.desktop input { width: 100%; min-width: 0; }
+.desktop input:focus-visible, .desktop button:focus-visible, .desktop select:focus-visible, .desktop a:focus-visible, .desktop summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.desktop button, .desktop select, summary, .button-link { cursor: pointer; }
+.desktop button:disabled { opacity: .5; cursor: default; }
+.desktop button:hover:enabled, .button-link:hover { border-color: var(--accent); }
+.desktop .chart-row { display: flex; flex-direction: column; width: 100%; text-align: left; padding: 11px 12px; margin-top: 4px; border-color: transparent; background: transparent; border-radius: 6px; }
+.chart-row small { font-size: 12px; color: var(--muted); }
+.desktop .chart-row.selected { background: var(--bg); border-color: var(--line); box-shadow: inset 3px 0 var(--accent); }
+.section-label { display: flex; justify-content: space-between; padding: 20px 12px 8px; }
+.chart-list { padding: 0 16px 16px; overflow: auto; flex: 1; min-height: 100px; }
+.empty { padding: 8px 12px; color: var(--muted); font-size: 13px; }
+.account { border-top: 1px solid var(--line); padding: 16px 24px 20px; font-size: 13px; }
+.account p { color: var(--muted); margin: 8px 0 12px; }
+.account input { margin-bottom: 8px; font-size: 13px; }
+.account-name { overflow-wrap: anywhere; margin-bottom: 12px; }
+.button-row { display: flex; gap: 8px; }
+.button-link { display: block; text-decoration: none; text-align: center; margin-bottom: 12px; }
+.button-link[aria-disabled=true] { opacity: .5; pointer-events: none; }
+.account form button { width: 100%; }
+.import-link { display: block; color: var(--muted); cursor: pointer; margin-top: 16px; text-decoration: underline; }
+.import-link input { display: none; }
+.workspace { flex: 1; min-width: 0; overflow: auto; padding: 36px 40px; background: var(--bg); }
+.workspace-header { display: flex; align-items: start; justify-content: space-between; gap: 24px; max-width: 1100px; margin: 0 auto; }
+.eyebrow { margin-bottom: 4px; }
+h1 { font: 30px/1.3 ABCWhyteInktrap-Regular, system-ui; margin: 0; }
+.workspace-header p { font-size: 13px; margin: 8px 0 0; color: var(--muted); }
+.timezone { font-size: 11px; margin-left: 6px; }
+.view-controls { display: flex; gap: 12px; }
+.view-controls label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: 11px; }
+.desktop select { font-size: 13px; min-width: 100px; }
+.chart-stage { display: flex; justify-content: center; align-items: center; width: 100%; max-width: 1100px; min-height: 400px; margin: 24px auto 0; }
+.chart-message { padding: 80px 24px; color: var(--muted); text-align: center; }
+.notice { padding: 12px 16px; margin: 16px auto 0; border: 1px solid var(--line); border-radius: 6px; max-width: 1100px; font-size: 13px; }
+.error { border-color: var(--accent); }
+.positions { max-width: 600px; margin: 16px auto; font-size: 13px; }
+.positions table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+.positions th, .positions td { padding: 8px; border-bottom: 1px solid var(--line); text-align: left; }
+.positions td:not(:first-child) { font-family: PPFraktionMono-Regular, monospace; }
+@media (max-width: 900px) { .library { width: 260px; flex-basis: 260px; } .workspace { padding: 24px 16px; } .workspace-header { flex-direction: column; } }
+@media (max-width: 600px) { .desktop { height: auto; min-height: 100vh; flex-shrink: 0; flex-direction: column; } .library { width: 100%; flex-basis: auto; border-right: 0; border-bottom: 1px solid var(--line); } .chart-list { max-height: 220px; } .workspace { flex: none; overflow: visible; } .brand { padding: 16px 24px; } .account { padding: 12px 24px; } .chart-stage { min-height: 260px; } }

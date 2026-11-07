@@ -1,3 +1,4 @@
+import { textWidth } from "../textWidth";
 import { useRenderFont } from "../assets";
 /**
  * PlanetsRing — glyphs, degree/minute/sign/℞ stacks, PAV-adjusted positions,
@@ -163,7 +164,7 @@ export function defaultGlyphColor(
  * (defensive — the jest Skia mock's degenerate zero-size font). */
 function centeredTextOrigin(font: SkFont, text: string, center: Point): Point | null {
   try {
-    const width = font.measureText(text).width;
+    const width = textWidth(font, text);
     const { ascent, descent } = font.getMetrics();
     return { x: center.x - width / 2, y: center.y - (ascent + descent) / 2 };
   } catch {

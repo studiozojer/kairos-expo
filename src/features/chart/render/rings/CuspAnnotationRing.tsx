@@ -1,3 +1,4 @@
+import { textWidth } from "../textWidth";
 import { useRenderFont } from "../assets";
 /**
  * CuspAnnotationRing — sign glyph + degree/minute annotation stacked
@@ -61,7 +62,7 @@ function ringBackgroundPath(cx: number, cy: number, outerR: number, innerR: numb
 
 function centeredTextOrigin(font: SkFont, text: string, center: Point): Point | null {
   try {
-    const width = font.measureText(text).width;
+    const width = textWidth(font, text);
     const { ascent, descent } = font.getMetrics();
     return { x: center.x - width / 2, y: center.y - (ascent + descent) / 2 };
   } catch {

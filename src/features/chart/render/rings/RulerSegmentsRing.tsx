@@ -1,3 +1,4 @@
+import { textWidth } from "../textWidth";
 import { useRenderFont } from "../assets";
 import { families, fontMap } from '@/theme/fonts.gen';
 import { Circle, Group, Path, Skia, Text } from '@shopify/react-native-skia';
@@ -35,7 +36,7 @@ export function RulerSegmentsRing({ ring, ringIndex, layout, colors, selection }
       const color = style.glyphColor ? resolveColorValue(style.glyphColor, theme) : celestialBodyColor(segment.ruler,colors,theme);
       const numberPosition = coordinates.pointForDegree(degree, inner + (outer - inner) * .25);
       const number = String(segment.index % 3 + 1);
-      const numberWidth = font?.measureText(number).width ?? 0;
+      const numberWidth = font ? textWidth(font, number) : 0;
       const glyph = <Glyph name={`celestials/${CELESTIAL_BODIES[segment.ruler]?.glyphAsset ?? segment.ruler}` as GlyphName} x={position.x} y={position.y} size={size}
         selected={selection?.selected.has(id)} opacity={selectionOpacity(selection,id,'affectsGlyphs')} color={selectionColor(selection,id,'affectsGlyphs',color,theme)} />;
       return <Group key={id}>

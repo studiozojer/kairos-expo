@@ -1,3 +1,4 @@
+import { textWidth } from "../textWidth";
 import { useRenderFont } from "../assets";
 import { Circle, Group, Line, Path, Skia, Text } from '@shopify/react-native-skia';
 import { families, fontMap } from '@/theme/fonts.gen';
@@ -33,8 +34,8 @@ export function FixedStarsRing({ ring, ringIndex, layout, selection }: RingRende
       const degrees = grouped ? String(marker.placements.length) : content?.showDegrees ? `${Math.floor(active.longitude%30)}°` : '';
       const minutes = !grouped && content?.showMinutes ? `${String(Math.floor(active.longitude%1*60)).padStart(2,'0')}′` : '';
       const sign = !grouped && content?.showSign ? ZODIAC_SIGNS.find(sign => sign === active.signPlacement.toLowerCase()) : undefined;
-      const degreeWidth = degrees ? font?.measureText(degrees).width ?? 0 : 0;
-      const minuteWidth = minutes ? font?.measureText(minutes).width ?? 0 : 0;
+      const degreeWidth = degrees ? font ? textWidth(font, degrees) : 0 : 0;
+      const minuteWidth = minutes ? font ? textWidth(font, minutes) : 0 : 0;
       const signSize = sign ? style.textSize * 1.2 : 0;
       const width = degreeWidth + minuteWidth + signSize;
       const textPoint = coordinates.pointForDegree(marker.longitude,Math.min(outer-style.textSize/2,mid+glyphSize/2+style.textOffset));

@@ -61,6 +61,11 @@
         "projectId": "2af9a81a-252b-4331-8950-fc4bc0864709"
       }
     },
-    "owner": "studiozojer"
+    "owner": "studiozojer",
+    "web": {
+      "output": "single",
+      "name": "Kair\u014ds charts",
+      "favicon": "./assets/images/icon.png"
+    }
   }
 }

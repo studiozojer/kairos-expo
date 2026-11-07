@@ -35,6 +35,7 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+__pycache__/
 
 # isolated concurrent streams — one branch, one worktree, one window
 .worktrees/
