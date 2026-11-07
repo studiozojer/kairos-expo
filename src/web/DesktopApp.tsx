@@ -117,7 +117,6 @@ function DesktopCharts() {
       <section className="chart-stage" aria-label="Chart wheel" ref={wheelBox}>
         {chartError ? <div role="alert" className="chart-message">{chartError}</div> : config ? <ChartWheel config={config} size={size} /> : <div className="chart-message" role="status">Calculating chart…</div>}
       </section>
-      {chart && <details className="positions"><summary>Planetary positions</summary><table><thead><tr><th>Body</th><th>Longitude</th><th>Daily motion</th></tr></thead><tbody>{chart.celestial.nodes.filter(node => node.node_type !== 'fixed_star').map(node => <tr key={node.id}><td>{node.body}</td><td>{node.position.longitude.toFixed(3)}°</td><td>{node.position.speed_longitude.toFixed(3)}°{node.position.speed_longitude < 0 ? ' ℞' : ''}</td></tr>)}</tbody></table></details>}
     </main>
   </div>;
 }
