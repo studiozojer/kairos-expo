@@ -50,7 +50,7 @@ export function AngleOverlay({ config, layout }: { config: ChartRenderingConfigu
     const from = coordinates.pointForDegree(label.longitude, label.inner + (config.angleOverlay!.labels === 'inner' ? 23 * scale : 0)), to = coordinates.pointForDegree(label.longitude, label.outer);
     path.moveTo(from.x, from.y); path.lineTo(to.x, to.y);
     return <Group key={label.id}>
-      <Path path={path.build()} color={theme.color.txPrimary} style="stroke" strokeWidth={2 * scale} />
+      <Path path={path.build()} color={theme.color.icSecondary} style="stroke" strokeWidth={2 * scale} />
       <Glyph name={label.glyph} size={18 * scale} x={label.center.x} y={label.center.y} color={theme.color.txPrimary} />
     </Group>;
   })}</Group>;
