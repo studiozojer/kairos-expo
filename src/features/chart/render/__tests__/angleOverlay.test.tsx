@@ -179,3 +179,25 @@ test.each([0, 90, 237])('crowded planets keep their order around ASC across rota
     }
   }
 });
+
+test('when space is tight, crowd the planets before overlapping the fixed ASC stroke', () => {
+  const { avoidFixedAngles, intersectsFixedObstacle } = require('../../geometry/fixedAngles');
+  const point = (degree: number) => ({ x: 100 * Math.cos(degree * Math.PI / 180), y: -100 * Math.sin(degree * Math.PI / 180) });
+  const planet = (id: string, longitude: number) => ({
+    placement: { id, longitude, windowLo: 0, windowHi: 30 }, originalPosition: point(longitude), adjustedPosition: point(longitude),
+    connectionEndpoint: point(longitude), farSideConnectionEndpoint: point(longitude), degreeMarkPosition: point(longitude), degreeMarkMirrorPosition: point(longitude), needsConnectionLine: false,
+  });
+  const axis = point(8);
+  const stroke = { from: { x: axis.x * 0.6, y: axis.y * 0.6 }, to: { x: axis.x * 1.4, y: axis.y * 1.4 }, padding: 2 };
+  const positions = [planet('neptune', 1), planet('pallas', 5)];
+  const result = avoidFixedAngles(positions, [stroke], { x: 0, y: 0 }, 6, undefined, [8]);
+  expect(result.unresolved).toContain('pallas'); // Planet-to-planet crowding remains.
+  for (const p of result.positions) {
+    expect(intersectsFixedObstacle({ x: p.adjustedPosition.x - 6, y: p.adjustedPosition.y - 6, width: 12, height: 12 }, stroke)).toBe(false);
+    expect(p.degreeMarkPosition).toEqual(positions.find(original => original.placement.id === p.placement.id)!.degreeMarkPosition);
+  }
+  const degrees = result.positions.map((p: any) => -Math.atan2(p.adjustedPosition.y, p.adjustedPosition.x) * 180 / Math.PI);
+  expect(degrees[0]).toBeLessThan(1); // The settling pass opens room for Pallas.
+  expect(degrees[0]).toBeLessThan(degrees[1]);
+  expect(degrees[1]).toBeLessThan(8);
+});

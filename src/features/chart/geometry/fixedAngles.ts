@@ -84,7 +84,7 @@ export function fixedAngleMarkers(config: ChartRenderingConfiguration, layout: P
  * within each body's authored house/sign window; preserve astronomical ticks.
  * Ordering takes precedence over clearance. If no free candidate exists,
  * retain an order-preserving placement and report its ID. */
-export function avoidFixedAngles(positions: PlanetRingLayout, obstacles: FixedAngleObstacle[], center: { x: number; y: number }, padding: number, style?: PlanetsRingStyle, fixedLongitudes: number[] = []) {
+export function avoidFixedAngles(positions: PlanetRingLayout, obstacles: FixedAngleObstacle[], center: { x: number; y: number }, padding: number, style?: PlanetsRingStyle, fixedLongitudes: number[] = [], settle = false): { positions: PlanetRingLayout; unresolved: string[] } {
   const result = [...positions];
   const unresolved: string[] = [];
   const bounds = (p: PlanetRingLayout[number]): LabelBox => {
@@ -135,9 +135,9 @@ export function avoidFixedAngles(positions: PlanetRingLayout, obstacles: FixedAn
       lo = Math.max(lo, forward - 360 + shift + 1e-6);
       hi = Math.min(hi, forward + shift - 1e-6);
     };
-    // True neighboring longitudes reserve room for their fallback placements.
-    // Accepted positions additionally prevent overtaking displaced neighbors.
-    positions.forEach((p, j) => { if (j !== i) restrict(p.placement.longitude); });
+    // Unresolved neighbors reserve their true fallback positions; resolved
+    // neighbors reserve their displayed positions so the group can compress.
+    positions.forEach((p, j) => { if (j !== i && !accepted.has(j)) restrict(p.placement.longitude, p.placement.longitude + (settle ? displayedOffset(p) : 0)); });
     result.forEach((p, j) => { if (accepted.has(j)) restrict(p.placement.longitude, p.placement.longitude + displayedOffset(p)); });
     fixedLongitudes.forEach(degree => restrict(degree));
     const withinWindow = (offset: number) => {
@@ -160,12 +160,28 @@ export function avoidFixedAngles(positions: PlanetRingLayout, obstacles: FixedAn
       result[i] = current;
     }
     if (!hitsObstacle(current) &&
-      !result.some((other, j) => accepted.has(j) && stacksOverlap(current, other))) {
+      !result.some((other, j) => (accepted.has(j) || (settle && j !== i)) && stacksOverlap(current, other))) {
       accepted.add(i); continue;
     }
     const baseAngle = Math.atan2(current.adjustedPosition.y - center.y, current.adjustedPosition.x - center.x);
     const trueAngle = Math.atan2(current.originalPosition.y - center.y, current.originalPosition.x - center.x);
     const adjustedLongitude = current.placement.longitude - (baseAngle - trueAngle) * 180 / Math.PI;
+    // Clearance can be impossible without crowding another planet. Prefer
+    // clearing fixed angles, then minimize planet overlap, while keeping order.
+    const cost = (candidate: PlanetRingLayout[number]) => {
+      const boxes = footprints(candidate);
+      const fixed = boxes.reduce((sum, box) => sum + obstacles.filter(o => intersectsFixedObstacle(box, o)).length, 0);
+      let overlap = 0;
+      result.forEach((other, j) => {
+        if (j === i || (!settle && !accepted.has(j))) return;
+        for (const a of boxes) for (const b of footprints(other)) {
+          overlap += Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) *
+            Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+        }
+      });
+      return { fixed, overlap };
+    };
+    let best = current, bestCost = cost(current);
     let found = false;
     for (let step = 0; step <= 360 && !found; step++) for (const direction of [1, -1]) {
       const offset = direction * step * 0.5;
@@ -178,11 +194,20 @@ export function avoidFixedAngles(positions: PlanetRingLayout, obstacles: FixedAn
       });
       const candidate = { ...current, adjustedPosition: rotate(current.adjustedPosition),
         connectionEndpoint: rotate(current.connectionEndpoint), farSideConnectionEndpoint: rotate(current.farSideConnectionEndpoint), needsConnectionLine: true };
-      if (hitsObstacle(candidate) || result.some((other, j) => accepted.has(j) && stacksOverlap(candidate, other))) continue;
-      result[i] = candidate; found = true; break;
+      const candidateCost = cost(candidate);
+      if (candidateCost.fixed < bestCost.fixed ||
+        (candidateCost.fixed === bestCost.fixed && candidateCost.overlap < bestCost.overlap)) {
+        best = candidate; bestCost = candidateCost;
+      }
+      if (candidateCost.fixed || candidateCost.overlap) continue;
+      best = candidate; found = true; break;
     }
+    result[i] = best;
     if (!found) unresolved.push(current.placement.id);
     accepted.add(i);
   }
-  return { positions: result, unresolved };
+  // One bounded settling pass lets earlier planets make room for the
+  // crowded placements selected later, without relaxing order or angle sides.
+  return settle ? { positions: result, unresolved }
+    : avoidFixedAngles(result, obstacles, center, padding, style, fixedLongitudes, true);
 }
