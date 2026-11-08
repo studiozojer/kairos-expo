@@ -6,7 +6,6 @@ import { bundledPreset } from '../../display/presets';
 import { parsePreset, serializePreset } from '../../schema/preset';
 import { isAxisAngle } from '../../schema/angle-overlay';
 import { useWheelLayout, type WheelLayout } from '../useWheelLayout';
-import { layoutAngleLabels, boxesOverlap } from '../../geometry/angleLabels';
 const preset = bundledPreset('classic')!.preset;
 
 test('optional angle configuration roundtrips, absent presets stay absent', () => {
@@ -34,19 +33,6 @@ test.each(['inner', 'zodiac', 'outside'] as const)('%s keeps angles for aspects,
   }
 });
 
-test('bounded search avoids an obstacle and canvas clipping; impossible placement reports collisions', () => {
-  const point = (degree: number, radius: number) => ({ x: 100 + Math.cos(degree * Math.PI / 180) * radius, y: 100 + Math.sin(degree * Math.PI / 180) * radius });
-  const input = { id: 'asc', longitude: 0, radius: 90, width: 40, height: 20 };
-  const obstacle = { x: 150, y: 90, width: 40, height: 20 };
-  const [label] = layoutAngleLabels([input], point, 200, [obstacle], 3);
-  expect(label.displaced).toBe(true);
-  expect(label.collisions).toBe(0);
-  expect(boxesOverlap(label.box, obstacle)).toBe(false);
-  expect(label.box.x + label.box.width).toBeLessThanOrEqual(197);
-  expect(layoutAngleLabels([input], point, 200, [{ x: 0, y: 0, width: 200, height: 200 }], 3)[0].collisions).toBe(1);
-});
-
-
 test('multi-chart frames keep qualified identities and missing angles are not invented from cusps', () => {
   const p = { ...preset, angleOverlay: { enabled: true, labels: 'inner' as const } };
   const withoutAngles = { ...fixture, celestial: { ...fixture.celestial, nodes: fixture.celestial.nodes.filter(n => n.node_type !== 'angle') } };
@@ -64,4 +50,31 @@ test('glyph presentation remains the default when the extension is absent', () =
   act(() => { view = create(<Probe />); });
   expect([...layout.planetLayouts.values()].flat().filter(p => isAxisAngle(p.placement.bodyId))).toHaveLength(4);
   act(() => view.unmount());
+});
+
+test('fixed angles keep exact longitude and planets move around their reserved footprint', () => {
+  const { fixedAngleMarkers, avoidFixedAngles } = require('../../geometry/fixedAngles');
+  const config = buildConfiguration(fixture, { ...preset, angleOverlay: { enabled: true, labels: 'inner' } });
+  let layout!: WheelLayout;
+  function Probe() { layout = useWheelLayout(config, 400); return null; }
+  let view!: ReturnType<typeof create>;
+  act(() => { view = create(<Probe />); });
+  for (const marker of fixedAngleMarkers(config, layout)) {
+    expect(marker.center).toEqual(layout.coordinates.pointForDegree(marker.longitude, marker.inner + 12 * layout.displayScale));
+  }
+  act(() => view.unmount());
+  const point = { x: 100, y: 0 };
+  const position = { placement: { id: 'sun', longitude: 0, windowLo: -30, windowHi: 30 }, originalPosition: point, adjustedPosition: point,
+    connectionEndpoint: point, farSideConnectionEndpoint: { x: 85, y: 0 }, degreeMarkPosition: { x: 110, y: 0 }, degreeMarkMirrorPosition: { x: 70, y: 0 }, needsConnectionLine: false };
+  const obstacle = { x: 80, y: -12, width: 30, height: 24 };
+  const result = avoidFixedAngles([position], [obstacle], { x: 0, y: 0 }, 5);
+  expect(result.unresolved).toEqual([]);
+  expect(result.positions[0].adjustedPosition).not.toEqual(point);
+  expect(Math.abs(result.positions[0].adjustedPosition.y)).toBeGreaterThan(17);
+  expect(result.positions[0].degreeMarkPosition).toEqual(position.degreeMarkPosition);
+  expect(result.positions[0].originalPosition).toEqual(point);
+  expect(Math.hypot(result.positions[0].adjustedPosition.x, result.positions[0].adjustedPosition.y)).toBeCloseTo(100);
+  const blocked = avoidFixedAngles([{ ...position, placement: { ...position.placement, windowLo: 0, windowHi: 0 } }], [obstacle], { x: 0, y: 0 }, 5);
+  expect(blocked.unresolved).toEqual(['sun']);
+  expect(blocked.positions[0]).toEqual({ ...position, placement: { ...position.placement, windowLo: 0, windowHi: 0 } });
 });

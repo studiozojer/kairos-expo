@@ -1,3 +1,4 @@
+import { fixedAngleMarkers, avoidFixedAngles } from '../geometry/fixedAngles';
 import { isAxisAngle } from '../schema/angle-overlay';
 /**
  * useWheelLayout — ALL wheel layout math, memoized. Ring components only draw.
@@ -73,6 +74,7 @@ function toPlanetRenderPlacement(p: Placement): PlanetRenderPlacement {
 export type PlanetRingLayout = (PlanetLayoutPosition & { placement: PlanetRenderPlacement })[];
 
 export interface WheelLayout {
+  unresolvedAngleCollisions?: string[];
   feasible?: boolean;
   /** Canvas size in points (the canvas is square: size × size). */
   size: number;
@@ -161,6 +163,18 @@ export function useWheelLayout(config: ChartRenderingConfiguration, size: number
       planetLayouts.set(ringIndex, coordinator.calculateLayout() as PlanetRingLayout);
     });
 
+    const markers = fixedAngleMarkers(config, { rings, geometry, coordinates, displayScale });
+    const unresolvedAngleCollisions: string[] = [];
+    if (global.overlapPrevention.enabled && markers.length) {
+      for (const [index, positions] of planetLayouts) {
+        const style = rings[index].style;
+        const padding = ('glyphSize' in style ? style.glyphSize / 2 : 10 * displayScale) + 2 * displayScale;
+        const avoided = avoidFixedAngles(positions, markers.map(m => m.box), coordinates.center, padding);
+        planetLayouts.set(index, avoided.positions);
+        unresolvedAngleCollisions.push(...avoided.unresolved);
+      }
+    }
+
     const starLayouts = new Map<number, StarMarker[]>();
     if (feasible) rings.forEach((ring,index) => {
       if (ring.type.kind !== 'fixedStars') return;
@@ -171,6 +185,7 @@ export function useWheelLayout(config: ChartRenderingConfiguration, size: number
       starLayouts.set(index, fixedStarMarkers(ring.type.placements, geometry.midRadiusForRing(index), footprint + 4 * displayScale, ring.id ?? String(index)));
     });
     return {
+      unresolvedAngleCollisions,
       starLayouts,
       feasible,
       size,
