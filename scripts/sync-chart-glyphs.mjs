@@ -162,3 +162,6 @@ console.log(
 for (const [group, count] of Object.entries(counts)) {
   console.log(`  ${group}: ${count}`);
 }
+
+// Compile the same committed artwork for the web-only vector renderer.
+execFileSync('python3', [join(HERE, 'generate-glyph-vectors.py')], { stdio: 'inherit' });
