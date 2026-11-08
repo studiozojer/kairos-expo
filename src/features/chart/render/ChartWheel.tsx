@@ -1,3 +1,4 @@
+import { AngleOverlay } from './AngleOverlay';
 import { Text, View } from "react-native";
 import { FixedStarsRing } from "./rings/FixedStarsRing";
 import { RulerSegmentsRing } from "./rings/RulerSegmentsRing";
@@ -151,5 +152,6 @@ export function ChartWheelDrawing({ config, layout, selection }: { config: Chart
         ChartWheelRenderer.swift: rings, then overlays). */}
     <PatternOverlay config={config} layout={layout} selectedIdentifiers={selection?.selected} />
     <AspectOverlay config={config} layout={layout} selectedIdentifiers={selection?.selectedBodies} />
+    <AngleOverlay config={config} layout={layout} />
   </Group>;
 }

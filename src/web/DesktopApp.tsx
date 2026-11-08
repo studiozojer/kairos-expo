@@ -30,6 +30,7 @@ function DesktopCharts() {
   const [selectedId, setSelectedId] = useState('now');
   const [search, setSearch] = useState('');
   const [preset, setPreset] = useState('classic');
+  const [angles, setAngles] = useState<'glyphs' | 'inner' | 'zodiac' | 'outside'>('glyphs');
   const [now, setNow] = useState(() => new Date().toISOString());
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
@@ -68,8 +69,8 @@ function DesktopCharts() {
   const config = useMemo(() => {
     if (!chart) return null;
     const display = bundledPreset(preset)!.preset;
-    return buildConfiguration(chart, { ...display, aspects: { ...display.aspects, showPatterns: false } }, 'ascendant');
-  }, [chart, preset]);
+    return buildConfiguration(chart, { ...display, angleOverlay: { enabled: angles !== 'glyphs', labels: angles === 'glyphs' ? 'outside' : angles }, aspects: { ...display.aspects, showPatterns: false } }, 'ascendant');
+  }, [chart, preset, angles]);
   const filtered = useMemo(() => charts.filter(item => `${item.name} ${item.settings.location.name}`.toLocaleLowerCase().includes(search.toLocaleLowerCase())), [charts, search]);
   const style = {
     '--bg': theme.color.bgSolidBase, '--panel': theme.color.bgSolidCard,
@@ -116,7 +117,7 @@ function DesktopCharts() {
     </aside>
     <main className="workspace">
       <header className="workspace-header"><div><div className="mono eyebrow">{selected ? 'SAVED CHART' : 'LIVE SKY'}</div><h1>{selected?.name ?? 'The sky now'}</h1><p>{settings.location.name} · {new Intl.DateTimeFormat(undefined, { dateStyle: 'long', timeStyle: 'short', timeZone: settings.location.timezone }).format(new Date(datetime))} <span className="timezone">{settings.location.timezone}</span></p></div>
-        <div className="view-controls"><label>Appearance<select aria-label="Appearance" value={appearance?.mode ?? 'auto'} onChange={event => appearance?.setMode(event.target.value as 'auto' | 'dark' | 'light')}><option value="auto">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label><label>Wheel style<select aria-label="Wheel style" value={preset} onChange={event => setPreset(event.target.value)}>{BUNDLED_PRESET_NAMES.map(name => <option key={name} value={name}>{name[0].toUpperCase() + name.slice(1)}</option>)}</select></label></div>
+        <div className="view-controls"><label>Angles<select aria-label="Angles" value={angles} onChange={event => setAngles(event.target.value as typeof angles)}><option value="glyphs">Planet glyphs</option><option value="inner">Lines · inner labels</option><option value="zodiac">Lines · zodiac labels</option><option value="outside">Lines · outside labels</option></select></label><label>Appearance<select aria-label="Appearance" value={appearance?.mode ?? 'auto'} onChange={event => appearance?.setMode(event.target.value as 'auto' | 'dark' | 'light')}><option value="auto">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label><label>Wheel style<select aria-label="Wheel style" value={preset} onChange={event => setPreset(event.target.value)}>{BUNDLED_PRESET_NAMES.map(name => <option key={name} value={name}>{name[0].toUpperCase() + name.slice(1)}</option>)}</select></label></div>
       </header>
       {status && <div role="status" className="notice">{status}</div>}
       {error && <div role="alert" className="notice error">{error}</div>}

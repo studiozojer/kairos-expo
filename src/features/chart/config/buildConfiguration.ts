@@ -1,3 +1,4 @@
+import { isAxisAngle } from '../schema/angle-overlay';
 /**
  * Build render-ready configurations from engine snapshots and a parsed preset.
  * buildConfiguration preserves the raw-ID solo preview API;
@@ -292,6 +293,10 @@ function buildCharts(charts: RenderChart[], preset: Preset, qualified: boolean, 
   }
   return {
     ...(qualified ? { chartCount: charts.length, referenceInstanceId: charts[0]?.instanceId } : {}),
+    ...(preset.angleOverlay ? { angleOverlay: preset.angleOverlay, angleFrames: sources.map((source, index) => ({
+      chartInstanceId: qualified ? source.instanceId : undefined, ringNumber: index + 1,
+      placements: source.placements.filter(p => isAxisAngle(p.bodyId)),
+    })) } : {}),
     rings,
     houseCusps,
     orientation,

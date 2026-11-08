@@ -1,3 +1,4 @@
+import type { AngleOverlayConfiguration } from '../schema/angle-overlay';
 /**
  * ChartRenderingConfiguration — the render-ready configuration consumed by the
  * chart wheel renderer (Task 8+). Everything pre-filtered, pre-resolved, pure
@@ -64,6 +65,9 @@ export interface RingConfiguration {
 }
 
 export interface ChartRenderingConfiguration {
+  angleOverlay?: AngleOverlayConfiguration;
+  /** Angle data is independent of house cusps and glyph visibility. */
+  angleFrames?: { chartInstanceId?: string; ringNumber: number; placements: Placement[] }[];
   /** Number of active chart instances, independent of visible body count. */
   chartCount?: number;
   referenceInstanceId?: string;

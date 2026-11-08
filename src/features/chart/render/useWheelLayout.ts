@@ -1,3 +1,4 @@
+import { isAxisAngle } from '../schema/angle-overlay';
 /**
  * useWheelLayout — ALL wheel layout math, memoized. Ring components only draw.
  *
@@ -123,7 +124,7 @@ export function useWheelLayout(config: ChartRenderingConfiguration, size: number
     // (RingGeometryBuilder.swift) — pass [].
     const ringThicknesses = RingGeometryBuilder.calculateRingThicknesses(size, rings, [], global);
 
-    const outerRadius = size / 2 - global.margin;
+    const outerRadius = size / 2 - Math.max(global.margin, config.angleOverlay?.enabled && config.angleOverlay.labels === 'outside' ? 45 * displayScale : 0);
     const geometry = new RingGeometry(outerRadius, ringThicknesses, global.ringGap);
     const coordinates = new ChartCoordinateSystem(
       { x: size / 2, y: size / 2 },
@@ -136,7 +137,7 @@ export function useWheelLayout(config: ChartRenderingConfiguration, size: number
       if (!feasible || ring.type.kind !== "planets") return;
       const style =
         ring.style.$type === PLANETS_STYLE_TYPE ? ring.style : PLANETS_RING_STYLE_DEFAULT;
-      const placements = ring.type.placements.map(toPlanetRenderPlacement);
+      const placements = ring.type.placements.filter(p => !config.angleOverlay?.enabled || !isAxisAngle(p.bodyId)).map(toPlanetRenderPlacement);
       // Swift: `Set(placements.compactMap { $0.celestialBody })` — derived
       // from the SAME (already preset-filtered) placement list passed in.
       const visibleBodies = new Set(placements.map((p) => p.body));
