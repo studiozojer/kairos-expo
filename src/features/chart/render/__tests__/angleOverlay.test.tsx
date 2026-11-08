@@ -78,3 +78,30 @@ test('fixed angles keep exact longitude and planets move around their reserved f
   expect(blocked.unresolved).toEqual(['sun']);
   expect(blocked.positions[0]).toEqual({ ...position, placement: { ...position.placement, windowLo: 0, windowHi: 0 } });
 });
+
+test.each(['inner', 'zodiac'] as const)('%s annotations inherit independent degree/minute flags and reserve fixed space', labels => {
+  const { fixedAngleMarkers } = require('../../geometry/fixedAngles');
+  let fixedCenter: { x: number; y: number } | undefined;
+  for (const [degrees, minutes] of [[false, false], [true, false], [false, true], [true, true]]) {
+    const config = buildConfiguration(fixture, { ...preset, angleOverlay: { enabled: true, labels } });
+    config.rings = config.rings.map(r => r.style.$type === 'solar.kairos.preset.ring.style.planets' ? { ...r, style: { ...r.style, showDegreeText: degrees, showMinuteText: minutes } } : r);
+    let markers: ReturnType<typeof fixedAngleMarkers>;
+    let layout!: WheelLayout;
+    function Probe() { layout = useWheelLayout(config, 400); markers = fixedAngleMarkers(config, layout); return null; }
+    let view!: ReturnType<typeof create>;
+    act(() => { view = create(<Probe />); });
+    const marker = markers![0];
+    fixedCenter ??= marker.center;
+    expect(marker.center).toEqual(fixedCenter);
+    expect(marker.annotations).toHaveLength(Number(degrees) + Number(minutes));
+    const glyphRadius = Math.hypot(marker.center.x - 200, marker.center.y - 200);
+    for (const annotation of marker.annotations) {
+      const radius = Math.hypot(annotation.center.x - 200, annotation.center.y - 200);
+      if (labels === 'inner') expect(radius).toBeGreaterThan(glyphRadius);
+      else expect(radius).toBeLessThan(glyphRadius);
+      expect(annotation.center.x).toBeGreaterThanOrEqual(marker.box.x);
+      expect(annotation.center.x).toBeLessThanOrEqual(marker.box.x + marker.box.width);
+    }
+    act(() => view.unmount());
+  }
+});

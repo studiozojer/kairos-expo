@@ -13,6 +13,8 @@ if(process.env.KAIROS_STRESS) await page.route('**/local/calculate', async route
   await route.fulfill({response,json:chart});
 });
 await page.goto(process.env.KAIROS_URL || 'http://127.0.0.1:8765');await page.locator('canvas').waitFor();
+if(process.env.KAIROS_ANNOTATIONS) await page.getByLabel('Annotations',{exact:true}).selectOption(process.env.KAIROS_ANNOTATIONS);
+if(process.env.KAIROS_STYLE) await page.getByLabel('Wheel style').selectOption(process.env.KAIROS_STYLE);
 if(await page.locator('[role=alert]').count()) throw Error('Chart failed');await page.waitForTimeout(1000);
 for(const mode of ['glyphs','inner','zodiac','outside']){await page.getByLabel('Angles',{exact:true}).selectOption(mode);await page.waitForTimeout(500);await page.locator('.workspace').screenshot({path:`${dir}/${name}-${mode}.png`});}
 await page.close();}await browser.close()})();

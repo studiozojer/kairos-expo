@@ -1,3 +1,5 @@
+import { PLANETS_STYLE_TYPE, PLANETS_RING_STYLE_DEFAULT } from '../schema/ring-styles';
+import { degreesInSign, minutesInSign } from '../config/engine-types';
 import type { ChartRenderingConfiguration } from '../config/ChartRenderingConfiguration';
 import type { WheelLayout, PlanetRingLayout } from '../render/useWheelLayout';
 import type { GlyphName } from '../render/glyph-map.gen';
@@ -11,14 +13,43 @@ export function fixedAngleMarkers(config: ChartRenderingConfiguration, layout: P
     const index = rings.findIndex(r => r.type.kind === 'planets' && r.type.ringNumber === frame.ringNumber);
     if (index < 0) return [];
     const inner = geometry.innerRadiusForRing(index), outer = geometry.radiusForRing(index);
-    const mode = config.angleOverlay!.labels;
+    const style = rings[index].style.$type === PLANETS_STYLE_TYPE ? rings[index].style : PLANETS_RING_STYLE_DEFAULT;
+    const requestedMode = config.angleOverlay!.labels;
+    const mode = requestedMode === 'zodiac' && zodiac < 0 ? 'inner' : requestedMode;
     const radius = mode === 'outside' ? geometry.radiusForRing(0) + 12 * scale
       : mode === 'zodiac' && zodiac >= 0 ? geometry.midRadiusForRing(zodiac) : inner + 12 * scale;
     return frame.placements.filter(p => Number.isFinite(p.longitude)).map(p => {
       const center = coordinates.pointForDegree(p.longitude, radius);
-      return { id: `${frame.ringNumber}-${p.id}`, longitude: p.longitude, inner, outer, center,
+      const direction = mode === 'inner' ? 1 : -1;
+      const radians = coordinates.zodiacToCanvasAngle(p.longitude) * Math.PI / 180;
+      const ux = Math.abs(Math.cos(radians)), uy = Math.abs(Math.sin(radians));
+      let cursor = 9 * scale;
+      if (mode === 'zodiac' && zodiac >= 0) cursor = Math.max(cursor, radius - geometry.innerRadiusForRing(zodiac) + 2 * scale);
+      const values = [
+        ...(style.showDegreeText ? [{ text: `${degreesInSign(p.longitude)}°`, size: style.degreeTextFontSize }] : []),
+        ...(style.showMinuteText ? [{ text: `${String(minutesInSign(p.longitude)).padStart(2, '0')}'`, size: style.degreeTextFontSize * 0.8 }] : []),
+      ];
+      const boxes: LabelBox[] = [{ x: center.x - 10 * scale, y: center.y - 10 * scale, width: 20 * scale, height: 20 * scale }];
+      const annotations = values.map(value => {
+        // Fraktion Mono advances are below 0.7 em. Reserve the projected
+        // upright text box along the spoke, including horizontal stacks.
+        const width = value.text.length * value.size * 0.7 + 2 * scale;
+        const height = value.size * 1.2 + 2 * scale;
+        const halfExtent = (ux * width + uy * height) / 2;
+        cursor += Math.max(2 * scale, style.degreeTextLineSpacing) + halfExtent;
+        const position = coordinates.pointForDegree(p.longitude, radius + direction * cursor);
+        cursor += halfExtent;
+        boxes.push({ x: position.x - width / 2, y: position.y - height / 2, width, height });
+        return { ...value, center: position };
+      });
+      const left = Math.min(...boxes.map(b => b.x)), top = Math.min(...boxes.map(b => b.y));
+      return { id: `${frame.ringNumber}-${p.id}`, longitude: p.longitude, inner, outer, center, annotations,
+        textColor: style.degreeTextColor,
+        strokeInner: mode === 'inner' ? radius + cursor + 2 * scale : inner,
+        strokeOuter: mode === 'inner' ? outer : Math.min(outer, radius - cursor - 2 * scale),
         glyph: `celestials/${p.glyphAsset}` as GlyphName,
-        box: { x: center.x - 10 * scale, y: center.y - 10 * scale, width: 20 * scale, height: 20 * scale } };
+        box: { x: left, y: top, width: Math.max(...boxes.map(b => b.x + b.width)) - left, height: Math.max(...boxes.map(b => b.y + b.height)) - top } };
+
     });
   });
 }
