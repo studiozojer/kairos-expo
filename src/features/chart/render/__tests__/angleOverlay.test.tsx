@@ -1,6 +1,6 @@
 import React from 'react';
 import { act, create } from 'react-test-renderer';
-import { buildConfiguration } from '../../config/buildConfiguration';
+import { buildConfiguration, buildMultiConfiguration } from '../../config/buildConfiguration';
 import fixture from '../../fixtures/engine/seattle-2026.json';
 import { bundledPreset } from '../../display/presets';
 import { parsePreset, serializePreset } from '../../schema/preset';
@@ -44,4 +44,24 @@ test('bounded search avoids an obstacle and canvas clipping; impossible placemen
   expect(boxesOverlap(label.box, obstacle)).toBe(false);
   expect(label.box.x + label.box.width).toBeLessThanOrEqual(197);
   expect(layoutAngleLabels([input], point, 200, [{ x: 0, y: 0, width: 200, height: 200 }], 3)[0].collisions).toBe(1);
+});
+
+
+test('multi-chart frames keep qualified identities and missing angles are not invented from cusps', () => {
+  const p = { ...preset, angleOverlay: { enabled: true, labels: 'inner' as const } };
+  const withoutAngles = { ...fixture, celestial: { ...fixture.celestial, nodes: fixture.celestial.nodes.filter(n => n.node_type !== 'angle') } };
+  const config = buildMultiConfiguration([{ instanceId: 'natal', chart: fixture }, { instanceId: 'transit', chart: withoutAngles }], p);
+  expect(config.angleFrames![0].chartInstanceId).toBe('natal');
+  expect(config.angleFrames![0].placements.every(p => p.chartInstanceId === 'natal')).toBe(true);
+  expect(config.angleFrames![1].placements).toEqual([]);
+});
+
+test('glyph presentation remains the default when the extension is absent', () => {
+  const config = buildConfiguration(fixture, preset);
+  let layout!: WheelLayout;
+  function Probe() { layout = useWheelLayout(config, 334); return null; }
+  let view!: ReturnType<typeof create>;
+  act(() => { view = create(<Probe />); });
+  expect([...layout.planetLayouts.values()].flat().filter(p => isAxisAngle(p.placement.bodyId))).toHaveLength(4);
+  act(() => view.unmount());
 });

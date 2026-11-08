@@ -12,4 +12,4 @@ export function parseAngleOverlay(value: unknown): AngleOverlayConfiguration {
 export const ANGLE_NAMES: Readonly<Record<string, string>> = {
   ascendant: 'ASC', descendant: 'DSC', midheaven: 'MC', imumCoeli: 'IC',
 };
-export const isAxisAngle = (bodyId: string) => bodyId in ANGLE_NAMES;
+export const isAxisAngle = (bodyId: string) => Object.prototype.hasOwnProperty.call(ANGLE_NAMES, bodyId);

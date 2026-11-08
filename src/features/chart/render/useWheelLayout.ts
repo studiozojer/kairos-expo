@@ -110,7 +110,11 @@ export interface WheelLayout {
 
 export function useWheelLayout(config: ChartRenderingConfiguration, size: number): WheelLayout {
   return useMemo(() => {
-    const displayScale = DisplayScaleProvider.scale(size);
+    const baseScale = DisplayScaleProvider.scale(size);
+    // A gutter scales the entire wheel's typography and fixed bands together,
+    // rather than squeezing only its auto-sized planet band.
+    const outside = config.angleOverlay?.enabled && config.angleOverlay.labels === 'outside';
+    const displayScale = outside ? baseScale * Math.max(0.5, (size - 96 * baseScale) / size) : baseScale;
 
     const rings = config.rings.map((ring) => ({
       ...ring,

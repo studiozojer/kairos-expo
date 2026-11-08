@@ -1,0 +1,173 @@
+{
+  "rows": [
+    {
+      "style": "classic",
+      "mode": "glyphs",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "classic",
+      "mode": "inner",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "classic",
+      "mode": "zodiac",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "classic",
+      "mode": "outside",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "minimal",
+      "mode": "glyphs",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "minimal",
+      "mode": "inner",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "minimal",
+      "mode": "zodiac",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "minimal",
+      "mode": "outside",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "modern",
+      "mode": "glyphs",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "modern",
+      "mode": "inner",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "modern",
+      "mode": "zodiac",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "modern",
+      "mode": "outside",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "starfield",
+      "mode": "glyphs",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "starfield",
+      "mode": "inner",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "starfield",
+      "mode": "zodiac",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "starfield",
+      "mode": "outside",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "study",
+      "mode": "glyphs",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "study",
+      "mode": "inner",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "study",
+      "mode": "zodiac",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "study",
+      "mode": "outside",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "traditional",
+      "mode": "glyphs",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "traditional",
+      "mode": "inner",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "traditional",
+      "mode": "zodiac",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "traditional",
+      "mode": "outside",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "transits",
+      "mode": "glyphs",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "transits",
+      "mode": "inner",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "transits",
+      "mode": "zodiac",
+      "canvas": 1,
+      "alert": []
+    },
+    {
+      "style": "transits",
+      "mode": "outside",
+      "canvas": 1,
+      "alert": []
+    }
+  ],
+  "errors": []
+}
