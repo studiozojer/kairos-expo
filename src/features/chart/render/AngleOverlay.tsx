@@ -15,9 +15,8 @@ export function AngleOverlay({ config, layout }: { config: ChartRenderingConfigu
   const labels = useMemo(() => fixedAngleMarkers(config, layout), [config, layout]);
   if (!config.angleOverlay?.enabled) return null;
   return <Group>{labels.map(label => {
-    const { coordinates } = layout;
     const path = Skia.PathBuilder.Make();
-    const from = coordinates.pointForDegree(label.longitude, Math.min(label.strokeInner, label.outer)), to = coordinates.pointForDegree(label.longitude, Math.max(label.strokeOuter, label.inner));
+    const from = label.strokeStart, to = label.strokeEnd;
     path.moveTo(from.x, from.y); path.lineTo(to.x, to.y);
     return <Group key={label.id}>
       <Path path={path.build()} color={theme.color.icDisabled} style="stroke" strokeWidth={2 * scale} />

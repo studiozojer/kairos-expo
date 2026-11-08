@@ -1,9 +1,35 @@
 import { PLANETS_STYLE_TYPE, PLANETS_RING_STYLE_DEFAULT } from '../schema/ring-styles';
+import { DegreeTextStack } from './DegreeTextStack';
+import type { PlanetsRingStyle } from '../schema/ring-styles';
 import { degreesInSign, minutesInSign } from '../config/engine-types';
 import type { ChartRenderingConfiguration } from '../config/ChartRenderingConfiguration';
 import type { WheelLayout, PlanetRingLayout } from '../render/useWheelLayout';
 import type { GlyphName } from '../render/glyph-map.gen';
 import { boxesOverlap, type LabelBox } from './angleLabels';
+
+
+export type FixedAngleObstacle = LabelBox | { from: { x: number; y: number }; to: { x: number; y: number }; padding: number };
+
+/** Segment against an expanded rectangle: narrow diagonal strokes must not
+ * reserve their entire bounding rectangle. Padding includes stroke half-width. */
+export function intersectsFixedObstacle(box: LabelBox, obstacle: FixedAngleObstacle): boolean {
+  if (!('from' in obstacle)) return boxesOverlap(box, obstacle);
+  let enter = 0, leave = 1;
+  for (const axis of ['x', 'y'] as const) {
+    const min = box[axis] - obstacle.padding;
+    const max = box[axis] + (axis === 'x' ? box.width : box.height) + obstacle.padding;
+    const start = obstacle.from[axis], delta = obstacle.to[axis] - start;
+    if (Math.abs(delta) < 1e-9) { if (start < min || start > max) return false; continue; }
+    const a = (min - start) / delta, b = (max - start) / delta;
+    enter = Math.max(enter, Math.min(a, b)); leave = Math.min(leave, Math.max(a, b));
+    if (enter > leave) return false;
+  }
+  return true;
+}
+
+export function fixedAngleObstacles(markers: ReturnType<typeof fixedAngleMarkers>, scale: number): FixedAngleObstacle[] {
+  return markers.flatMap(marker => [marker.box, { from: marker.strokeStart, to: marker.strokeEnd, padding: 2 * scale }]);
+}
 
 export function fixedAngleMarkers(config: ChartRenderingConfiguration, layout: Pick<WheelLayout, 'rings' | 'geometry' | 'coordinates' | 'displayScale'>) {
   if (!config.angleOverlay?.enabled) return [];
@@ -43,10 +69,10 @@ export function fixedAngleMarkers(config: ChartRenderingConfiguration, layout: P
         return { ...value, center: position };
       });
       const left = Math.min(...boxes.map(b => b.x)), top = Math.min(...boxes.map(b => b.y));
-      return { id: `${frame.ringNumber}-${p.id}`, longitude: p.longitude, inner, outer, center, annotations,
+      const strokeInner = Math.min(mode === 'inner' ? radius + cursor + 2 * scale : inner, outer);
+      const strokeOuter = Math.max(mode === 'inner' ? outer : Math.min(outer, radius - cursor - 2 * scale), inner);
+      return { strokeStart: coordinates.pointForDegree(p.longitude, strokeInner), strokeEnd: coordinates.pointForDegree(p.longitude, strokeOuter), id: `${frame.ringNumber}-${p.id}`, longitude: p.longitude, inner, outer, center, annotations,
         textColor: style.degreeTextColor,
-        strokeInner: mode === 'inner' ? radius + cursor + 2 * scale : inner,
-        strokeOuter: mode === 'inner' ? outer : Math.min(outer, radius - cursor - 2 * scale),
         glyph: `celestials/${p.glyphAsset}` as GlyphName,
         box: { x: left, y: top, width: Math.max(...boxes.map(b => b.x + b.width)) - left, height: Math.max(...boxes.map(b => b.y + b.height)) - top } };
 
@@ -57,7 +83,7 @@ export function fixedAngleMarkers(config: ChartRenderingConfiguration, layout: P
 /** Reserve immutable angle footprints after ordinary planet spacing. Search only
  * within each body's authored house/sign window; preserve astronomical ticks.
  * If no free candidate exists, retain the placement and report its ID. */
-export function avoidFixedAngles(positions: PlanetRingLayout, obstacles: LabelBox[], center: { x: number; y: number }, padding: number) {
+export function avoidFixedAngles(positions: PlanetRingLayout, obstacles: FixedAngleObstacle[], center: { x: number; y: number }, padding: number, style?: PlanetsRingStyle) {
   const result = [...positions];
   const unresolved: string[] = [];
   const bounds = (p: PlanetRingLayout[number]): LabelBox => {
@@ -66,16 +92,47 @@ export function avoidFixedAngles(positions: PlanetRingLayout, obstacles: LabelBo
     return { x: Math.min(...xs) - padding, y: Math.min(...ys) - padding,
       width: Math.max(...xs) - Math.min(...xs) + 2 * padding, height: Math.max(...ys) - Math.min(...ys) + 2 * padding };
   };
-  for (let i = 0; i < result.length; i++) {
+  const footprints = (p: PlanetRingLayout[number]): LabelBox[] => {
+    if (!style) return [bounds(p)];
+    const glyphSize = style.useGlyphs ? style.glyphSize : style.circleRadius * 2;
+    const gap = Math.max(0, padding - style.glyphSize / 2);
+    const box = (x: number, y: number, width: number, height: number) => ({
+      x: x - width / 2 - gap, y: y - height / 2 - gap, width: width + 2 * gap, height: height + 2 * gap,
+    });
+    const { x, y } = p.adjustedPosition;
+    const radius = Math.hypot(x - center.x, y - center.y) || 1;
+    const direction = style.invertGlyphOrder !== style.anchorFromInnerEdge ? 1 : -1;
+    return [box(x, y, glyphSize, glyphSize), ...DegreeTextStack.stackElements(style, p.placement.isRetrograde).map(element => {
+      const isText = element.kind === 'degrees' || element.kind === 'minutes';
+      const text = element.kind === 'degrees' ? `${degreesInSign(p.placement.longitude)}°` : `${String(minutesInSign(p.placement.longitude)).padStart(2, '0')}'`;
+      return box(x + direction * (x - center.x) / radius * element.centerOffset,
+        y + direction * (y - center.y) / radius * element.centerOffset,
+        isText ? text.length * element.size * 0.7 : element.size,
+        isText ? element.size * 1.2 : element.size);
+    })];
+  };
+  const hitsObstacle = (p: PlanetRingLayout[number]) => footprints(p).some(box => obstacles.some(o => intersectsFixedObstacle(box, o)));
+  const stacksOverlap = (a: PlanetRingLayout[number], b: PlanetRingLayout[number]) =>
+    footprints(a).some(box => footprints(b).some(other => boxesOverlap(box, other)));
+  // Resolve in zodiac order, allowing a displaced body to push later neighbors
+  // instead of treating every still-unresolved neighbor as immovable.
+  const order = result.map((_, index) => index).sort((a, b) =>
+    ((result[a].placement.longitude % 360 + 360) % 360) - ((result[b].placement.longitude % 360 + 360) % 360));
+  const accepted = new Set<number>();
+  for (const i of order) {
     const current = result[i];
-    if (!obstacles.some(o => boxesOverlap(bounds(current), o))) continue;
+    if (!hitsObstacle(current) &&
+      !result.some((other, j) => accepted.has(j) && stacksOverlap(current, other))) {
+      accepted.add(i); continue;
+    }
     const baseAngle = Math.atan2(current.adjustedPosition.y - center.y, current.adjustedPosition.x - center.x);
     const trueAngle = Math.atan2(current.originalPosition.y - center.y, current.originalPosition.x - center.x);
     const adjustedLongitude = current.placement.longitude - (baseAngle - trueAngle) * 180 / Math.PI;
     let found = false;
-    for (let step = 1; step <= 360 && !found; step++) for (const direction of [1, -1]) {
-      const delta = direction * step * 0.5;
-      const degree = ((adjustedLongitude + delta) % 360 + 360) % 360;
+    for (let step = 0; step <= 360 && !found; step++) for (const direction of [1, -1]) {
+      const offset = direction * step * 0.5;
+      const delta = current.placement.longitude + offset - adjustedLongitude;
+      const degree = ((current.placement.longitude + offset) % 360 + 360) % 360;
       const { windowLo, windowHi } = current.placement;
       if (windowLo !== undefined && windowHi !== undefined) {
         const unwrapped = degree + 360 * Math.ceil((windowLo - degree) / 360);
@@ -88,11 +145,11 @@ export function avoidFixedAngles(positions: PlanetRingLayout, obstacles: LabelBo
       });
       const candidate = { ...current, adjustedPosition: rotate(current.adjustedPosition),
         connectionEndpoint: rotate(current.connectionEndpoint), farSideConnectionEndpoint: rotate(current.farSideConnectionEndpoint), needsConnectionLine: true };
-      const box = bounds(candidate);
-      if (obstacles.some(o => boxesOverlap(box, o)) || result.some((other, j) => i !== j && boxesOverlap(box, bounds(other)))) continue;
+      if (hitsObstacle(candidate) || result.some((other, j) => accepted.has(j) && stacksOverlap(candidate, other))) continue;
       result[i] = candidate; found = true; break;
     }
     if (!found) unresolved.push(current.placement.id);
+    accepted.add(i);
   }
   return { positions: result, unresolved };
 }

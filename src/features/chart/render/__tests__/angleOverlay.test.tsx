@@ -105,3 +105,47 @@ test.each(['inner', 'zodiac'] as const)('%s annotations inherit independent degr
     act(() => view.unmount());
   }
 });
+
+test('planet stacks avoid the axis stroke even when clear of its annotation', () => {
+  const { avoidFixedAngles, intersectsFixedObstacle } = require('../../geometry/fixedAngles');
+  const point = { x: 100, y: -2 };
+  const planet = { placement: { id: 'neptune', longitude: 1, windowLo: 0, windowHi: 30 }, originalPosition: point, adjustedPosition: point,
+    connectionEndpoint: point, farSideConnectionEndpoint: { x: 80, y: -1.6 }, degreeMarkPosition: { x: 130, y: -2.6 }, degreeMarkMirrorPosition: { x: 60, y: -1.2 }, needsConnectionLine: false };
+  const glyph = { x: 45, y: -8, width: 16, height: 16 };
+  const stroke = { from: { x: 65, y: 0 }, to: { x: 140, y: 0 }, padding: 2 };
+  expect(avoidFixedAngles([planet], [glyph], { x: 0, y: 0 }, 6).positions[0]).toEqual(planet);
+  const avoided = avoidFixedAngles([planet], [glyph, stroke], { x: 0, y: 0 }, 6);
+  expect(avoided.unresolved).toEqual([]);
+  expect(avoided.positions[0].adjustedPosition.y).toBeLessThan(-8);
+  expect(avoided.positions[0].degreeMarkPosition).toEqual(planet.degreeMarkPosition);
+  // A diagonal line must not block unrelated space inside its large AABB.
+  expect(intersectsFixedObstacle({ x: 20, y: 70, width: 8, height: 8 }, { from: { x: 0, y: 0 }, to: { x: 100, y: 100 }, padding: 2 })).toBe(false);
+  expect(intersectsFixedObstacle({ x: 45, y: 45, width: 8, height: 8 }, { from: { x: 0, y: 0 }, to: { x: 100, y: 100 }, padding: 2 })).toBe(true);
+});
+
+test('axis displacement can push a neighboring group instead of freezing Neptune', () => {
+  const { avoidFixedAngles } = require('../../geometry/fixedAngles');
+  const planet = (id: string, degree: number) => {
+    const p = { x: 100 * Math.cos(degree * Math.PI / 180), y: -100 * Math.sin(degree * Math.PI / 180) };
+    return { placement: { id, longitude: degree, windowLo: 0, windowHi: 30 }, originalPosition: p, adjustedPosition: p,
+      connectionEndpoint: p, farSideConnectionEndpoint: p, degreeMarkPosition: p, degreeMarkMirrorPosition: p, needsConnectionLine: false };
+  };
+  const neptune = planet('neptune', 1), neighbor = planet('neighbor', 7);
+  const result = avoidFixedAngles([neighbor, neptune], [{ from: { x: 60, y: 0 }, to: { x: 140, y: 0 }, padding: 2 }], { x: 0, y: 0 }, 6);
+  expect(result.unresolved).toEqual([]);
+  expect(result.positions[1].adjustedPosition.y).toBeLessThan(-8);
+  expect(result.positions[0].adjustedPosition.y).toBeLessThan(result.positions[1].adjustedPosition.y - 12);
+  expect(result.positions.map((p: { placement: { id: string } }) => p.placement.id)).toEqual(['neighbor', 'neptune']);
+});
+
+test('separate diagonal stacks do not repel each other through empty bounding-box corners', () => {
+  const { avoidFixedAngles } = require('../../geometry/fixedAngles');
+  const planet = (longitude: number) => {
+    const point = (radius: number) => ({ x: radius * Math.cos(longitude * Math.PI / 180), y: -radius * Math.sin(longitude * Math.PI / 180) });
+    return { placement: { id: String(longitude), longitude, windowLo: 30, windowHi: 60 },
+      originalPosition: point(100), adjustedPosition: point(100), connectionEndpoint: point(100),
+      farSideConnectionEndpoint: point(50), degreeMarkPosition: point(110), degreeMarkMirrorPosition: point(40), needsConnectionLine: false };
+  };
+  const positions = [planet(40), planet(55)];
+  expect(avoidFixedAngles(positions, [], { x: 0, y: 0 }, 2, { ...require('../../schema/ring-styles').PLANETS_RING_STYLE_DEFAULT, glyphSize: 4, degreeTextFontSize: 2 }).positions).toEqual(positions);
+});

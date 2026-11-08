@@ -1,4 +1,4 @@
-import { fixedAngleMarkers, avoidFixedAngles } from '../geometry/fixedAngles';
+import { fixedAngleMarkers, fixedAngleObstacles, avoidFixedAngles } from '../geometry/fixedAngles';
 import { isAxisAngle } from '../schema/angle-overlay';
 /**
  * useWheelLayout — ALL wheel layout math, memoized. Ring components only draw.
@@ -168,8 +168,8 @@ export function useWheelLayout(config: ChartRenderingConfiguration, size: number
     if (global.overlapPrevention.enabled && markers.length) {
       for (const [index, positions] of planetLayouts) {
         const style = rings[index].style;
-        const padding = ('glyphSize' in style ? style.glyphSize / 2 : 10 * displayScale) + 2 * displayScale;
-        const avoided = avoidFixedAngles(positions, markers.map(m => m.box), coordinates.center, padding);
+        const padding = ('glyphSize' in style ? style.glyphSize / 2 : 10 * displayScale) + 0.5 * displayScale;
+        const avoided = avoidFixedAngles(positions, fixedAngleObstacles(markers, displayScale), coordinates.center, padding, style.$type === PLANETS_STYLE_TYPE ? style : undefined);
         planetLayouts.set(index, avoided.positions);
         unresolvedAngleCollisions.push(...avoided.unresolved);
       }
