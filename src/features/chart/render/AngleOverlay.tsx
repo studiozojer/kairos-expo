@@ -1,21 +1,17 @@
 import React, { useMemo } from 'react';
-import { Group, Path, Rect, Skia, Text } from '@shopify/react-native-skia';
-import { families, fontMap } from '@/theme/fonts.gen';
-import { useRenderFont } from './assets';
+import { Group, Path, Skia } from '@shopify/react-native-skia';
 import { useChartPaintTheme } from './colors';
-import { textWidth } from './textWidth';
-import { ANGLE_NAMES } from '../schema/angle-overlay';
+import { Glyph } from './Glyph';
+import type { GlyphName } from './glyph-map.gen';
 import { layoutAngleLabels, type LabelBox } from '../geometry/angleLabels';
 import type { ChartRenderingConfiguration } from '../config/ChartRenderingConfiguration';
-import { degreesInSign, minutesInSign } from '../config/engine-types';
 import type { WheelLayout } from './useWheelLayout';
 
 export function AngleOverlay({ config, layout }: { config: ChartRenderingConfiguration; layout: WheelLayout }) {
   const theme = useChartPaintTheme();
   const scale = layout.displayScale;
-  const font = useRenderFont(fontMap[families.fraktion.book], 9 * scale);
   const labels = useMemo(() => {
-    if (!config.angleOverlay?.enabled || !font) return [];
+    if (!config.angleOverlay?.enabled) return [];
     const { geometry, coordinates } = layout;
     const zodiacIndex = layout.rings.findIndex(r => r.type.kind === 'zodiacSigns');
     const entries = (config.angleFrames ?? []).flatMap(frame => {
@@ -26,10 +22,10 @@ export function AngleOverlay({ config, layout }: { config: ChartRenderingConfigu
         const mode = config.angleOverlay!.labels;
         const radius = mode === 'outside' ? geometry.radiusForRing(0) + 12 * scale
           : mode === 'zodiac' && zodiacIndex >= 0 ? geometry.midRadiusForRing(zodiacIndex) : inner + 12 * scale;
-        const title = `${ANGLE_NAMES[angle.bodyId]} ${degreesInSign(angle.longitude)}°${String(minutesInSign(angle.longitude)).padStart(2, '0')}'`;
-        const subtitle = angle.signPlacement.toUpperCase();
-        return { id: `${frame.ringNumber}-${angle.id}`, longitude: angle.longitude, radius, title, subtitle, inner, outer,
-          width: Math.max(textWidth(font, title), textWidth(font, subtitle)) + 6 * scale, height: 24 * scale };
+        return { id: `${frame.ringNumber}-${angle.id}`, longitude: angle.longitude, radius, inner, outer,
+          glyph: `celestials/${angle.glyphAsset}` as GlyphName,
+          width: 18 * scale, height: 18 * scale };
+
       });
     });
     // Conservative boxes include each planet's glyph and radial degree stack.
@@ -46,22 +42,16 @@ export function AngleOverlay({ config, layout }: { config: ChartRenderingConfigu
     }
     const resolved = layoutAngleLabels(entries, (degree, radius) => coordinates.pointForDegree(degree, radius), layout.size, obstacles, 3 * scale);
     return entries.map((entry, index) => ({ ...entry, ...resolved[index] }));
-  }, [config.angleOverlay, config.angleFrames, layout, font, scale]);
-  if (!font || !config.angleOverlay?.enabled) return null;
+  }, [config.angleOverlay, config.angleFrames, layout, scale]);
+  if (!config.angleOverlay?.enabled) return null;
   return <Group>{labels.map(label => {
     const { coordinates } = layout;
     const path = Skia.PathBuilder.Make();
-    const from = coordinates.pointForDegree(label.longitude, label.inner), to = coordinates.pointForDegree(label.longitude, label.outer);
+    const from = coordinates.pointForDegree(label.longitude, label.inner + (config.angleOverlay!.labels === 'inner' ? 23 * scale : 0)), to = coordinates.pointForDegree(label.longitude, label.outer);
     path.moveTo(from.x, from.y); path.lineTo(to.x, to.y);
-    const leader = Skia.PathBuilder.Make();
-    const anchor = coordinates.pointForDegree(label.longitude, config.angleOverlay!.labels === 'outside' ? label.outer : label.inner);
-    leader.moveTo(anchor.x, anchor.y); leader.lineTo(label.center.x, label.center.y);
     return <Group key={label.id}>
       <Path path={path.build()} color={theme.color.txPrimary} style="stroke" strokeWidth={2 * scale} />
-      <Path path={leader.build()} color={theme.color.txSecondary} style="stroke" strokeWidth={0.6 * scale} />
-      <Rect {...label.box} color={theme.color.bgSolidBase} />
-      <Text text={label.title} font={font} x={label.center.x - textWidth(font, label.title) / 2} y={label.center.y - 2 * scale} color={theme.color.txPrimary} />
-      <Text text={label.subtitle} font={font} x={label.center.x - textWidth(font, label.subtitle) / 2} y={label.center.y + 9 * scale} color={theme.color.txSecondary} />
+      <Glyph name={label.glyph} size={18 * scale} x={label.center.x} y={label.center.y} color={theme.color.txPrimary} />
     </Group>;
   })}</Group>;
 }
