@@ -17,8 +17,8 @@ if(process.env.KAIROS_STRESS || process.env.KAIROS_AXIS_STRESS || process.env.KA
 });
 await page.goto(process.env.KAIROS_URL || 'http://127.0.0.1:8765');await page.locator('canvas').waitFor();
 if(process.env.KAIROS_DARK) await page.getByLabel('Appearance').selectOption('dark');
-if(process.env.KAIROS_ANNOTATIONS) await page.getByLabel('Annotations',{exact:true}).selectOption(process.env.KAIROS_ANNOTATIONS);
+if(await page.getByLabel('Annotations',{exact:true}).count() || await page.getByLabel('Angles',{exact:true}).count()) throw Error('Evaluation selectors must not be exposed');
 if(process.env.KAIROS_STYLE) await page.getByLabel('Wheel style').selectOption(process.env.KAIROS_STYLE);
 if(await page.locator('[role=alert]').count()) throw Error('Chart failed');await page.waitForTimeout(1000);
-for(const mode of ['glyphs','inner','zodiac','outside']){await page.getByLabel('Angles',{exact:true}).selectOption(mode);await page.waitForTimeout(500);await page.locator('.workspace').screenshot({path:`${dir}/${name}-${mode}.png`});}
+await page.locator('.workspace').screenshot({path:`${dir}/${name}-zodiac.png`});
 await page.close();}await browser.close()})();
