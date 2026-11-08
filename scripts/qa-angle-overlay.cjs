@@ -4,13 +4,13 @@ const dir=process.env.KAIROS_EVIDENCE || '/tmp/kairos-angle-evidence';fs.mkdirSy
 for(const [name,width,height] of [['desktop',1440,1100],['mobile',390,844]]){
 const page=await browser.newPage({viewport:{width,height},deviceScaleFactor:Number(process.env.KAIROS_DPR || 1)});
 await page.addInitScript(()=>{const NativeDate=Date;window.Date=class extends NativeDate{constructor(...args){super(...(args.length?args:['2026-11-08T20:00:00Z']));}static now(){return new NativeDate('2026-11-08T20:00:00Z').getTime();}}});
-if(process.env.KAIROS_STRESS || process.env.KAIROS_AXIS_STRESS) await page.route('**/local/calculate', async route => {
+if(process.env.KAIROS_STRESS || process.env.KAIROS_AXIS_STRESS || process.env.KAIROS_ORDER_STRESS) await page.route('**/local/calculate', async route => {
   const response = await route.fetch(); const chart = await response.json();
-  const longitudes = process.env.KAIROS_AXIS_STRESS ? {2001:359,2003:179,8:1} : {2001: 287, 2002: 289, 2003: 107, 2004: 109};
+  const longitudes = process.env.KAIROS_ORDER_STRESS ? {2001:6.1,2003:186.1,8:1.92} : process.env.KAIROS_AXIS_STRESS ? {2001:359,2003:179,8:1} : {2001: 287, 2002: 289, 2003: 107, 2004: 109};
   for(const node of chart.celestial.nodes) if(longitudes[node.body_id] !== undefined) {
     node.position.longitude=longitudes[node.body_id];
-    node.sign_placement=process.env.KAIROS_AXIS_STRESS ? ({2001:'Pisces',2003:'Virgo',8:'Aries'}[node.body_id]) : (node.position.longitude>180?'Capricorn':'Cancer');
-    if(process.env.KAIROS_AXIS_STRESS) node.house_placement=null;
+    node.sign_placement=process.env.KAIROS_ORDER_STRESS ? ({2001:'Aries',2003:'Libra',8:'Aries'}[node.body_id]) : process.env.KAIROS_AXIS_STRESS ? ({2001:'Pisces',2003:'Virgo',8:'Aries'}[node.body_id]) : (node.position.longitude>180?'Capricorn':'Cancer');
+    if(process.env.KAIROS_AXIS_STRESS || process.env.KAIROS_ORDER_STRESS) node.house_placement=null;
   }
   await route.fulfill({response,json:chart});
 });

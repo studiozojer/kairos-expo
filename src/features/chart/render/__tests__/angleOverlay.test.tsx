@@ -149,3 +149,33 @@ test('separate diagonal stacks do not repel each other through empty bounding-bo
   const positions = [planet(40), planet(55)];
   expect(avoidFixedAngles(positions, [], { x: 0, y: 0 }, 2, { ...require('../../schema/ring-styles').PLANETS_RING_STYLE_DEFAULT, glyphSize: 4, degreeTextFontSize: 2 }).positions).toEqual(positions);
 });
+
+test.each([0, 90, 237])('crowded planets keep their order around ASC across rotations (%s)', rotation => {
+  const { avoidFixedAngles } = require('../../geometry/fixedAngles');
+  for (const shift of [0, 355]) {
+    const center = { x: 200, y: 200 };
+    const point = (degree: number, radius = 100) => ({ x: 200 + radius * Math.cos((rotation - degree) * Math.PI / 180), y: 200 + radius * Math.sin((rotation - degree) * Math.PI / 180) });
+    const planet = (id: string, degree: number, displaced: number) => ({
+      placement: { id, longitude: degree + shift, windowLo: shift, windowHi: shift + 30 },
+      originalPosition: point(degree + shift), adjustedPosition: point(displaced + shift),
+      connectionEndpoint: point(displaced + shift, 80), farSideConnectionEndpoint: point(displaced + shift),
+      degreeMarkPosition: point(degree + shift, 120), degreeMarkMirrorPosition: point(degree + shift, 60), needsConnectionLine: true,
+    });
+    // Upstream spacing has already put both pre-ASC bodies on the wrong side.
+    const positions = [planet('pallas', 5.2, 14), planet('saturn', 8, 20), planet('neptune', 1.9, 10)];
+    const asc = shift + 6.1;
+    const obstacles = [{ from: point(asc, 60), to: point(asc, 140), padding: 2 }];
+    for (const blocked of [false, true]) {
+      const result = avoidFixedAngles(positions, blocked ? [{ x: 0, y: 0, width: 400, height: 400 }] : obstacles, center, 6, undefined, [asc]);
+      const displayed = (index: number) => {
+        const p = result.positions[index].adjustedPosition;
+        return ((rotation - Math.atan2(p.y - 200, p.x - 200) * 180 / Math.PI - shift) % 360 + 360) % 360;
+      };
+      expect(displayed(2)).toBeLessThan(displayed(0));
+      expect(displayed(0)).toBeLessThan(6.1);
+      expect(displayed(1)).toBeGreaterThan(6.1);
+      result.positions.forEach((p: any, i: number) => expect(p.degreeMarkPosition).toEqual(positions[i].degreeMarkPosition));
+      if (blocked) expect(result.unresolved).toHaveLength(3);
+    }
+  }
+});

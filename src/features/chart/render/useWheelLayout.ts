@@ -169,7 +169,7 @@ export function useWheelLayout(config: ChartRenderingConfiguration, size: number
       for (const [index, positions] of planetLayouts) {
         const style = rings[index].style;
         const padding = ('glyphSize' in style ? style.glyphSize / 2 : 10 * displayScale) + 0.5 * displayScale;
-        const avoided = avoidFixedAngles(positions, fixedAngleObstacles(markers, displayScale), coordinates.center, padding, style.$type === PLANETS_STYLE_TYPE ? style : undefined);
+        const avoided = avoidFixedAngles(positions, fixedAngleObstacles(markers, displayScale), coordinates.center, padding, style.$type === PLANETS_STYLE_TYPE ? style : undefined, markers.map(marker => marker.longitude));
         planetLayouts.set(index, avoided.positions);
         unresolvedAngleCollisions.push(...avoided.unresolved);
       }

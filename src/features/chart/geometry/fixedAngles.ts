@@ -82,8 +82,9 @@ export function fixedAngleMarkers(config: ChartRenderingConfiguration, layout: P
 
 /** Reserve immutable angle footprints after ordinary planet spacing. Search only
  * within each body's authored house/sign window; preserve astronomical ticks.
- * If no free candidate exists, retain the placement and report its ID. */
-export function avoidFixedAngles(positions: PlanetRingLayout, obstacles: FixedAngleObstacle[], center: { x: number; y: number }, padding: number, style?: PlanetsRingStyle) {
+ * Ordering takes precedence over clearance. If no free candidate exists,
+ * retain an order-preserving placement and report its ID. */
+export function avoidFixedAngles(positions: PlanetRingLayout, obstacles: FixedAngleObstacle[], center: { x: number; y: number }, padding: number, style?: PlanetsRingStyle, fixedLongitudes: number[] = []) {
   const result = [...positions];
   const unresolved: string[] = [];
   const bounds = (p: PlanetRingLayout[number]): LabelBox => {
@@ -120,7 +121,44 @@ export function avoidFixedAngles(positions: PlanetRingLayout, obstacles: FixedAn
     ((result[a].placement.longitude % 360 + 360) % 360) - ((result[b].placement.longitude % 360 + 360) % 360));
   const accepted = new Set<number>();
   for (const i of order) {
-    const current = result[i];
+    let current = result[i];
+    const longitude = current.placement.longitude;
+    const signed = (degrees: number) => ((degrees + 180) % 360 + 360) % 360 - 180;
+    const displayedOffset = (p: PlanetRingLayout[number]) => signed(-(
+      Math.atan2(p.adjustedPosition.y - center.y, p.adjustedPosition.x - center.x) -
+      Math.atan2(p.originalPosition.y - center.y, p.originalPosition.x - center.x)) * 180 / Math.PI);
+    let lo = -180, hi = 180;
+    const restrict = (other: number, displayed = other) => {
+      const forward = ((other - longitude) % 360 + 360) % 360;
+      if (forward < 1e-8 || 360 - forward < 1e-8) { lo = Math.max(lo, 0); hi = Math.min(hi, 0); return; }
+      const shift = signed(displayed - other);
+      lo = Math.max(lo, forward - 360 + shift + 1e-6);
+      hi = Math.min(hi, forward + shift - 1e-6);
+    };
+    // True neighboring longitudes reserve room for their fallback placements.
+    // Accepted positions additionally prevent overtaking displaced neighbors.
+    positions.forEach((p, j) => { if (j !== i) restrict(p.placement.longitude); });
+    result.forEach((p, j) => { if (accepted.has(j)) restrict(p.placement.longitude, p.placement.longitude + displayedOffset(p)); });
+    fixedLongitudes.forEach(degree => restrict(degree));
+    const withinWindow = (offset: number) => {
+      if (offset < lo || offset > hi) return false;
+      const { windowLo, windowHi } = current.placement;
+      if (windowLo === undefined || windowHi === undefined) return true;
+      const degree = ((longitude + offset) % 360 + 360) % 360;
+      return degree + 360 * Math.ceil((windowLo - degree) / 360) <= windowHi;
+    };
+    // The upstream planet-only layout may already have crossed a fixed angle.
+    // Correct that before searching, so an unsatisfiable layout stays truthful.
+    const initialOffset = displayedOffset(current);
+    if (!withinWindow(initialOffset)) {
+      const radians = initialOffset * Math.PI / 180;
+      const rotate = (p: { x: number; y: number }) => ({
+        x: center.x + (p.x - center.x) * Math.cos(radians) - (p.y - center.y) * Math.sin(radians),
+        y: center.y + (p.x - center.x) * Math.sin(radians) + (p.y - center.y) * Math.cos(radians),
+      });
+      current = { ...current, adjustedPosition: rotate(current.adjustedPosition), connectionEndpoint: rotate(current.connectionEndpoint), farSideConnectionEndpoint: rotate(current.farSideConnectionEndpoint) };
+      result[i] = current;
+    }
     if (!hitsObstacle(current) &&
       !result.some((other, j) => accepted.has(j) && stacksOverlap(current, other))) {
       accepted.add(i); continue;
@@ -132,12 +170,7 @@ export function avoidFixedAngles(positions: PlanetRingLayout, obstacles: FixedAn
     for (let step = 0; step <= 360 && !found; step++) for (const direction of [1, -1]) {
       const offset = direction * step * 0.5;
       const delta = current.placement.longitude + offset - adjustedLongitude;
-      const degree = ((current.placement.longitude + offset) % 360 + 360) % 360;
-      const { windowLo, windowHi } = current.placement;
-      if (windowLo !== undefined && windowHi !== undefined) {
-        const unwrapped = degree + 360 * Math.ceil((windowLo - degree) / 360);
-        if (unwrapped > windowHi) continue;
-      }
+      if (!withinWindow(offset)) continue;
       const radians = -delta * Math.PI / 180;
       const rotate = (p: { x: number; y: number }) => ({
         x: center.x + (p.x - center.x) * Math.cos(radians) - (p.y - center.y) * Math.sin(radians),
