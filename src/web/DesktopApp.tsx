@@ -13,6 +13,8 @@ import { ThemeModeProvider, useThemeMode } from '../theme/theme-context';
 import { fontMap } from '../theme/fonts.gen';
 import './desktop.css';
 
+const WEB_DEFAULT_SETTINGS = { ...DEFAULT_SETTINGS, houseSystem: 'Whole Sign' as const };
+
 const message = (error: unknown) => error instanceof Error ? error.message : String(error);
 
 export function DesktopApp() {
@@ -38,7 +40,7 @@ function DesktopCharts() {
 
   const selected = charts.find(item => item.id === selectedId);
   const datetime = selected?.datetime ?? now;
-  const settings = selected?.settings ?? DEFAULT_SETTINGS;
+  const settings = selected?.settings ?? WEB_DEFAULT_SETTINGS;
   useEffect(() => {
     if (selectedId !== 'now') return;
     const timer = setInterval(() => setNow(new Date().toISOString()), 60000);
@@ -63,7 +65,11 @@ function DesktopCharts() {
     return () => { observer.disconnect(); window.removeEventListener('resize', measure); };
   }, []);
 
-  const config = useMemo(() => chart ? buildConfiguration(chart, bundledPreset(preset)!.preset, 'ascendant') : null, [chart, preset]);
+  const config = useMemo(() => {
+    if (!chart) return null;
+    const display = bundledPreset(preset)!.preset;
+    return buildConfiguration(chart, { ...display, aspects: { ...display.aspects, showPatterns: false } }, 'ascendant');
+  }, [chart, preset]);
   const filtered = useMemo(() => charts.filter(item => `${item.name} ${item.settings.location.name}`.toLocaleLowerCase().includes(search.toLocaleLowerCase())), [charts, search]);
   const style = {
     '--bg': theme.color.bgSolidBase, '--panel': theme.color.bgSolidCard,
