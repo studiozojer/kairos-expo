@@ -1,3 +1,5 @@
+import { fixedAngleMarkers, fixedAngleObstacles, avoidFixedAngles } from '../geometry/fixedAngles';
+import { isAxisAngle } from '../schema/angle-overlay';
 /**
  * useWheelLayout — ALL wheel layout math, memoized. Ring components only draw.
  *
@@ -72,6 +74,7 @@ function toPlanetRenderPlacement(p: Placement): PlanetRenderPlacement {
 export type PlanetRingLayout = (PlanetLayoutPosition & { placement: PlanetRenderPlacement })[];
 
 export interface WheelLayout {
+  unresolvedAngleCollisions?: string[];
   feasible?: boolean;
   /** Canvas size in points (the canvas is square: size × size). */
   size: number;
@@ -109,14 +112,19 @@ export interface WheelLayout {
 
 export function useWheelLayout(config: ChartRenderingConfiguration, size: number): WheelLayout {
   return useMemo(() => {
-    const displayScale = DisplayScaleProvider.scale(size);
+    const baseScale = DisplayScaleProvider.scale(size);
+    // A gutter scales the entire wheel's typography and fixed bands together,
+    // rather than squeezing only its auto-sized planet band.
+    const outside = config.angleOverlay?.enabled && config.angleOverlay.labels === 'outside';
+    const displayScale = outside ? baseScale * Math.max(0.5, (size - 96 * baseScale) / size) : baseScale;
 
     const rings = config.rings.map((ring) => ({
       ...ring,
       style: scaleRingStyle(ring.style, displayScale),
       thickness: scaleRingThickness(ring.thickness, displayScale),
     }));
-    const global = scaleGlobalChartVariables(config.globalSettings, displayScale);
+    const scaledGlobal = scaleGlobalChartVariables(config.globalSettings, displayScale);
+    const global = { ...scaledGlobal, margin: Math.max(scaledGlobal.margin, config.angleOverlay?.enabled && config.angleOverlay.labels === 'outside' ? 48 * displayScale : 0) };
     const aspectOverlayStyle = scaleAspectOverlayStyle(config.aspectOverlayStyle, displayScale);
 
     // The Swift signature's legacy ringModules param is unused by the math
@@ -136,7 +144,7 @@ export function useWheelLayout(config: ChartRenderingConfiguration, size: number
       if (!feasible || ring.type.kind !== "planets") return;
       const style =
         ring.style.$type === PLANETS_STYLE_TYPE ? ring.style : PLANETS_RING_STYLE_DEFAULT;
-      const placements = ring.type.placements.map(toPlanetRenderPlacement);
+      const placements = ring.type.placements.filter(p => !config.angleOverlay?.enabled || !isAxisAngle(p.bodyId)).map(toPlanetRenderPlacement);
       // Swift: `Set(placements.compactMap { $0.celestialBody })` — derived
       // from the SAME (already preset-filtered) placement list passed in.
       const visibleBodies = new Set(placements.map((p) => p.body));
@@ -155,6 +163,18 @@ export function useWheelLayout(config: ChartRenderingConfiguration, size: number
       planetLayouts.set(ringIndex, coordinator.calculateLayout() as PlanetRingLayout);
     });
 
+    const markers = fixedAngleMarkers(config, { rings, geometry, coordinates, displayScale });
+    const unresolvedAngleCollisions: string[] = [];
+    if (global.overlapPrevention.enabled && markers.length) {
+      for (const [index, positions] of planetLayouts) {
+        const style = rings[index].style;
+        const padding = ('glyphSize' in style ? style.glyphSize / 2 : 10 * displayScale) + 0.5 * displayScale;
+        const avoided = avoidFixedAngles(positions, fixedAngleObstacles(markers, displayScale), coordinates.center, padding, style.$type === PLANETS_STYLE_TYPE ? style : undefined, markers.map(marker => marker.longitude));
+        planetLayouts.set(index, avoided.positions);
+        unresolvedAngleCollisions.push(...avoided.unresolved);
+      }
+    }
+
     const starLayouts = new Map<number, StarMarker[]>();
     if (feasible) rings.forEach((ring,index) => {
       if (ring.type.kind !== 'fixedStars') return;
@@ -165,6 +185,7 @@ export function useWheelLayout(config: ChartRenderingConfiguration, size: number
       starLayouts.set(index, fixedStarMarkers(ring.type.placements, geometry.midRadiusForRing(index), footprint + 4 * displayScale, ring.id ?? String(index)));
     });
     return {
+      unresolvedAngleCollisions,
       starLayouts,
       feasible,
       size,

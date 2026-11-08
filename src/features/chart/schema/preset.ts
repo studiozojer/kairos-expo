@@ -1,3 +1,4 @@
+import { parseAngleOverlay, type AngleOverlayConfiguration } from './angle-overlay';
 /**
  * Preset — the top-level wire blob — plus the four preset-level sub-blobs
  * that weren't ring-shaped enough for core-types.ts: AspectConfiguration,
@@ -464,6 +465,7 @@ export function serializeChartConfigSlot(c: ChartConfigSlot): unknown {
  * (the shared parser attaches it); the serializer strips it.
  */
 export interface Preset {
+  angleOverlay?: AngleOverlayConfiguration;
   id: string;
   name: string;
   description: string;
@@ -522,6 +524,7 @@ function serializePresetAspectOverlay(s: AspectOverlayStyle): unknown {
 export function parsePreset(v: unknown): Preset {
   const o = obj(v);
   return {
+    ...(o.angleOverlay !== undefined ? { angleOverlay: parseAngleOverlay(o.angleOverlay) } : {}),
     id: str(o.id, PRESET_DEFAULT.id),
     name: str(o.name, PRESET_DEFAULT.name),
     description: str(o.description, PRESET_DEFAULT.description),
@@ -555,6 +558,7 @@ export function serializePreset(p: Preset): unknown {
     dualChart: serializeChartConfigSlot(p.dualChart),
     tripleChart: serializeChartConfigSlot(p.tripleChart),
   };
+  if (p.angleOverlay) out.angleOverlay = { ...p.angleOverlay };
   if (p.sourceTemplateName !== null) out.sourceTemplateName = p.sourceTemplateName;
   if (p.sourceTemplateVersion !== null) out.sourceTemplateVersion = p.sourceTemplateVersion;
   return out;

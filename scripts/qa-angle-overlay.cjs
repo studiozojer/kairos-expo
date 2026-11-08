@@ -1,0 +1,24 @@
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');const fs=require('fs');
+(async()=>{const browser=await chromium.launch({...(process.env.CHROMIUM_EXECUTABLE ? {executablePath:process.env.CHROMIUM_EXECUTABLE} : {})});
+const dir=process.env.KAIROS_EVIDENCE || '/tmp/kairos-angle-evidence';fs.mkdirSync(dir,{recursive:true});
+for(const [name,width,height] of [['desktop',1440,1100],['mobile',390,844]]){
+const page=await browser.newPage({viewport:{width,height},deviceScaleFactor:Number(process.env.KAIROS_DPR || 1)});
+await page.addInitScript(()=>{const NativeDate=Date;window.Date=class extends NativeDate{constructor(...args){super(...(args.length?args:['2026-11-08T20:00:00Z']));}static now(){return new NativeDate('2026-11-08T20:00:00Z').getTime();}}});
+if(process.env.KAIROS_STRESS || process.env.KAIROS_AXIS_STRESS || process.env.KAIROS_ORDER_STRESS) await page.route('**/local/calculate', async route => {
+  const response = await route.fetch(); const chart = await response.json();
+  const asc = Number(process.env.KAIROS_ORDER_ASC || 6.1);
+  const longitudes = process.env.KAIROS_ORDER_STRESS ? {2001:asc,2003:asc+180,8:1.92} : process.env.KAIROS_AXIS_STRESS ? {2001:359,2003:179,8:1} : {2001: 287, 2002: 289, 2003: 107, 2004: 109};
+  for(const node of chart.celestial.nodes) if(longitudes[node.body_id] !== undefined) {
+    node.position.longitude=longitudes[node.body_id];
+    node.sign_placement=process.env.KAIROS_ORDER_STRESS ? ({2001:'Aries',2003:'Libra',8:'Aries'}[node.body_id]) : process.env.KAIROS_AXIS_STRESS ? ({2001:'Pisces',2003:'Virgo',8:'Aries'}[node.body_id]) : (node.position.longitude>180?'Capricorn':'Cancer');
+    if(process.env.KAIROS_AXIS_STRESS || process.env.KAIROS_ORDER_STRESS) node.house_placement=null;
+  }
+  await route.fulfill({response,json:chart});
+});
+await page.goto(process.env.KAIROS_URL || 'http://127.0.0.1:8765');await page.locator('canvas').waitFor();
+if(process.env.KAIROS_DARK) await page.getByLabel('Appearance').selectOption('dark');
+if(await page.getByLabel('Annotations',{exact:true}).count() || await page.getByLabel('Angles',{exact:true}).count()) throw Error('Evaluation selectors must not be exposed');
+if(process.env.KAIROS_STYLE) await page.getByLabel('Wheel style').selectOption(process.env.KAIROS_STYLE);
+if(await page.locator('[role=alert]').count()) throw Error('Chart failed');await page.waitForTimeout(1000);
+await page.locator('.workspace').screenshot({path:`${dir}/${name}-zodiac.png`});
+await page.close();}await browser.close()})();

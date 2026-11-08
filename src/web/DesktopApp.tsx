@@ -67,8 +67,8 @@ function DesktopCharts() {
 
   const config = useMemo(() => {
     if (!chart) return null;
-    const display = bundledPreset(preset)!.preset;
-    return buildConfiguration(chart, { ...display, aspects: { ...display.aspects, showPatterns: false } }, 'ascendant');
+    const source = bundledPreset(preset)!.preset;
+    return buildConfiguration(chart, { ...source, angleOverlay: { enabled: true, labels: 'zodiac' }, aspects: { ...source.aspects, showPatterns: false } }, 'ascendant');
   }, [chart, preset]);
   const filtered = useMemo(() => charts.filter(item => `${item.name} ${item.settings.location.name}`.toLocaleLowerCase().includes(search.toLocaleLowerCase())), [charts, search]);
   const style = {
