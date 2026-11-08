@@ -117,14 +117,15 @@ export function useWheelLayout(config: ChartRenderingConfiguration, size: number
       style: scaleRingStyle(ring.style, displayScale),
       thickness: scaleRingThickness(ring.thickness, displayScale),
     }));
-    const global = scaleGlobalChartVariables(config.globalSettings, displayScale);
+    const scaledGlobal = scaleGlobalChartVariables(config.globalSettings, displayScale);
+    const global = { ...scaledGlobal, margin: Math.max(scaledGlobal.margin, config.angleOverlay?.enabled && config.angleOverlay.labels === 'outside' ? 48 * displayScale : 0) };
     const aspectOverlayStyle = scaleAspectOverlayStyle(config.aspectOverlayStyle, displayScale);
 
     // The Swift signature's legacy ringModules param is unused by the math
     // (RingGeometryBuilder.swift) — pass [].
     const ringThicknesses = RingGeometryBuilder.calculateRingThicknesses(size, rings, [], global);
 
-    const outerRadius = size / 2 - Math.max(global.margin, config.angleOverlay?.enabled && config.angleOverlay.labels === 'outside' ? 45 * displayScale : 0);
+    const outerRadius = size / 2 - global.margin;
     const geometry = new RingGeometry(outerRadius, ringThicknesses, global.ringGap);
     const coordinates = new ChartCoordinateSystem(
       { x: size / 2, y: size / 2 },
