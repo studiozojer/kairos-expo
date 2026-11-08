@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Group, Path, Skia } from '@shopify/react-native-skia';
 import { useChartPaintTheme } from './colors';
-import { Glyph } from './Glyph';
+import { AngleGlyph } from './AngleGlyph';
 import type { GlyphName } from './glyph-map.gen';
 import { fixedAngleMarkers } from '../geometry/fixedAngles';
 import type { ChartRenderingConfiguration } from '../config/ChartRenderingConfiguration';
@@ -19,7 +19,7 @@ export function AngleOverlay({ config, layout }: { config: ChartRenderingConfigu
     path.moveTo(from.x, from.y); path.lineTo(to.x, to.y);
     return <Group key={label.id}>
       <Path path={path.build()} color={theme.color.icDisabled} style="stroke" strokeWidth={2 * scale} />
-      <Glyph name={label.glyph} size={18 * scale} x={label.center.x} y={label.center.y} color={theme.color.txPrimary} />
+      <AngleGlyph name={label.glyph} size={18 * scale} x={label.center.x} y={label.center.y} color={theme.color.txPrimary} />
     </Group>;
   })}</Group>;
 }

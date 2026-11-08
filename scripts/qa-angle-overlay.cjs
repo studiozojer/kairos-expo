@@ -2,7 +2,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');const fs
 (async()=>{const browser=await chromium.launch({...(process.env.CHROMIUM_EXECUTABLE ? {executablePath:process.env.CHROMIUM_EXECUTABLE} : {})});
 const dir=process.env.KAIROS_EVIDENCE || '/tmp/kairos-angle-evidence';fs.mkdirSync(dir,{recursive:true});
 for(const [name,width,height] of [['desktop',1440,1100],['mobile',390,844]]){
-const page=await browser.newPage({viewport:{width,height}});
+const page=await browser.newPage({viewport:{width,height},deviceScaleFactor:Number(process.env.KAIROS_DPR || 1)});
 await page.addInitScript(()=>{const NativeDate=Date;window.Date=class extends NativeDate{constructor(...args){super(...(args.length?args:['2026-11-08T20:00:00Z']));}static now(){return new NativeDate('2026-11-08T20:00:00Z').getTime();}}});
 if(process.env.KAIROS_STRESS) await page.route('**/local/calculate', async route => {
   const response = await route.fetch(); const chart = await response.json();
