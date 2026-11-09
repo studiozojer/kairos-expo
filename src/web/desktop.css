@@ -28,8 +28,6 @@ html, body, #root { height: 100%; margin: 0; }
 .button-link { display: block; text-decoration: none; text-align: center; margin-bottom: 12px; }
 .button-link[aria-disabled=true] { opacity: .5; pointer-events: none; }
 .account form button { width: 100%; }
-.import-link { display: block; color: var(--muted); cursor: pointer; margin-top: 16px; text-decoration: underline; }
-.import-link input { display: none; }
 .workspace { flex: 1; min-width: 0; overflow: auto; padding: 36px 40px; background: var(--bg); }
 .workspace-header { display: flex; align-items: start; justify-content: space-between; gap: 24px; max-width: 1100px; margin: 0 auto; }
 .eyebrow { margin-bottom: 4px; }
@@ -41,7 +39,6 @@ h1 { font: 30px/1.3 ABCWhyteInktrap-Regular, system-ui; margin: 0; }
 .desktop select { font-size: 13px; min-width: 100px; }
 .chart-stage { display: flex; justify-content: center; align-items: center; width: 100%; max-width: 1100px; min-height: 400px; margin: 24px auto 0; }
 .chart-message { padding: 80px 24px; color: var(--muted); text-align: center; }
-.notice { padding: 12px 16px; margin: 16px auto 0; border: 1px solid var(--line); border-radius: 6px; max-width: 1100px; font-size: 13px; }
 .error { border-color: var(--accent); }
 @media (max-width: 900px) { .library { width: 260px; flex-basis: 260px; } .workspace { padding: 24px 16px; } .workspace-header { flex-direction: column; } }
 @media (max-width: 600px) { /* Keep one scroll container inside Expo’s fixed-height root. */ .desktop { height: 100vh; height: 100dvh; min-height: 0; overflow-y: auto; flex-shrink: 0; flex-direction: column; } .library { order: 1; width: 100%; flex: none; border-right: 0; border-top: 1px solid var(--line); } .chart-list { max-height: 220px; } .workspace { flex: none; overflow: visible; } .brand { padding: 16px 24px; } .account { padding: 12px 24px; } .chart-stage { min-height: 260px; } }

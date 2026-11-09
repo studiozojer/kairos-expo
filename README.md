@@ -16,7 +16,7 @@ For charts on this Mac, run `npm run web` and open **http://127.0.0.1:8765**. Th
 
 The local server calls `../kairos-engine/target/debug/libkairos.dylib` and reads the primary checkout's bundled atlas and ephemeris. Build a current library with `cargo build -p kairos-ffi --no-default-features --features database-sqlite,tokio-minimal --locked` in kairos-engine; an old library may return incompatible chart data. Restart the local server after rebuilding the library. `KAIROS_ENGINE_PATH` or `KAIROS_WEB_LIBRARY` can override its location. No Xcode or simulator is needed. Browser-only hosting without this local bridge is not supported by this version.
 
-The browser currently shows “Login coming soon.” Chart JSON arrays or Expo saved-session JSON files can be opened locally; imported libraries stay in browser memory. Calculations send only the requested date, coordinates, and calculation settings to the chart service. Account access is reserved for a later release.
+The browser currently shows “Login coming soon.” The browser shows the live sky; the chart-file import control is hidden. Calculations send only the requested date, coordinates, and calculation settings to the chart service. Account access is reserved for a later release.
 
 `npm run web:build` builds the web assets alone. After building, `python3 scripts/serve-web.py --skip-build` serves them without rebuilding. Stop the process with Ctrl-C.
 
