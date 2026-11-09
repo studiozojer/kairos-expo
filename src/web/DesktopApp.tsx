@@ -6,7 +6,7 @@ import { buildConfiguration } from '../features/chart/config/buildConfiguration'
 import type { ChartCalculationResponse } from '../features/chart/config/engine-types';
 import { calculateChart } from '../features/chart/data/calculateChart';
 import { BUNDLED_PRESET_NAMES, bundledPreset } from '../features/chart/display/presets';
-import { validateDraft, type SavedChart } from '../features/chart/active/model';
+import { type SavedChart } from '../features/chart/active/model';
 import { DEFAULT_SETTINGS } from '../features/chart/settings/chartSettings';
 import { useTheme } from '../theme';
 import { ThemeModeProvider, useThemeMode } from '../theme/theme-context';
@@ -26,13 +26,11 @@ export function DesktopApp() {
 function DesktopCharts() {
   const theme = useTheme();
   const appearance = useThemeMode();
-  const [charts, setCharts] = useState<SavedChart[]>([]);
+  const [charts] = useState<SavedChart[]>([]);
   const [selectedId, setSelectedId] = useState('now');
   const [search, setSearch] = useState('');
   const [preset, setPreset] = useState('classic');
   const [now, setNow] = useState(() => new Date().toISOString());
-  const [status, setStatus] = useState('');
-  const [error, setError] = useState('');
   const wheelBox = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(640);
   const [chart, setChart] = useState<ChartCalculationResponse | null>(null);
@@ -78,21 +76,6 @@ function DesktopCharts() {
     colorScheme: theme.scheme,
   } as React.CSSProperties;
 
-  async function importCharts(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    try {
-      if (file.size > 10 * 1024 * 1024) throw new Error('Choose a chart JSON file smaller than 10 MB.');
-      const value = JSON.parse(await file.text());
-      const incoming: SavedChart[] = Array.isArray(value) ? value : value.saved;
-      if (!Array.isArray(incoming) || incoming.length > 10000) throw new Error('Choose an Expo chart JSON array or saved session.');
-      incoming.forEach(chart => { validateDraft(chart); if (typeof chart.id !== 'string' || !chart.id) throw new Error('A chart has no identity.'); });
-      setCharts(current => [...new Map([...current, ...incoming].map(chart => [chart.id, chart])).values()]);
-      setStatus(`Opened ${incoming.length} local charts.`); setError('');
-    } catch (error) { setError(message(error)); }
-    event.target.value = '';
-  }
-
   return <div className="desktop" style={style}>
     <aside className="library" aria-label="Chart library">
       <header className="brand"><span>Kairōs</span><span className="mono">CHARTS</span></header>
@@ -107,19 +90,16 @@ function DesktopCharts() {
         {filtered.map(item => <button key={item.id} aria-current={selectedId === item.id ? 'true' : undefined} className={`chart-row ${selectedId === item.id ? 'selected' : ''}`} onClick={() => setSelectedId(item.id)}>
           <span>{item.metadata?.favorite ? '☆ ' : ''}{item.name}</span><small>{item.settings.location.name} · {item.datetime.slice(0, 10)}</small>
         </button>)}
-        {!filtered.length && <p className="empty">{search ? 'No matching charts.' : 'Open a chart JSON file to view your charts.'}</p>}
+        {search && !filtered.length && <p className="empty">No matching charts.</p>}
       </nav>
       <footer className="account">
         <p>Login coming soon</p>
-        <label className="import-link">Open chart JSON<input type="file" accept=".json,application/json" onChange={event => void importCharts(event)} /></label>
       </footer>
     </aside>
     <main className="workspace">
       <header className="workspace-header"><div><div className="mono eyebrow">{selected ? 'SAVED CHART' : 'LIVE SKY'}</div><h1>{selected?.name ?? 'The sky now'}</h1><p>{settings.location.name} · {new Intl.DateTimeFormat(undefined, { dateStyle: 'long', timeStyle: 'short', timeZone: settings.location.timezone }).format(new Date(datetime))} <span className="timezone">{settings.location.timezone}</span></p></div>
         <div className="view-controls"><label>Appearance<select aria-label="Appearance" value={appearance?.mode ?? 'auto'} onChange={event => appearance?.setMode(event.target.value as 'auto' | 'dark' | 'light')}><option value="auto">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label><label>Wheel style<select aria-label="Wheel style" value={preset} onChange={event => setPreset(event.target.value)}>{BUNDLED_PRESET_NAMES.map(name => <option key={name} value={name}>{name[0].toUpperCase() + name.slice(1)}</option>)}</select></label></div>
       </header>
-      {status && <div role="status" className="notice">{status}</div>}
-      {error && <div role="alert" className="notice error">{error}</div>}
       <section className="chart-stage" aria-label="Chart wheel" ref={wheelBox}>
         {chartError ? <div role="alert" className="chart-message">{chartError}</div> : config ? <ChartWheel config={config} size={size} /> : <div className="chart-message" role="status">Calculating chart…</div>}
       </section>
